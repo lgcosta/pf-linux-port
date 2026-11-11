@@ -71,13 +71,49 @@ pfk_pkt_reinject(struct pfk_pkt *pk)
 	kfree(pk);
 }
 
+
+/*
+ * Reverse NAT: pf rewrote the destination of an inbound packet (the reply
+ * of a translated flow).  OpenBSD re-routes such a packet in ip_input()
+ * (PF_TAG_REROUTE); Linux has no such layer, so re-route it here and push
+ * it out through the new egress device.
+ */
+static void
+pfk_reroute(struct sk_buff *skb)
+{
+	struct flowi4	 fl4 = { };
+	struct rtable	*rt;
+	struct iphdr	*iph = ip_hdr(skb);
+
+	fl4.daddr = iph->daddr;
+	fl4.saddr = iph->saddr;
+	fl4.flowi4_oif = 0;
+	fl4.flowi4_mark = 0;
+	fl4.flowi4_scope = RT_SCOPE_UNIVERSE;
+
+	rt = ip_route_output_key(&init_net, &fl4);
+	if (IS_ERR(rt) || rt == NULL) {
+		kfree_skb(skb);
+		return;
+	}
+	skb_dst_set(skb, &rt->dst);
+	skb->dev = rt->dst.dev;
+	skb_reset_network_header(skb);
+	rt->dst.output(&init_net, skb->sk, skb);
+}
+
 static void
 pfk_pkt_work(struct work_struct *w)
 {
 	struct pfk_pkt *pk = container_of(w, struct pfk_pkt, work);
 	struct mbuf *m, *m0;
 	struct sk_buff *orig;
+	__be32 orig_dst = 0;
 	int action;
+
+	if (pk->af == AF_INET && pk->dir == PF_IN &&
+	    pskb_may_pull(pk->skb, sizeof(struct iphdr)))
+		orig_dst = ip_hdr(pk->skb)->daddr;
 
 	m = pfk_m_wrap_skb(pk->skb, pk->af);
 	if (!m) {
@@ -98,6 +134,16 @@ pfk_pkt_work(struct work_struct *w)
 		/* same buffer, possibly rewritten in place: our wrapper
 		 * held one extra skb reference — release it */
 		m_freem(m);
+		if (action == PF_PASS && orig_dst != 0 &&
+		    pk->af == AF_INET && pk->dir == PF_IN &&
+		    pskb_may_pull(pk->skb, sizeof(struct iphdr)) &&
+		    ip_hdr(pk->skb)->daddr != orig_dst) {
+			/* pf translated the destination (reverse NAT):
+			 * re-route instead of delivering locally */
+			pfk_reroute(pk->skb);
+			kfree(pk);
+			return;
+		}
 		if (action == PF_PASS) {
 			pfk_pkt_reinject(pk);
 			return;

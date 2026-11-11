@@ -17,8 +17,11 @@ EGRESS_IP=$(pf0 "ip -4 addr show $EGRESS_DEV | grep -o 'inet [0-9.]*' | head -1 
 pf0 'insmod /opt/pf/pf.ko 2>/dev/null || insmod /tmp/pf.ko; true'
 pf0 '/opt/pf/pfctl -e; /opt/pf/pfctl -f /dev/null' >/dev/null
 
+# OpenBSD expands "(egress)" (an interface *group*) into the addresses of all
+# its members - on a multi-NIC host that is ambiguous, so the gate uses the
+# concrete transit interface (the OpenBSD-recommended form for NAT pools).
 cat > /tmp/g05.conf <<C
-pass out quick on egress from 10.0.1.0/24 to any nat-to (egress)
+pass out quick on egress from 10.0.1.0/24 to any nat-to ($EGRESS_DEV)
 pass in quick on ingress proto icmp keep state
 pass out quick on egress proto icmp keep state
 C
