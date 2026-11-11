@@ -1,0 +1,8 @@
+Linux kernel:     7.3.4  (vermagic recorded at build; see VERSIONS)
+OpenBSD base:     8.0
+Source tarballs (sha256):
+  sys.tar.gz  964b1aed7839b86f4e010a0fdd03dcd409e6f569e69fe85f95e5fceb740c2aaf
+  src.tar.gz  9984c74ff875b5ff041e4676a7f3e4e1ead2cc47a284d705eb9f37cbec4fe795
+Primary mirror:   https://openbsd.c3sl.ufpr.br/pub/OpenBSD/8.0/
+Fallback:         https://cdn.openbsd.org/pub/OpenBSD/8.0/
+Date pinned:      2026-11-11

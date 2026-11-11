@@ -1,0 +1,15 @@
+_vendor/
+out/
+*.o
+*.ko
+*.mod
+*.mod.c
+*.o.d
+*.symvers
+.tmp_versions/
+modules.order
+Module.symvers
+tools/out/
+lab/seeds/
+*.pcap
+*.log
