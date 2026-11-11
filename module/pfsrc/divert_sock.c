@@ -63,6 +63,7 @@ struct pfk_divert_sock {
 	spinlock_t		lock;
 	u16			port;
 	u32			qlen;
+	int			last_ifindex;	/* device of last queued packet */
 	wait_queue_head_t	wq;
 	u32			qspace;
 	struct sock		*sk;
@@ -146,6 +147,7 @@ pfk_divert_queue(struct sk_buff *skb, int dir, int type, u16 port)
 	list_add_tail(&dp->node, &ds->q);
 	ds->qlen++;
 	ds->stats.divs_ipackets++;
+	ds->last_ifindex = dp->ifindex;
 	spin_unlock(&ds->lock);
 	spin_unlock_irqrestore(&pfk_divert_lock, flags);
 
@@ -235,7 +237,9 @@ pfk_divert_bind(struct socket *sock, struct sockaddr_unsized *uaddr,
 	if (addr_len < (int)sizeof(struct sockaddr_in))
 		return -EINVAL;
 
-	ds->port = ntohs(((struct sockaddr_in *)uaddr)->sin_port);
+	/* BSD divsock stores the port in network order (compared against
+	 * inp_lport / pf_divert.port as-is). */
+	ds->port = ((struct sockaddr_in *)uaddr)->sin_port;
 	if (ds->port == 0)
 		return -EADDRNOTAVAIL;	/* divert port 0 not allowed */
 
@@ -356,6 +360,8 @@ pfk_divert_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 		return -EFAULT;
 	}
 	skb->protocol = htons(ETH_P_IP);
+	if (ifindex <= 0)
+		ifindex = ds->last_ifindex;	/* same path the packet came in */
 
 	if (type == PF_DIVERT_TO) {
 		/* deliver locally as if arrived on ifindex (default: last
@@ -364,10 +370,31 @@ pfk_divert_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 			dev_get_by_index(&init_net, ifindex) : NULL;
 
 		if (dev) {
+			struct ethhdr *eh;
+
 			skb->dev = dev;
 			dev_put(dev);
+			skb->mark |= PFK_SKIP_PF;	/* avoid divert loop */
+			/*
+			 * The receive path of an Ethernet device expects an
+			 * L2 header: synthesise one (the packet keeps its
+			 * original addresses; the stack only needs the
+			 * ethertype to demultiplex).
+			 */
+			eh = skb_push(skb, ETH_HLEN);
+			if (!eh) {
+				kfree_skb(skb);
+				return -ENOMEM;
+			}
+			memset(eh, 0, ETH_HLEN);
+			memcpy(eh->h_dest, dev->dev_addr, ETH_ALEN);
+			memcpy(eh->h_source, dev->dev_addr, ETH_ALEN);
+			eh->h_proto = htons(ETH_P_IP);
+			skb_reset_mac_header(skb);
+			skb->protocol = htons(ETH_P_IP);
+			skb_pull(skb, ETH_HLEN);	/* like eth_type_trans() */
+			/* data now points at the IP header again */
 			skb_reset_network_header(skb);
-			/* netif_rx wants data at L3 */
 			netif_rx(skb);
 			return (int)len;
 		}

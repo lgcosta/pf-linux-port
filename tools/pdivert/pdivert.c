@@ -97,8 +97,24 @@ main(int argc, char **argv)
 			fprintf(stderr, "pdivert: got %zd bytes %s -> %s\n",
 			    n, src, dst);
 		}
-		if (flip && n > 0)
+		if (flip && n > 0) {
 			buf[n - 1] ^= 0xff;
+			/* fix ICMP checksum after payload mutation */
+			if (n >= 28) {
+				unsigned short *icmp = (unsigned short *)(buf + 20);
+				unsigned int sum = 0;
+				int len = n - 20;
+
+				icmp[1] = 0;	/* checksum field: exclude */
+				for (int i = 0; i < len / 2; i++)
+					sum += ntohs(icmp[i]);
+				if (len & 1)
+					sum += (unsigned char)buf[20 + len - 1] << 8;
+				sum = (sum >> 16) + (sum & 0xffff);
+				sum += (sum >> 16);
+				icmp[1] = htons((unsigned short)(~sum));
+			}
+		}
 		if (send(fd, buf, (size_t)n, 0) == -1)
 			perror("send");
 	}

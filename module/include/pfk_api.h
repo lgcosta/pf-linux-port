@@ -7,6 +7,8 @@
 long pfk_ioctl(struct file *f, unsigned int cmd, unsigned long addr);
 int  pfk_enable(int on);
 void pfk_status(struct pf_status *s);
+#define PFK_SKIP_PF	0x50460040u	/* skb->mark: reinjected, bypass pf */
+
 int  pfk_hooks_register(void);
 void pfk_hooks_unregister(void);
 /* AF_DIVERT family (module-internal socket protocol, PF_DIVERT=32) */

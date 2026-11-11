@@ -2275,13 +2275,11 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 			error = ENOMEM;
 			goto fail;
 		}
-
 		if ((error = pf_rule_copyin(&pr->rule, rule))) {
 			pf_rule_free(rule);
 			rule = NULL;
 			goto fail;
 		}
-
 		if (pr->rule.return_icmp >> 8 > ICMP_MAXTYPE) {
 			error = EINVAL;
 			pf_rule_free(rule);

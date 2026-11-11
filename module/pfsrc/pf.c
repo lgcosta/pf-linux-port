@@ -8283,6 +8283,10 @@ pf_test(sa_family_t af, int fwdir, struct pfk_ifnet *ifp, struct mbuf **m0)
 
 	if (!pf_status.running)
 		return (PF_PASS);
+	if (m0 && *m0 && (*m0)->m_pkthdr.len >= 20 &&
+	    ((*m0)->m_data[9] == IPPROTO_ICMP))
+		pr_info_ratelimited("pfk: T1 enter dir=%d ifp=%px kif=%px\n",
+		    fwdir, ifp, ifp ? ifp->if_pf_kif : NULL);
 
 #if NCARP > 0
 	if (ifp->if_type == IFT_CARP) {
@@ -8639,18 +8643,18 @@ done:
 	if (pd.destchg && pd.dir == PF_OUT)
 		pd.m->m_pkthdr.pf.flags |= PF_TAG_REROUTE;
 
+	/*
+	 * PFLINUX: OpenBSD tags the mbuf here (PACKET_TAG_PF_DIVERT) and
+	 * netinet/ip_input.c diverts it right after pf_test().  This port has
+	 * no ip_input layer to hook; the verdict is mbuf-exclusive at this
+	 * point, so hand the packet to the divert socket immediately -
+	 * same observable semantics, no tag round-trip.
+	 */
 	if (pd.dir == PF_IN && action == PF_PASS &&
 	    (r->divert.type == PF_DIVERT_TO ||
 	    r->divert.type == PF_DIVERT_REPLY)) {
-		struct pf_divert *divert;
-
-		if ((divert = pf_get_divert(pd.m))) {
-			pd.m->m_pkthdr.pf.flags |= PF_TAG_DIVERTED;
-			divert->addr = r->divert.addr;
-			divert->port = r->divert.port;
-			divert->rdomain = pd.rdomain;
-			divert->type = r->divert.type;
-		}
+		divert_packet(pd.m, pd.dir, r->divert.port);
+		pd.m = NULL;
 	}
 
 	if (action == PF_PASS && r->divert.type == PF_DIVERT_PACKET)
