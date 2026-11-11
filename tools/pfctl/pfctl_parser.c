@@ -1562,6 +1562,84 @@ ifa_exists(const char *ifa_name)
 	return (NULL);
 }
 
+
+/*
+ * PFLINUX: interface group emulation.
+ *
+ * OpenBSD creates the "ingress" and "egress" interface groups (ifgroups)
+ * and pfctl expands "(egress)" in a pool into the addresses of the group
+ * members via the SIOCGIFGMEMB socket ioctl.  Linux has neither ifgroups
+ * nor that ioctl, so resolve the two groups locally:
+ *
+ *   egress  -> the interface of the default route (the same interface the
+ *              kernel module marks as the pf "egress" interface)
+ *   ingress -> every non-loopback interface
+ */
+static struct node_host *
+ifa_group_members(const char *group, int flags)
+{
+	struct node_host	*n, *h = NULL, *c;
+	struct sockaddr_in	 sin;
+	socklen_t		 slen = sizeof(sin);
+	int			 s;
+
+	if (iftab == NULL)
+		ifa_load();
+
+	if (!strcmp(group, "egress")) {
+		/* source address of the default route */
+		memset(&sin, 0, sizeof(sin));
+		sin.sin_family = AF_INET;
+		sin.sin_port = htons(9);
+		sin.sin_addr.s_addr = htonl(0x01010101);	/* discard route */
+		if ((s = socket(AF_INET, SOCK_DGRAM, 0)) != -1) {
+			if (connect(s, (struct sockaddr *)&sin,
+			    sizeof(sin)) == 0 &&
+			    getsockname(s, (struct sockaddr *)&sin, &slen) == 0) {
+				close(s);
+				for (n = iftab; n; n = n->next) {
+					if (n->af != AF_INET)
+						continue;
+					if (n->addr.v.a.addr.v4.s_addr !=
+					    sin.sin_addr.s_addr)
+						continue;
+					if ((c = calloc(1, sizeof(*c))) == NULL)
+						err(1, "calloc");
+					*c = *n;
+					c->next = NULL;
+					c->tail = c;
+					return (c);
+				}
+				return (NULL);
+			}
+			close(s);
+		}
+		return (NULL);
+	}
+
+	/* "ingress" and any other group: every non-loopback interface */
+	for (n = iftab; n; n = n->next) {
+		if (n->af == AF_LINK)
+			continue;
+		if (n->ifa_flags & IFF_LOOPBACK)
+			continue;
+		if ((flags & PFI_AFLAG_BROADCAST) && n->af != AF_INET)
+			continue;
+		if ((c = calloc(1, sizeof(*c))) == NULL)
+			err(1, "calloc");
+		*c = *n;
+		c->next = NULL;
+		c->tail = c;
+		if (h == NULL)
+			h = c;
+		else {
+			h->tail->next = c;
+			h->tail = c->tail;
+		}
+	}
+	return (h);
+}
+
 struct node_host *
 ifa_grouplookup(const char *ifa_name, int flags)
 {
@@ -1576,6 +1654,10 @@ ifa_grouplookup(const char *ifa_name, int flags)
 	strlcpy(ifgr.ifgr_name, ifa_name, sizeof(ifgr.ifgr_name));
 	if (ioctl(s, SIOCGIFGMEMB, (caddr_t)&ifgr) == -1) {
 		close(s);
+		/* PFLINUX: interface group emulation (see above) */
+		if (!strcmp(ifa_name, "ingress") ||
+		    !strcmp(ifa_name, "egress"))
+			return (ifa_group_members(ifa_name, flags));
 		return (NULL);
 	}
 

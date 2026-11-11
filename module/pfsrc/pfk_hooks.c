@@ -35,8 +35,8 @@ struct pfk_pkt {
 	int			dir;
 };
 
-#define PFK_DONE_IN	0x50460010u	/* skb->mark bit: PF_IN pass completed */
-#define PFK_DONE_OUT	0x50460020u	/* skb->mark bit: PF_OUT pass completed */
+#define PFK_DONE_IN	0x00000001u	/* skb->mark bit: PF_IN pass completed */
+#define PFK_DONE_OUT	0x00000002u	/* skb->mark bit: PF_OUT pass completed */
 
 static void
 pfk_pkt_reinject(struct pfk_pkt *pk)
