@@ -140,6 +140,20 @@ pfk_pkt_work(struct work_struct *w)
 		orig_src = ip_hdr(pk->skb)->saddr;
 	}
 
+	/*
+	 * pf patches transport checksums incrementally when it rewrites an
+	 * address.  VM-to-VM traffic commonly arrives with an unmaterialized
+	 * checksum (CHECKSUM_PARTIAL carried over from the sender's offload),
+	 * so compute it in software first - otherwise pf's fixup adjusts a
+	 * placeholder and the peer drops the packet.
+	 */
+	if (pk->skb->ip_summed == CHECKSUM_PARTIAL &&
+	    skb_checksum_help(pk->skb)) {
+		kfree_skb(pk->skb);
+		kfree(pk);
+		return;
+	}
+
 	m = pfk_m_wrap_skb(pk->skb, pk->af);
 	if (!m) {
 		pfk_pkt_reinject(pk);	/* like "pf not consulted" */
