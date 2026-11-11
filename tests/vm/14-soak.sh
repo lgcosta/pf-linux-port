@@ -11,8 +11,7 @@ set -uo pipefail; cd "$(dirname "$0")"; . ./lib.sh
 
 FAILED=0
 slab_snapshot() {
-	pf0 'grep -E "^(pf|pfk)[^ ]* " /proc/slabinfo | awk "{print \$1, \$3}"' \
-	    | sort
+	pf0 "grep -E '^(pf|pfk)' /proc/slabinfo | awk '{print \$1, \$3}'" | sort
 }
 
 pf0 'insmod /tmp/pf.ko 2>/dev/null || insmod /opt/pf/pf.ko; true'
@@ -35,7 +34,7 @@ sleep 22
 ST=$(pf0 '/opt/pf/pfctl -s states | wc -l')
 [ "${ST:-0}" -ge 1 ] && ok "states under load ($ST)" || bad "no states under load"
 
-DMESG=$(pf0 'dmesg | grep -cE "BUG:|WARNING:|Oops|general protection"')
+DMESG=$(pf0 "dmesg | grep -cE 'BUG:|WARNING:|Oops|general protection'")
 [ "${DMESG:-1}" = 0 ] && ok "no kernel BUG/WARN/Oops" || bad "dmesg anomalies ($DMESG)"
 
 pf0 '/opt/pf/pfctl -d; /opt/pf/pfctl -f /dev/null' >/dev/null
