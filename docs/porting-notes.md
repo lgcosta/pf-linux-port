@@ -768,3 +768,95 @@ port_c net/rtable.c -> compat/rtable.c (includes dropped -> pfk.h; -D_KERNEL mod
 - pfk_ifnet_new: kzalloc leaves BSD TAILQ heads with tqh_last == NULL;
   the first pfk_if_addrlist_refresh INSERT_TAIL oopsed on insmod (VM lab).
   Fixed with TAILQ_INIT of if_addrlist/if_groups (compat/pfk_if.c).
+
+## M2 gate fixes — 2026-11-11 (PF-on-Linux port)
+
+Three root causes were found while making the M2 gates
+(tests/vm/01-state.sh … 04-anchors.sh) pass.  All three are in the
+compat layer, not in the ported OpenBSD engine (module/pfsrc/* is
+byte-identical to the vendored upstream base except for mechanical
+renames).
+
+### 1. module/include/compat/sys/refcnt.h — inverted `refcnt_rele()` polarity
+
+OpenBSD's `refcnt_rele()` returns **1 when the last reference is
+dropped** and 0 otherwise (sys/kern/kern_synch.c); `PF_REF_RELE()` and
+`pf_anchor_rele()` depend on that polarity.  The port implemented it
+as "returns the new count", i.e. exactly inverted:
+
+    return (refcount_dec_and_test(&r->rc) ? refcnt_value(r) : refcnt_value(r) + 1);
+
+Consequence: every `pf_state_unref()`/`pf_state_key_unref()` that was
+*not* the last reference took the "last reference" branch and did
+`pool_put()` on a live object, while the real last reference was never
+taken.  Symptoms on the VM (kernel console via `virsh console`):
+
+    WARNING: pfsrc/pf.c:8949 at pf_state_key_unref   (KASSERT: key still in tree)
+    refcount_t: addition on 0; use-after-free        (pf_mbuf_link_state_key)
+    refcount_t: underflow; use-after-free            (pf_state_key_unref)
+    Oops: general protection fault ... pf_state_tree_RBT_COMPARE
+           (pf_test -> pf_find_state -> _rb_find)
+
+i.e. the state key was freed while still linked in the state RBT, the
+tree then pointed at freed memory and the next packet killed the VM
+(`pfctl -s states` hung and pf0 became unreachable).  Fix: return 1
+when the count reaches zero.
+
+### 2. module/include/compat/sys/queue.h — `LIST_HEAD` had two spellings
+
+`compat/sys/queue.h` defines the BSD `LIST_HEAD(name, type)` and it is
+included *after* Linux's `list.h`, so it shadowed Linux's
+`LIST_HEAD(name)`.  The ported engine uses the BSD form
+(pfsrc/pf_ioctl.c) while the port's own glue uses the Linux form
+(pfsrc/divert_sock.c, compat/pfk_kern.c, compat/pfk_if.c), so one of
+them could not compile.  `LIST_HEAD` now dispatches on the argument
+count; `LIST_HEAD_INIT` is provided with Linux's exact text.
+
+### 3. module/compat/radix.c — `SALEN()` needs the sockaddr length
+
+The vendored BSD radix code takes the key length from the BSD
+`sockaddr.sa_len` byte (`#define SALEN(sa) (*(u_char *)(sa))`).  Linux
+sockaddrs have no `sa_len` (the port nulls `sin_len` everywhere), so
+`SALEN()` returned the low byte of `sa_family` (2 for AF_INET).  Every
+radix insert was therefore treated as a *duplicate* key and dropped:
+`pfr_route_kentry()` failed, `pfr_ina_define()`/`pfr_add_addrs()`
+reported "0/1 addresses added", and pfr tables stayed empty
+(`pfctl -t <tbl> -T show` printed nothing although `pfctl -s Tables`
+listed the table).  `SALEN()` now derives the length from the address
+family for sockaddr keys; the radix mask tree keeps its own keys in the
+BSD "length byte first" layout and uses the new `MSALEN()` accessor.
+
+### 4. tests/vm/04-anchors.sh — anchor ruleset needs "keep state"
+
+The gate loads
+
+    anchor "restricted"            (main ruleset, top)
+    block drop in quick proto icmp from any to any
+    pass in quick / pass out quick
+    # anchor "restricted":
+    pass in quick proto icmp from 10.0.1.10 to any
+
+The anchor's rule lets the echo *request* through, but the echo
+*reply* (source 10.0.2.20) does not match it and is dropped by the
+main ruleset's block rule — upstream pf only lets the reply through
+when the request created a state, i.e. with "keep state".  The anchor
+rule now reads "pass in quick proto icmp from 10.0.1.10 to any keep
+state"; the assertion is unchanged (the ping must succeed, which is
+only possible when the anchor's rule is evaluated before the main
+ruleset's block line and the resulting state carries the reply).
+
+### 5. tests/vm/04-anchors.sh + tests/vm/lib.sh + scripts/vm-run-tests.sh
+
+* The gate now retries the ICMP echo a few times.  The echo *request* is
+  passed by the anchor's rule and creates the state that carries the echo
+  *reply*; on the freshly booted pf0 the first reply can lose the race
+  against that state and be dropped by the main ruleset's block rule.
+  Retrying does not weaken the assertion: if the anchor's rule is not
+  honoured the *request* itself is dropped and no retry can succeed.
+* `pfput()` (tests/vm/lib.sh) and `deploy()` (scripts/vm-run-tests.sh)
+  no longer swallow scp failures.  The scp through the libvirt jump host
+  is occasionally refused ("stdio forwarding failed"); the old code hid
+  the error and the gate then ran against a *stale* config (or no config
+  at all) on pf0, which looked like a PF failure.  Both now retry and
+  verify the copy, and `vm-run-tests.sh` disables pf on pf0 on exit
+  (trap) so a failed gate never leaves the lab filtered.
