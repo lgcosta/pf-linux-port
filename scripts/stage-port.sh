@@ -74,9 +74,10 @@ port_c() {
 
 PORTED_LIST='net/pf.c net/pf_ioctl.c net/pf_norm.c net/pf_if.c net/pf_lb.c
 net/pf_ruleset.c net/pf_table.c net/pf_osfp.c net/pf_syncookies.c
-net/ifq.c net/hfsc.c net/fq_codel.c net/if_pflog.c netinet/ip_divert.c'
+net/ifq.c net/hfsc.c net/fq_codel.c net/if_pflog.c netinet/ip_divert.c
+crypto/md5.c crypto/sha2.c'
 # NOTE: radix.c/rtable.c (ported by hand in T10 against our cleaned
-# compat/net/radix.h) and siphash/toeplitz/sha2 (own PFLINUX impls) are
+# compat/net/radix.h) and siphash/toeplitz (own PFLINUX impls) are
 # deliberately NOT in the auto-port list.
 
 log() { mkdir -p "$(dirname "$LOG")"; printf '\n%s\n```sh\n%s\n```\n' "## $(date -Is) staging" "$*" >> "$LOG"; }
@@ -98,6 +99,8 @@ case "$cmd" in
 		port_c "$f" "pfsrc/${f##*/}";;
 	      netinet/ip_divert.c)
 		port_c "$f" "pfsrc/ip_divert.c";;
+	      crypto/md5.c|crypto/sha2.c)
+		port_c "$f" "compat/${f##*/}";;
 	    esac
 	  done
 	  ;;

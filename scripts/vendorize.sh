@@ -10,7 +10,7 @@ SYS_K=(net/pf.c net/pf_ioctl.c net/pf_norm.c net/pf_if.c net/pf_lb.c net/pf_rule
        net/if_pflog.c net/if_pflog.h net/ifq.c net/ifq.h net/hfsc.c net/hfsc.h
        net/fq_codel.c net/fq_codel.h netinet/ip_divert.c netinet/ip_divert.h
        net/radix.c net/radix.h net/rtable.c net/rtable.h net/toeplitz.c net/toeplitz.h
-       crypto/sha2.c crypto/sha2.h crypto/siphash.c crypto/siphash.h
+       crypto/md5.c crypto/md5.h crypto/sha2.c crypto/sha2.h crypto/siphash.c crypto/siphash.h
        sys/tree.h sys/queue.h sys/param.h sys/hash.h sys/_endian.h sys/_lock.h)
 SRC_K=(sbin/pfctl/parse.y sbin/pfctl/pfctl.c sbin/pfctl/pfctl.h sbin/pfctl/pfctl_parser.c
        sbin/pfctl/pfctl_parser.h sbin/pfctl/pfctl_optimize.c sbin/pfctl/pfctl_print.c

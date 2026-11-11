@@ -31,6 +31,7 @@ for a in $VMS; do
   deb_cmd "rm -rf '$SEED_DIR/$name' '$IMG_DIR/$name.qcow2' /tmp/$name.xml"
   log "removed domain+disk+seed: $name"
 done
+deb_cmd "rm -rf $SEED_DIR"
 rm -rf "$LAB_SEEDS"
 
 for n in "$NET_PF_LAN" "$NET_PF_WAN" "$NET_PF_WAN2"; do

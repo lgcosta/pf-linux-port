@@ -103,3 +103,13 @@ port_c net/if_pflog.c -> pfsrc/if_pflog.c.c (includes→pfk.h; struct renames; s
 ```sh
 port_c netinet/ip_divert.c -> pfsrc/ip_divert.c (includes→pfk.h; struct renames; sa_len nulled)
 ```
+
+## 2026-11-11T12:17:54-03:00 staging
+```sh
+port_c crypto/md5.c -> compat/md5.c (includes→pfk.h; struct renames; sa_len nulled)
+```
+
+## 2026-11-11T12:17:54-03:00 staging
+```sh
+port_c crypto/sha2.c -> compat/sha2.c (includes→pfk.h; struct renames; sa_len nulled)
+```

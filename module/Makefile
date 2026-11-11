@@ -7,7 +7,7 @@ ccflags-y := -I$(src)/include -I$(src)/include/compat -DPFLINUX=1 \
 # per plan tasks T7b/T10/T11/T12; keep list explicit (no wildcards).
 pf-objs := pfsrc/pfk_mod.o pfsrc/pfk_hooks.o \
            compat/pfk_mbuf.o compat/pfk_kern.o compat/pfk_if.o compat/pfk_xmit.o \
-           compat/siphash.o compat/toeplitz.o
+           compat/siphash.o compat/toeplitz.o compat/md5.o compat/sha2.o
 # staged BSD sources (uncomment as ported):
 # pf-objs += compat/sha2.o compat/sha1.o compat/siphash.o compat/toeplitz.o
 # pf-objs += compat/radix.o compat/rtable.o

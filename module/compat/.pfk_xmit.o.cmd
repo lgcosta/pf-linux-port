@@ -1801,6 +1801,7 @@ deps_compat/pfk_xmit.o := \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/net/netfilter/ipv6/nf_defrag_ipv6.h \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/linux/miscdevice.h \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/uapi/linux/major.h \
+  include/compat/sys/endian.h \
   include/compat/sys/timeout.h \
   include/compat/sys/refcnt.h \
   include/compat/sys/queue.h \
@@ -1812,8 +1813,10 @@ deps_compat/pfk_xmit.o := \
   include/pfk_mbuf.h \
   include/pfk_net.h \
   include/pfk_if.h \
-  include/compat/net/toeplitz.h \
+  include/compat/crypto/sha2.h \
+  include/compat/crypto/md5.h \
   include/compat/crypto/siphash.h \
+  include/compat/net/toeplitz.h \
 
 compat/pfk_xmit.o: $(deps_compat/pfk_xmit.o)
 

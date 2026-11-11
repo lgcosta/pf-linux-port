@@ -155,7 +155,9 @@ struct pfk_rwlock {
 #define PFKIOC_DIR(nr)      (((nr) >> PFKXIOC_DIRSHIFT) & ((1U<<PFKXIOC_DIRBITS)-1))
 
 /* OpenBSD endian names htobe64/htole64/beXXXtoh and ntoh/hton are already
- * provided by linux/byteorder/generic.h — do NOT redefine (Werror). */
+ * provided by linux/byteorder/generic.h — do NOT redefine (Werror).
+ * BSD byte-order names (BYTE_ORDER/LITTLE_ENDIAN) via compat header: */
+#include "compat/sys/endian.h"
 
 /* pfvar.h pulls <net/route.h> → resolves to the kernel's net/route.h;
  * BSD-only bits it expects must be provided here. */
@@ -275,6 +277,7 @@ static inline u_int32_t random(void) { return get_random_u32(); }
 /* copyin/copyout */
 #define copyin(u, k, l)    (copy_from_user((k), (u), (l)) ? EFAULT : 0)
 #define copyout(k, u, l)   (copy_to_user((u), (k), (l)) ? EFAULT : 0)
+#define explicit_bzero(p, l) memzero_explicit((p), (l))
 
 /* assert-ish */
 #define KASSERT(cond) WARN_ON(!(cond))
@@ -323,8 +326,10 @@ int  rw_status(struct rwlock_s *l);
 #include "pfk_if.h"
 
 /* OpenBSD digest + toeplitz helpers (vendored into compat/crypto, compat/net) */
-#include "compat/net/toeplitz.h"
+#include "compat/crypto/sha2.h"
+#include "compat/crypto/md5.h"
 #include "compat/crypto/siphash.h"
+#include "compat/net/toeplitz.h"
 
 /* pf headers resolve via -I module/include */
 #define NPFSYNC 0

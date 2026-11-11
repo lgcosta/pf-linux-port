@@ -1,1 +1,1 @@
-savedcmd_pf.mod := printf '%s\n'   pfsrc/pfk_mod.o pfsrc/pfk_hooks.o compat/pfk_mbuf.o compat/pfk_kern.o compat/pfk_if.o compat/pfk_xmit.o compat/siphash.o compat/toeplitz.o | awk '!x[$$0]++ { print("./"$$0) }' > pf.mod
+savedcmd_pf.mod := printf '%s\n'   pfsrc/pfk_mod.o pfsrc/pfk_hooks.o compat/pfk_mbuf.o compat/pfk_kern.o compat/pfk_if.o compat/pfk_xmit.o compat/siphash.o compat/toeplitz.o compat/md5.o compat/sha2.o | awk '!x[$$0]++ { print("./"$$0) }' > pf.mod

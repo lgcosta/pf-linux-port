@@ -42,10 +42,10 @@ log "staged on deb: $DEPLOY_DIR"
 vm_cmd "$(vm_ip pf0)" 'mkdir -p /opt/pf'
 if deb "command -v rsync" >/dev/null 2>&1 && \
    vm_cmd "$(vm_ip pf0)" 'command -v rsync' >/dev/null 2>&1; then
-  deb_cmd "rsync -a -e 'ssh -i $LAB_KEY_DEB ${SSH_OPTS[*]}' '$DEPLOY_DIR/' root@$(vm_ip pf0):/opt/pf/"
+  deb_cmd "rsync -a -e 'ssh -i $LAB_KEY_DEB $VMSSH_OPTS' '$DEPLOY_DIR/' root@$(vm_ip pf0):/opt/pf/"
 else
   # no rsync in guest: per-file scp
-  deb_cmd "for f in '$DEPLOY_DIR'/*; do scp -i $LAB_KEY_DEB ${SSH_OPTS[*]} -q \"\$f\" root@$(vm_ip pf0):/opt/pf/; done"
+  deb_cmd "for f in '$DEPLOY_DIR'/*; do scp -i $LAB_KEY_DEB $VMSSH_OPTS -q \"\$f\" root@$(vm_ip pf0):/opt/pf/; done"
 fi
 log "pf0:/opt/pf ->"
 vm_cmd "$(vm_ip pf0)" 'ls -l /opt/pf'
