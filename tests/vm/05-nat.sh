@@ -10,7 +10,7 @@ set -uo pipefail; cd "$(dirname "$0")"; . ./lib.sh
 
 FAILED=0
 # pf calls the interface "egress"; the OS names it ethX - resolve both
-EGRESS_DEV=$(pf0 "ip route get 8.8.8.8 | grep -o 'dev [a-z0-9]*' | cut -d' ' -f2")
+EGRESS_DEV=$(pf0 "ip route get $SRV_IP | grep -o 'dev [a-z0-9]*' | cut -d' ' -f2")
 EGRESS_IP=$(pf0 "ip -4 addr show $EGRESS_DEV | grep -o 'inet [0-9.]*' | head -1 | cut -d' ' -f2")
 [ -n "$EGRESS_IP" ] || EGRESS_IP=192.168.122.8
 
@@ -38,6 +38,6 @@ else
 fi
 echo "$TD" | grep -q "$EGRESS_IP" && ok "egress source is $EGRESS_IP" || bad "egress source not seen"
 
-pf0 '/opt/pf/pfctl -ss' | grep -qi 'icmp' && ok "state present" || bad "no state"
+pf0 '/opt/pf/pfctl -ss' | grep -q "$SRV_IP" && ok "state present" || bad "no state"
 pf0 '/opt/pf/pfctl -d' >/dev/null
 finish

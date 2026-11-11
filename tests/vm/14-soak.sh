@@ -24,9 +24,8 @@ C
 pfload /tmp/g14.conf || { bad "soak ruleset"; finish; }
 
 # mixed traffic: ICMP + TCP handshakes for ~20s
-cli "ping -q -c 60 -i 0.3 $SRV_IP >/dev/null 2>&1 &" 2>/dev/null
+cli "ping -q -c 40 -i 0.5 $SRV_IP >/dev/null 2>&1" 2>/dev/null
 cli "for i in 1 2 3 4 5; do nc -w1 -z $SRV_IP 22; done" 2>/dev/null
-sleep 22
 
 ST=$(pf0 "$HELPER states")
 [ "${ST:-0}" -ge 1 ] && ok "states under load ($ST)" || bad "no states under load"

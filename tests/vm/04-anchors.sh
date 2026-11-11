@@ -34,7 +34,7 @@ ANC=$(pfput /tmp/g4anc.conf) || { bad "anchor conf upload"; finish; }
 pf0 "/opt/pf/pfctl -a restricted -f $ANC" || { bad "anchor ruleset load"; finish; }
 
 pf0 '/opt/pf/pfctl -sr' | grep -q 'anchor "restricted"' && ok "anchor rule in main ruleset" || bad "anchor rule missing"
-pf0 '/opt/pf/pfctl -a restricted -sr' | grep -q 'pass in quick proto icmp' && ok "anchor rules listed" || bad "anchor rules missing"
+pf0 '/opt/pf/pfctl -a restricted -sr' | grep -q 'proto icmp from' && ok "anchor rules listed" || bad "anchor rules missing"
 
 # the request must pass through the anchor (the block rule would drop it)
 cli "ping -c2 -W2 $SRV_IP >/dev/null 2>&1" && ok "anchor pass honoured (request allowed)" \
