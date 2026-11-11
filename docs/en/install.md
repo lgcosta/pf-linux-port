@@ -74,3 +74,29 @@ Because the deliverable is an out-of-tree module, "applying the patch set"
 (virtio/EXT4 =y) — no source files are modified unless a future milestone
 adds a documented `patches/kernel/000N-*.patch` (all such patches: one
 section each in docs/en/patches.md with what/why/impact/revert).
+
+## 6. Notes on the steps above (2026-11-11)
+
+- Step **2.3 is a documented no-op today**: the patch set is empty and
+  `scripts/apply-patches.sh` / `scripts/unpatch.sh` / `patches/kernel/series`
+  are not yet in the tree (they land with the first real core patch — see
+  [patches.md](patches.md)). You can safely skip 2.3.
+- Step 2.4 builds `pfctl` and the ABI harness only (`make -C tools` targets:
+  `pfctl abitest abi test clean`). `pdivert` is present as a source file with
+  no Makefile target yet; `pflogd` is not ported.
+- After 2.5, what you can actually *use* is the M2 filter core (pass/block/
+  quick/keep state/tables/anchors); NAT/scrub/queues/divert/pflog are gated
+  by later milestones — see the [feature matrix](feature-matrix.md) and read
+  [pf-guide.md](pf-guide.md) before enabling PF on a path you need.
+
+## 7. Where to go next
+
+| | |
+|---|---|
+| Architecture, one page | [guide.md](guide.md) |
+| Build stages in detail | [build.md](build.md) |
+| VM validation lab | [vm-lab.md](vm-lab.md) |
+| Daily rulesets & warnings | [pf-guide.md](pf-guide.md) |
+| Known divergences | [caveats.md](caveats.md) |
+| Core patch mechanism | [patches.md](patches.md) |
+| Doc index | [README.md](README.md) |

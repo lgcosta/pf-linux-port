@@ -1,0 +1,78 @@
+# Feature matrix
+
+Português: [docs/pt-BR/feature-matrix.md](../pt-BR/feature-matrix.md).
+
+Status vocabulary (used identically in both languages):
+
+- **VERIFIED-in-VM** — passed end-to-end in the libvirt lab (see [vm-lab.md](vm-lab.md)).
+- **M2-in-progress** — implemented; VM gates 01–04 exist but the suite is **not all green yet**; no VERIFIED claim until a clean full run.
+- **COMPILES-untested** — built into `pf.ko`/`pfctl`; no gate has exercised it.
+- **PENDING-Mx** — lands in milestone Mx; today's observable behavior is stated.
+- **OUT-OF-SCOPE** — non-goal by design (spec §3).
+
+As of 2026-11-11; source of per-row evidence: `out/test-logs/`,
+`docs/porting-notes.md`, milestone commits.
+
+## Control plane & tools
+
+| Feature | Upstream syntax | Milestone | Status |
+|---|---|---|---|
+| Module load, `/dev/pf` (0600) | `insmod pf.ko` | M1 | VERIFIED-in-VM |
+| Enable/disable | `pfctl -e`, `pfctl -d` | M1 | VERIFIED-in-VM |
+| Ruleset load | `pfctl -f file` | M2 | VERIFIED-in-VM (loads succeeded in every captured gate run; run status itself is mixed — see [vm-lab.md](vm-lab.md) §6) |
+| Parse-only check | `pfctl -n -f file` | M1 | VERIFIED (offline fixture suite, `make -C tools test`) |
+| Status/counters | `pfctl -s info [-v]` | M1 | VERIFIED-in-VM |
+| Rules listing | `pfctl -s rules [-v]` | M2 | COMPILES-untested |
+| States listing | `pfctl -s states [-v]` | M2 | M2-in-progress — gate 01 shows a listing anomaly (transit ping OK, no icmp state displayed) while state machinery is being fixed |
+| Tables listing/ops | `pfctl -s tables`, `-t t -T show/add/del/kill` | M2 | M2-in-progress (gate 03) |
+| Anchors | `pfctl -a anchor -f file`, `-s Anchors` | M2 | M2-in-progress (gate 04) |
+| Queue listing | `pfctl -s queue -v`, `-s ifq -v` | M5 | PENDING-M5 (parses fine; counters not wired to real back ends yet) |
+| ioctl ABI parity | `make -C tools abi` (abitest tables) | M1 | VERIFIED build-side (userland table); kernel-side diff is an open integrator step (`tools/UPSTREAM.md`) |
+
+## Filtering core
+
+| Feature | Upstream syntax | Milestone | Status |
+|---|---|---|---|
+| `pass`/`match`, quick, on-interface/proto/addr/port | `pass in quick on wan proto tcp from 10/8 to port 80` | M2 | M2-in-progress (data path runs the real `pf_test`; latest partial run: transit ping OK, icmp block OK) |
+| `block drop` | `block drop in quick …` | M2 | M2-in-progress (gate 02a) |
+| `block return` / `return-rst` / `return-rst after quarter` | `block return-rst in quick proto tcp …` | M2 | M2-in-progress (gate 02b) |
+| `keep state` (icmp/tcp/udp), state table, purger | `… keep state` | M2 | M2-in-progress |
+| `set state-policy`, `allow-opts`, etc. | `set …` options | M2 | COMPILES-untested |
+| Syncookies (state overflow path) | `set syncookies always` | M2 | COMPILES-untested |
+| pfr tables (radix/hash) | `table <blk> persist { 1.2.3.4 }`, `-T add …` | M2 | M2-in-progress (gate 03) |
+| Anchors + include + quick precedence | `anchor "x"`, `load anchor …` | M2 | M2-in-progress (gate 04) |
+| IPv6 for all of the above | same syntax, v6 | M2+ | COMPILES-untested (engine is v6-complete by construction; v6 smoke gates planned) |
+| Non-IPv4/IPv6 traffic (ARP…) | — | M2 | PFLINUX by construction: netfilter IPv4/IPv6 hooks only — ARP never enters PF path (no gate yet) |
+
+## NAT / normalization (M3)
+
+| Feature | Upstream syntax | Milestone | Status |
+|---|---|---|---|
+| `nat-to` (port pools, sticky-port, static-port) | `pass out … nat-to (eth1:0)` | M3 | PENDING-M3 (`pf.c`/`pf_lb.c` compiled; wiring + VM gate in M3) |
+| `rdr-to` | `rdr pass on wan proto tcp from any to any port 8080 -> srv port 80` | M3 | PENDING-M3 |
+| `binat-to` | `binat-to …` | M3 | PENDING-M3 |
+| Scrub/normalize: reassembly, `fragment drop-overlap`, `min-ttl`, `max-mss`, `df`/`no-df`, `random-id`, `set reassemble yes` | `match on all scrub (max-mss 1380 …)` | M3 | COMPILES-untested (`pf_norm.c` compiled into pf.ko and reached from `pf_test`; scapy gate 08 pending) |
+| OS fingerprinting in states | `pass … set os A` + `/etc/pf.os` | bonus | COMPILES-untested (`pf_osfp.c` compiled; no fingerprint packaging yet — missing `/etc/pf.os` is tolerated) |
+
+## Routing / divert / queues / logging
+
+| Feature | Upstream syntax | Milestone | Status |
+|---|---|---|---|
+| `route-to` pools (`rr`, `round-robin`, `source-hash`, `hash`), `reply-to`, `dup-to`, `fail-to` | `pass out route-to (GW 10.0.3.2)` | M4 | PENDING-M4 (Linux route/neigh glue `pf_route` not implemented yet) |
+| `divert-to` / `divert` tag | `pass in … divert-to 10.0.99.9 10000`, `divert tag X` | M4 e2e; socket family per code comments M6 | PENDING — today's observable behavior: PF's `PF_DIVERT` verdict calls `divert_packet()`, which **drops the packet and logs a rate-limited `pr_warn`**. The userspace relay `pdivert` exists and expects an in-module `AF_DIVERT` family (`socket(PF_DIVERT=32, SOCK_RAW, IPPROTO_DIVERT=254)`), which is not instantiated yet. **Do not ship rules using divert on a live host.** |
+| Queues, default scheduler (priq) | `queue root on wan`, `pfctl -s queue -v` | M5 | COMPILES-untested — `compat/pfk_ifq.c` implements the ifq API with **priq fallback semantics**; `queue` rules parse and load, but packets are not actually shunted through a classful qdisc until M5 |
+| HFSC | `queue on wan { hfsc … }` | M5 | COMPILES-untested — **priq fallback until M5**; `pfsrc/hfsc.c` staged (real OpenBSD 8.0 code) but **not in the module object list** |
+| FQ-CoDel | `queue on wan { fq_codel … }` | M5 | COMPILES-untested — same as HFSC: staged, not built |
+| `pfq` qdisc (`tc qdisc … root pfq`) | n/a (Linux glue) | M5 | PENDING-M5 (does not exist in the tree yet) |
+| pflog (`log`, `log all`, `block log`, `pfctl -s log`) + `pflogd` pcap (DLT_PFLOG) | `pass out quick log` | M4 | PENDING-M4 — `pflog_packet()` returns success **without logging** (one-time `pr_warn "packet not logged"`); `if_pflog.c` staged, not built; `pflogd` not ported yet |
+
+## Non-goals (explicit)
+
+| Item | Reason |
+|---|---|
+| `pfsync` / CARP failover | non-goal (spec §3) |
+| IPsec / pfkey | non-goal |
+| `ftp-proxy` and userland daemons | non-goal |
+| Per-netns PF instances | faithful port = single global instance on `init_net` |
+| Classic-ALTQ-only schedulers (cbq/wfq/red…) | removed upstream before OpenBSD 8.0 — cannot be ported from the base |
+| Routing labels (`route-label`) | non-goal; ioctl layer rejects labeled rules |

@@ -96,6 +96,8 @@ static struct miscdevice pfk_dev = {
 
 extern void pf_status_init(void);
 extern int pfattach(int);
+extern int pfk_divert_sock_register(void);
+extern void pfk_divert_sock_unregister(void);
 
 static void
 pfk_pfi_event(int added, struct pfk_ifnet *ifp)
@@ -134,15 +136,20 @@ static int __init pfk_init(void)
 	pfattach(0);
 	pfk_if_set_event_cb(pfk_pfi_event);
 	pfk_if_iterate(pfk_pfi_attach_one);
-	err = pfk_hooks_register();
+	err = pfk_divert_sock_register();
 	if (err)
 		goto err_if;
+	err = pfk_hooks_register();
+	if (err)
+		goto err_divert;
 	err = misc_register(&pfk_dev);
 	if (err)
 		goto err_hooks;
 	pr_info("pfk: PF-on-Linux engine loaded (OpenBSD 8.0 base)\n");
 	return 0;
 err_hooks:
+	pfk_divert_sock_unregister();
+err_divert:
 	pfk_hooks_unregister();
 err_if:
 	pfk_if_exit();
@@ -161,6 +168,7 @@ static void __exit pfk_exit(void)
 	 * self-rearms (pf_purge re-arms on every run) and would keep the
 	 * workqueues non-empty forever (observed rmmod hang). */
 	misc_deregister(&pfk_dev);
+	pfk_divert_sock_unregister();
 	pfk_net_lock();
 	pf_status.running = 0;
 	pfk_net_unlock();

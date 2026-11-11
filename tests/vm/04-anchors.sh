@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # M2 gate 4: anchors + quick precedence
 set -uo pipefail; cd "$(dirname "$0")"; . ./lib.sh
-pfensure; pf0 '/opt/pf/pfctl -e; /opt/pf/pfctl -f /dev/null' >/dev/null
+pf0 'insmod /tmp/pf.ko 2>/dev/null || insmod /opt/pf/pf.ko; true'; pf0 '/opt/pf/pfctl -e; /opt/pf/pfctl -f /dev/null' >/dev/null
 cat > /tmp/g4main.conf <<'C'
 anchor "restricted"
 block drop in quick proto icmp from any to any

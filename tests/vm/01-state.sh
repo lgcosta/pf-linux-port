@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # M2 gate 1: stateful transit + state visibility
 set -uo pipefail; cd "$(dirname "$0")"; . ./lib.sh
-pfensure
+pf0 'insmod /tmp/pf.ko 2>/dev/null || insmod /opt/pf/pf.ko; true'
 pf0 '/opt/pf/pfctl -e; /opt/pf/pfctl -f /dev/null; echo READY' | grep -q READY || { bad load; finish; }
 cat > /tmp/g1.conf <<'C'
 pass in quick proto icmp keep state

@@ -1828,6 +1828,7 @@ deps_pfsrc/divert_sock.o := \
   include/compat/sys/rwlock.h \
   include/compat/sys/mutex.h \
   include/compat/sys/pclock.h \
+  include/pfk_api.h \
 
 pfsrc/divert_sock.o: $(deps_pfsrc/divert_sock.o)
 

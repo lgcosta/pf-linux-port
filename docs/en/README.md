@@ -1,0 +1,36 @@
+# PF-on-Linux documentation (English)
+
+Documentação em português: [`docs/pt-BR/README.md`](../pt-BR/README.md).
+
+This is the user documentation set for the port of the **OpenBSD 8.0 PF
+packet filter** to **Linux 7.3.4** — the real PF engine (`pf.c`, `pf_norm.c`,
+`pf_table.c`, `pf_lb.c`, …) running as the out-of-tree module `pf.ko`, driven
+by the real OpenBSD `pfctl` over the `/dev/pf` ioctl ABI.
+
+## Index
+
+| Doc | What it covers |
+|---|---|
+| [guide.md](guide.md) | One-page architecture: components, data path, control plane, milestones |
+| [install.md](install.md) | Apply/build/install recipe (kernel, module, tools) |
+| [build.md](build.md) | Build pipeline in detail: fetch → vendorize → kernel → module → pfctl |
+| [vm-lab.md](vm-lab.md) | The libvirt validation lab: topology, recreate/run, what each gate proves |
+| [feature-matrix.md](feature-matrix.md) | Per-feature status: VERIFIED-in-VM / COMPILES-untested / PENDING-Mx |
+| [pf-guide.md](pf-guide.md) | Daily use: what works today in `/etc/pf.conf`, what to avoid until M3/M4 |
+| [patches.md](patches.md) | Linux core patch set (currently empty) + rules and template for future `000N-*.patch` |
+| [caveats.md](caveats.md) | Known divergences from OpenBSD behavior and current limitations |
+
+## Sources of truth
+
+The docs describe the code as it exists in this tree. When in doubt, the
+authoritative references are:
+
+- `docs/superpowers/specs/2026-11-11-pf-linux-port-design.md` — design
+- `docs/superpowers/plans/2026-11-11-pf-linux-port.md` — milestone plan (tasks T1–T19)
+- `docs/porting-notes.md` — staging log + M1 deviation record (the truth about compat-layer divergences)
+
+Feature-status vocabulary used across these docs:
+
+- **VERIFIED-in-VM** — exercised end-to-end in the libvirt lab (see vm-lab.md).
+- **COMPILES-untested** — the code is built into `pf.ko` but no gate has proven the behavior yet.
+- **PENDING-Mx** — lands (or lands fully) in milestone Mx; current observable behavior is documented.

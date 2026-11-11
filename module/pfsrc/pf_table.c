@@ -360,6 +360,8 @@ pfr_add_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 			else
 				ke->pfrke_fb = PFR_FB_NONE;
 		}
+		pr_info("pfkD: add_addrs ke af=%d p=%p q=%p\n",
+		    ke->pfrke_af, (void *)p, (void *)q);
 		if (p == NULL && q == NULL) {
 			if (pfr_route_kentry(tmpkt, ke)) {
 				/* defer destroy after feedback is processed */
@@ -1931,6 +1933,9 @@ pfr_ina_define(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 	if (error)
 		return (error);
 	rs = pf_find_ruleset(tbl->pfrt_anchor);
+	pr_info("pfkD: ina_define name=%s anchor=%s size=%d flags=%x rs=%p topen=%d tticket=%u ticket=%u\n",
+	    tbl->pfrt_name, tbl->pfrt_anchor, size, flags, (void *)rs,
+	    rs ? rs->topen : -1, rs ? rs->tticket : 0, ticket);
 	if (rs == NULL || !rs->topen || ticket != rs->tticket)
 		return (EBUSY);
 	tbl->pfrt_flags |= PFR_TFLAG_INACTIVE;
@@ -1978,12 +1983,16 @@ _skip:
 			senderr(EFAULT);
 		if (pfr_validate_addr(&ad))
 			senderr(EINVAL);
+		pr_info("pfkD: ina_define addr[%d] af=%d net=%d flags=%llx ifindex=%d\n",
+		    i, ad.pfra_af, ad.pfra_net, (unsigned long long)ad.pfra_flags,
+		    ad.pfra_ifindex);
 		if (pfr_lookup_addr(shadow, &ad, 1) != NULL)
 			continue;
 		p = pfr_create_kentry(&ad);
 		if (p == NULL)
 			senderr(ENOMEM);
 		if (pfr_route_kentry(shadow, p)) {
+			pr_info("pfkD: ina_define route failed\n");
 			pfr_destroy_kentry(p);
 			continue;
 		}
@@ -2000,6 +2009,8 @@ _skip:
 		pfr_insert_ktables(&tableq);
 		shadow->pfrkt_cnt = (flags & PFR_FLAG_ADDRSTOO) ?
 		    xaddr : NO_ADDRESSES;
+		pr_info("pfkD: ina_define done xadd=%d xaddr=%d shadow_cnt=%d\n",
+		    xadd, xaddr, shadow->pfrkt_cnt);
 		kt->pfrkt_shadow = shadow;
 	} else {
 		pfr_clean_node_mask(shadow, &addrq);
@@ -2066,7 +2077,13 @@ pfr_ina_commit(struct pfr_table *trs, u_int32_t ticket, int *nadd,
 		return (EBUSY);
 
 	SLIST_INIT(&workq);
+	pr_info("pfkD: ina_commit name=%s anchor=%s ticket=%u\n",
+	    trs->pfrt_name, trs->pfrt_anchor, ticket);
 	RB_FOREACH(p, pfr_ktablehead, &pfr_ktables) {
+		pr_info("pfkD: ina_commit cand name=%s flags=%x inactive=%d shadow=%p\n",
+		    p->pfrkt_t.pfrt_name, p->pfrkt_flags,
+		    !!(p->pfrkt_flags & PFR_TFLAG_INACTIVE),
+		    (void *)p->pfrkt_shadow);
 		if (!(p->pfrkt_flags & PFR_TFLAG_INACTIVE) ||
 		    pfr_skip_table(trs, p, 0))
 			continue;
@@ -2097,6 +2114,10 @@ pfr_commit_ktable(struct pfr_ktable *kt, time_t tzero)
 {
 	struct pfr_ktable	*shadow = kt->pfrkt_shadow;
 	int			 nflags;
+
+	pr_info("pfkD: commit_ktable name=%s flags=%x shadow_cnt=%d\n",
+	    kt->pfrkt_t.pfrt_name, kt->pfrkt_flags,
+	    shadow ? shadow->pfrkt_cnt : -1);
 
 	if (shadow->pfrkt_cnt == NO_ADDRESSES) {
 		if (!(kt->pfrkt_flags & PFR_TFLAG_ACTIVE))

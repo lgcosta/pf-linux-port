@@ -9,5 +9,11 @@ int  pfk_enable(int on);
 void pfk_status(struct pf_status *s);
 int  pfk_hooks_register(void);
 void pfk_hooks_unregister(void);
+/* AF_DIVERT family (module-internal socket protocol, PF_DIVERT=32) */
+int  pfk_divert_sock_register(void);
+void pfk_divert_sock_unregister(void);
+void divert_packet(struct mbuf *, int, u_int16_t);
+void divert6_packet(struct mbuf *, int, u_int16_t);
+void pfk_hooks_unregister(void);
 
 #endif

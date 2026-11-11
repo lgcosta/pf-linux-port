@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # M2 gate 3: pfr tables via pfctl -t
 set -uo pipefail; cd "$(dirname "$0")"; . ./lib.sh
-pfensure; pf0 '/opt/pf/pfctl -e' >/dev/null
+pf0 'insmod /tmp/pf.ko 2>/dev/null || insmod /opt/pf/pf.ko; true'; pf0 '/opt/pf/pfctl -e' >/dev/null
 cat > /tmp/g3.conf <<'C'
 table <blk> { 10.0.1.10 }
 block in quick proto icmp from <blk> to any

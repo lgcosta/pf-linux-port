@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # M2 gate 2: block drop + block return-rst
 set -uo pipefail; cd "$(dirname "$0")"; . ./lib.sh
-pfensure; pf0 '/opt/pf/pfctl -e' >/dev/null
+pf0 'insmod /tmp/pf.ko 2>/dev/null || insmod /opt/pf/pf.ko; true'; pf0 '/opt/pf/pfctl -e' >/dev/null
 cat > /tmp/g2a.conf <<'C'
 block drop in quick proto icmp from any to any
 pass out quick

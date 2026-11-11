@@ -23,10 +23,14 @@ static inline bool refcnt_take_not0(struct refcnt *r)
 {
 	return refcount_inc_not_zero(&r->rc);
 }
+/*
+ * OpenBSD semantics (sys/kern/kern_synch.c): refcnt_rele() returns 1 when
+ * the last reference is dropped and 0 otherwise.  PF_REF_RELE() and the
+ * pf_ruleset anchor release rely on that polarity.
+ */
 static inline unsigned int refcnt_rele(struct refcnt *r)
 {
-	return (unsigned int)refcount_dec_and_test(&r->rc) ?
-		refcnt_value(r) : refcnt_value(r) + 1;
+	return (unsigned int)refcount_dec_and_test(&r->rc) ? 1 : 0;
 }
 static inline unsigned int refcnt_rele_wake(struct refcnt *r)
 {
