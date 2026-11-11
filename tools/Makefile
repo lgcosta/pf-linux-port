@@ -57,7 +57,7 @@ GOODTESTS := tests/01_basic.conf tests/02_translations.conf \
 	tests/03_queues_scrub.conf
 
 .PHONY: all pfctl abitest test abi clean
-all: pfctl abitest
+all: pfctl abitest pdivert
 
 pfctl: $(OUT)/pfctl
 
@@ -178,3 +178,15 @@ test: $(OUT)/pfctl
 clean:
 	rm -rf $(OUT)
 	rm -f $(GENHDRS)
+
+# ---------------------------------------------------------------------------
+# pdivert — divert(4) relay for the in-module AF_DIVERT family (self-contained)
+PD := $(OUT)/pdivert
+
+pdivert: $(PD)
+
+$(PD): pdivert/pdivert.c
+	@mkdir -p $(OUT)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ pdivert/pdivert.c
+
+clean: 
