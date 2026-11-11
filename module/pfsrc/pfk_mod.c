@@ -54,6 +54,9 @@ pfk_ioctl_io(struct file *filp, unsigned int cmd, unsigned long arg)
 	p.p_ucred = &cred;
 	p.p_p = &pp;
 
+	if (cmd == DIOCADDRULE)
+		pr_info("pfkE: ioctl sz=%d kern_size=%d rule=%d\n", (int)sz,
+		    (int)sizeof(struct pfioc_rule), (int)sizeof(struct pf_rule));
 	kdata = kzalloc(sz ? sz : sizeof(long), GFP_KERNEL);
 	if (!kdata)
 		return -ENOMEM;
@@ -127,6 +130,7 @@ static int __init pfk_init(void)
 	 * No NET_LOCK here: pfattach/pfi take what locks they need (PF_LOCK),
 	 * and control ioctls serialize with NET_LOCK themselves. */
 	pf_status_init();
+	stoeplitz_init();	/* pf.c flow-id hashing cache (was never called) */
 	pfattach(0);
 	pfk_if_set_event_cb(pfk_pfi_event);
 	pfk_if_iterate(pfk_pfi_attach_one);
@@ -149,9 +153,21 @@ err_mbuf:
 	return err;
 }
 
+extern struct timeout pf_purge_to, pf_purge_states_to;
+
 static void __exit pfk_exit(void)
 {
+	/* stop sources before flushing workqueues: the purge timer
+	 * self-rearms (pf_purge re-arms on every run) and would keep the
+	 * workqueues non-empty forever (observed rmmod hang). */
 	misc_deregister(&pfk_dev);
+	pfk_net_lock();
+	pf_status.running = 0;
+	pfk_net_unlock();
+	timeout_del(&pf_purge_to);
+	timeout_del(&pf_purge_states_to);
+	timeout_del_sync(&pf_purge_to);
+	timeout_del_sync(&pf_purge_states_to);
 	pfk_hooks_unregister();
 	pfk_if_exit();
 	pfk_pcb_exit();

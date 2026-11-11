@@ -33,18 +33,25 @@ struct pfk_pkt {
 	int			dir;
 };
 
-#define PFK_MARK_PASSED	0x50460001u	/* skb->mark: survived pf_test already */
+#define PFK_DONE_IN	0x50460010u	/* skb->mark bit: PF_IN pass completed */
+#define PFK_DONE_OUT	0x50460020u	/* skb->mark bit: PF_OUT pass completed */
 
 static void
 pfk_pkt_reinject(struct pfk_pkt *pk)
 {
 	struct sk_buff *skb = pk->skb;
 
-	skb->mark = PFK_MARK_PASSED;
+	pk->skb->mark |= (pk->dir == PF_IN) ? PFK_DONE_IN : PFK_DONE_OUT;
 	if (pk->dir == PF_IN) {
-		if (skb->dev)
+		/* netif_rx expects data at the network header (eth_type_trans
+		 * already done by the driver) — exactly the state the PRE
+		 * hook sees.  protocol/mac_header are preserved. */
+		if (skb->dev) {
+			skb_reset_network_header(skb);
+			skb->protocol = htons(pk->af == AF_INET ?
+				ETH_P_IP : ETH_P_IPV6);
 			netif_rx(skb);
-		else {
+		} else {
 			kfree_skb(skb);
 		}
 	} else {
@@ -123,10 +130,8 @@ pfk_enqueue_verdict(int af, struct sk_buff *skb,
 {
 	struct pfk_pkt *pk;
 	struct pfk_ifnet *ifp;
+	unsigned int pk_dir_done __maybe_unused;
 	int dir;
-
-	if (skb->mark == PFK_MARK_PASSED)
-		return NF_ACCEPT;
 
 	switch (st->hook) {
 	case NF_INET_PRE_ROUTING:
@@ -139,6 +144,8 @@ pfk_enqueue_verdict(int af, struct sk_buff *skb,
 	default:
 		return NF_ACCEPT;	/* LOCAL_IN/FORWARD */
 	}
+	if (skb->mark & (dir == PF_IN ? PFK_DONE_IN : PFK_DONE_OUT))
+		return NF_ACCEPT;
 
 	if (af == AF_INET && !pskb_may_pull(skb, sizeof(struct pf_ip)))
 		return NF_ACCEPT;

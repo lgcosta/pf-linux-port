@@ -2266,35 +2266,40 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 		    sizeof(pr->anchor) ||
 		    strnlen(pr->anchor_call, sizeof(pr->anchor_call)) >=
 		    sizeof(pr->anchor_call)) {
-			error = ENAMETOOLONG;
+			error = ENAMETOOLONG; pr_info("pfkE: addrule1\n");
 			goto fail;
 		}			
 
 		rule = pool_get(&pf_rule_pl, PR_WAITOK|PR_LIMITFAIL|PR_ZERO);
 		if (rule == NULL) {
-			error = ENOMEM;
+			error = ENOMEM; pr_info("pfkE: addrule-pool\n");
 			goto fail;
 		}
 
 		if ((error = pf_rule_copyin(&pr->rule, rule))) {
+			pr_info("pfkE: addrule copyin=%d\n", error);
 			pf_rule_free(rule);
 			rule = NULL;
 			goto fail;
 		}
 
 		if (pr->rule.return_icmp >> 8 > ICMP_MAXTYPE) {
+			pr_info("pfkE: addrule icmp %x\n", pr->rule.return_icmp);
 			error = EINVAL;
 			pf_rule_free(rule);
 			rule = NULL;
 			goto fail;
 		}
 		if ((error = pf_rule_checkaf(rule))) {
+			pr_info("pfkE: addrule checkaf=%d\n", error);
 			pf_rule_free(rule);
 			rule = NULL;
 			goto fail;
 		}
 		if (rule->src.addr.type == PF_ADDR_NONE ||
 		    rule->dst.addr.type == PF_ADDR_NONE) {
+			pr_info("pfkE: addrule none src=%d dst=%d\n",
+			    rule->src.addr.type, rule->dst.addr.type);
 			error = EINVAL;
 			pf_rule_free(rule);
 			rule = NULL;

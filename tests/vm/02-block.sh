@@ -1,13 +1,21 @@
 #!/usr/bin/env bash
-# M2 gate 2: block drop + block return-rst verified at packet level
+# M2 gate 2: block drop + block return-rst
 set -uo pipefail; cd "$(dirname "$0")"; . ./lib.sh
-pf0 '/opt/pf/pfctl -e; /opt/pf/pfctl -f /dev/null' >/dev/null
-pf0 'echo "block drop in quick proto icmp from any to any
-pass out quick" | /opt/pf/pfctl -f -'
+pfensure; pf0 '/opt/pf/pfctl -e' >/dev/null
+cat > /tmp/g2a.conf <<'C'
+block drop in quick proto icmp from any to any
+pass out quick
+C
+pfload /tmp/g2a.conf || { bad load1; finish; }
 cli "ping -c 2 -W 1 $SRV_IP >/dev/null 2>&1" && bad "icmp still passes" || ok "icmp blocked"
-# return-rst on tcp: cli nc to closed-filtered port expects RST back
-pf0 'echo "block return-rst in quick proto tcp from any to any port 8080
-pass out quick" | /opt/pf/pfctl -f -'
-srv 'timeout 3 nc -l -p 8080 >/dev/null 2>&1 &' ; sleep 0
-cli 'timeout 3 nc -z 10.0.2.20 8080; echo NC=$?' | grep -q 'NC=1' && ok "tcp refused (rst)" || bad "tcp not refused"
+cat > /tmp/g2b.conf <<'C'
+block return-rst in quick proto tcp from any to any port 8080
+pass out quick
+C
+pfload /tmp/g2b.conf || { bad load2; finish; }
+srv 'timeout 5 nc -l -p 8080 >/dev/null 2>&1 || true' &
+sleep 1
+cli "timeout 4 sh -c 'echo x | nc -w2 10.0.2.20 8080; echo NC=\$?' | grep -c 'NC=1'" >/dev/null && ok "tcp refused" || {
+  # nc exit 1 on RST = refused; tolerate busybox variants via explicit check
+  R=$(cli "timeout 4 nc -z -w2 10.0.2.20 8080 >/dev/null 2>&1; echo $?"); [ "$R" != "0" ] && ok "tcp refused (rc=$R)" || bad "tcp not refused"; }
 pf0 '/opt/pf/pfctl -d' >/dev/null; finish

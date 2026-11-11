@@ -1,31 +1,43 @@
 #!/usr/bin/env bash
-# VM lab test runner. Executes tests/vm/*.sh against the pftest-* lab via
-# nested ssh (deb host → VM). Collects per-test PASS/FAIL + logs into
-# out/test-logs/. Exit 0 only if every gate test passes.
+# VM suite runner with deterministic per-gate VM reset.
 set -uo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
-LOGD="$REPO/out/test-logs"; mkdir -p "$LOGD"
 DEB="${DEB:-root@192.168.1.242}"
-source "$REPO/lab/ips.env" 2>/dev/null || true
+LOGD="$REPO/out/test-logs"; mkdir -p "$LOGD"
+PF0_IP=192.168.122.8
+SSH="ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8 -i /root/.ssh/pflab_ed root@$PF0_IP"
 
-vm() { # vm <alias> <cmd...>
-	local alias="$1"; shift
-	ssh -o ConnectTimeout=10 "$DEB" "ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8 -i /root/.ssh/pflab_ed root@${!alias:-$(grep -h "^${alias^^}=" "$REPO/lab/ips.env" 2>/dev/null | cut -d= -f2)} \"$*\""
+reset_pf0() {
+	ssh "$DEB" "virsh destroy pftest-pf0 >/dev/null 2>&1; virsh start pftest-pf0 >/dev/null"
+	local i
+	for i in $(seq 1 15); do
+		sleep 6
+		ssh "$DEB" "$SSH true" 2>/dev/null && return 0
+	done
+	return 1
 }
-
-PUSH=0 FAIL=0 SKIP=0
+deploy() {
+	scp -q -o ProxyJump=root@192.168.1.242 -o StrictHostKeyChecking=accept-new \
+		-i "$HOME/.ssh/pflab_ed" "$REPO/module/pf.ko" \
+		"$REPO/tools/out/pfctl" "$REPO/tests/confs/"*.conf pf0:/tmp/ 2>/dev/null || \
+	ssh "$DEB" "mkdir -p /opt/pf"
+	# stage onto pf0 /opt/pf via mgmt alias already copied to /tmp
+	ssh "$DEB" "$SSH 'mkdir -p /opt/pf; mv /tmp/pf.ko /tmp/pfctl /opt/pf/ 2>/dev/null; true'" >/dev/null
+}
+PUSH=0 FAIL=0
 for t in "$REPO"/tests/vm/[0-9]*.sh; do
 	[ -e "$t" ] || continue
 	name="$(basename "$t")"
 	echo "=== $name ==="
+	reset_pf0 || { echo "FAIL $name (vm reset)"; FAIL=$((FAIL+1)); continue; }
+	deploy
 	if bash "$t" >"$LOGD/$name.log" 2>&1; then
 		echo "PASS $name"; PUSH=$((PUSH+1))
 	else
-		rc=$?
-		if [ $rc -eq 77 ]; then echo "SKIP $name"; SKIP=$((SKIP+1));
-		else echo "FAIL $name (rc=$rc, log $LOGD/$name.log)"; FAIL=$((FAIL+1)); fi
+		echo "FAIL $name (rc=$?)"; FAIL=$((FAIL+1))
 	fi
+	sed -e 's/^/    /' "$LOGD/$name.log" | grep -E '^(OK|NOT OK)' | head -8 | sed 's/^ /  /'
 done
 echo "----------------------------------------"
-echo "PASS=$PUSH FAIL=$FAIL SKIP=$SKIP"
+echo "PASS=$PUSH FAIL=$FAIL"
 [ $FAIL -eq 0 ]
