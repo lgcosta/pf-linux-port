@@ -90,6 +90,17 @@ pfi_kif_alloc(const char *kif_name, int mflags)
 		kif->pfik_flags |= PFI_IFLAG_ANY;
 		kif->pfik_flags_new |= PFI_IFLAG_ANY;
 	}
+	/*
+	 * PFLINUX: OpenBSD creates the "ingress" and "egress" interface
+	 * groups (ifgroups) automatically and both contain every interface;
+	 * pf's direction (in/out ruleset) carries the actual meaning.  Linux
+	 * has no ifgroups, so emulate the groups as "any interface".
+	 */
+	if (!strcmp(kif->pfik_name, "ingress") ||
+	    !strcmp(kif->pfik_name, "egress")) {
+		kif->pfik_flags |= PFI_IFLAG_ANY;
+		kif->pfik_flags_new |= PFI_IFLAG_ANY;
+	}
 
 	return (kif);
 }
