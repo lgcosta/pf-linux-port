@@ -86,7 +86,12 @@ pfk_reroute(struct sk_buff *skb)
 	struct iphdr	*iph = ip_hdr(skb);
 
 	fl4.daddr = iph->daddr;
-	fl4.saddr = iph->saddr;
+	/*
+	 * Leave the source empty: the packet keeps the original source
+	 * (the peer's address), but the kernel would reject a route lookup
+	 * with a non-local source (ENETUNREACH).
+	 */
+	fl4.saddr = 0;
 	fl4.flowi4_oif = 0;
 	fl4.flowi4_mark = 0;
 	fl4.flowi4_scope = RT_SCOPE_UNIVERSE;
