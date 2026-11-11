@@ -49,6 +49,9 @@ pass in quick proto icmp from $CLI_IP to 10.0.1.1 divert-to "10.0.1.1" port 1000
 pass out quick
 CONF
 
+EGRESS_IF=$(ssh pf0 "ip route get $SRV_IP | grep -o 'dev [a-z0-9]*' | cut -d' ' -f2" 2>/dev/null | tr -d '\r')
+[ -n "$EGRESS_IF" ] || EGRESS_IF=eth2
+
 scp -q "$CONF" "$DIV" pf0:/tmp/ 2>/dev/null
 scp -q tools/out/pdivert pf0:/tmp/pdivert 2>/dev/null
 
@@ -89,11 +92,30 @@ p0 "/opt/pf/pfctl -s Tables"
 echo
 
 bold "--- 6. the drop rule actually drops ---"
-vmc "ping -c2 -W2 10.0.9.99 | tail -3"
+p0 "cat > /tmp/demo-block.conf <<EOF
+block drop in quick proto icmp to $SRV_IP
+pass in quick
+pass out quick
+EOF"
+p0 "/opt/pf/pfctl -f /tmp/demo-block.conf && echo 'block rules loaded'"
+vmc "ping -c2 -W2 $SRV_IP | tail -3"
 p0 "/opt/pf/pfctl -sr -vv | head -6"
+p0 "/opt/pf/pfctl -f /tmp/demo-pf.conf && echo 'back to the stateful ruleset'"
 echo
 
-bold "--- 7. divert-to: the packet goes to userspace and comes back ---"
+bold "--- 7. NAT: the source is translated on the way out, restored on the way back ---"
+p0 "cat > /tmp/demo-nat.conf <<EOF
+pass out quick on egress from 10.0.1.0/24 to any nat-to ($EGRESS_IF)
+pass in quick on ingress proto icmp keep state
+pass out quick on egress proto icmp keep state
+EOF"
+p0 "/opt/pf/pfctl -f /tmp/demo-nat.conf && echo 'nat rules loaded'"
+vmc "ping -c2 -W2 $SRV_IP | tail -3"
+p0 "/opt/pf/pfctl -ss"
+p0 "/opt/pf/pfctl -f /tmp/demo-pf.conf && echo 'back to the stateful ruleset'"
+echo
+
+bold "--- 8. divert-to: the packet goes to userspace and comes back ---"
 p0 "cat /tmp/demo-divert.conf"
 p0 "/opt/pf/pfctl -f /tmp/demo-divert.conf && echo 'divert rule loaded'"
 p0 "chmod +x /tmp/pdivert; (setsid /tmp/pdivert -p 10000 -f >/tmp/pdivert.log 2>&1 </dev/null &); sleep 1; pgrep pdivert"
@@ -102,7 +124,7 @@ p0 "head -3 /tmp/pdivert.log"
 echo "  (pdivert flipped the last payload byte and fixed the ICMP checksum)"
 echo
 
-bold "--- 8. shutdown ---"
+bold "--- 9. shutdown ---"
 p0 "pkill pdivert; /opt/pf/pfctl -f /dev/null; /opt/pf/pfctl -d; echo 'pf disabled'"
 p0 "lsmod | grep '^pf '"
 echo
