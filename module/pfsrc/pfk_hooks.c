@@ -22,6 +22,7 @@
 #include <net/pfvar_priv.h>
 
 extern int pf_test(sa_family_t, int, struct pfk_ifnet *, struct mbuf **);
+extern void divert_packet(struct mbuf *, int, u_int16_t);
 extern struct workqueue_struct *pfk_netisr_wq;
 
 /* PFLINUX: netisr work item — carries ownership of one sk_buff */
@@ -90,6 +91,17 @@ pfk_pkt_work(struct work_struct *w)
 	 * are being replaced by pf_lock/RCU work in M5+.  Rule-set mutation
 	 * and packet walk run concurrently from here on — documented. */
 	action = pf_test(pk->af, pk->dir, pk->ifp, &m);
+
+	/* PF_IN rules with `divert-to` only TAG the packet (BSD
+	 * netinet/ip_input.c delivers tagged packets to the divert socket);
+	 * do that here.  divert_packet() consumes the mbuf wrapper and holds
+	 * its own skb reference, so our wrapper pointer becomes invalid. */
+	if (action == PF_PASS && m != NULL &&
+	    (m->m_pkthdr.pf.flags & PF_TAG_DIVERTED)) {
+		m->m_pkthdr.pf.flags &= ~PF_TAG_DIVERTED;
+		divert_packet(m, pk->dir, 0);
+		m = NULL;
+	}
 
 	if (m == m0) {
 		/* same buffer, possibly rewritten in place: our wrapper

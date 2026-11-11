@@ -166,13 +166,19 @@ divert_packet(struct mbuf *m, int dir, u_int16_t divert_port)
 	{
 		struct pf_divert *dv = pf_find_divert(m);
 
-		if (dv)
+		if (dv) {
 			type = dv->type;
+			if (divert_port == 0)
+				divert_port = dv->port;
+		}
 	}
 	skb = m_to_skb(m);
-	m->skb = NULL;		/* ownership moves into the divert layer */
+	if (skb)
+		skb_get(skb);	/* divert layer's own reference */
+	m->skb = NULL;
 	m_freem(m);
-	pfk_divert_queue(skb, dir, type, divert_port);
+	if (skb)
+		pfk_divert_queue(skb, dir, type, divert_port);
 }
 
 void

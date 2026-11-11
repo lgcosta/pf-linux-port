@@ -16,8 +16,8 @@ FAILED=0
 
 pf0 "insmod /tmp/pf.ko 2>/dev/null || insmod /opt/pf/pf.ko; true"
 pf0 '/opt/pf/pfctl -e; /opt/pf/pfctl -f /dev/null' >/dev/null
-pfput ../../tools/out/pdivert /opt/pf/pdivert || bad "pdivert deploy"
-pf0 'chmod +x /opt/pf/pdivert' >/dev/null
+PDIV=$(pfput ../../tools/out/pdivert) || bad "pdivert deploy"
+pf0 "chmod +x $PDIV" >/dev/null
 
 cat > /tmp/g11.conf <<C
 pass in quick proto icmp from $CLI_IP to $PFLAN divert-to "$PFLAN" port $PORT keep state
@@ -32,7 +32,7 @@ pf0 "/opt/pf/pfctl -s info" | grep -qi noport || true   # informational
 # (b) start pdivert, capture reply bytes on cli
 cli 'tcpdump -ni eth0 -e -c 4 -X icmp > /tmp/td.txt 2>&1 &' 2>/dev/null
 sleep 1
-pf0 "setsid /opt/pf/pdivert -p $PORT -q > /tmp/pdiv.log 2>&1 & echo STARTED" | grep -q STARTED || { bad "pdivert start"; finish; }
+pf0 "setsid ${PDIV:-/tmp/pdivert} -p $PORT -q > /tmp/pdiv.log 2>&1 & echo STARTED" | grep -q STARTED || { bad "pdivert start"; finish; }
 sleep 1
 cli "ping -c 2 -W 2 $PFLAN >/dev/null 2>&1" && ok "ping passes through divert+rewrite" || bad "ping with listener"
 sleep 2
