@@ -1,5 +1,6 @@
 _vendor/
 out/
+!out/demo-pf-linux.cast
 *.o
 *.ko
 *.mod
@@ -10,6 +11,7 @@ out/
 modules.order
 Module.symvers
 tools/out/
+!out/demo-pf-linux.cast
 lab/seeds/
 *.pcap
 *.log
