@@ -16,9 +16,11 @@ FAILED=0
 
 pf0 "insmod /tmp/pf.ko 2>/dev/null || insmod /opt/pf/pf.ko; true"
 pf0 '/opt/pf/pfctl -e; /opt/pf/pfctl -f /dev/null' >/dev/null
+pfput tools/out/pdivert /opt/pf/pdivert || bad "pdivert deploy"
+pf0 'chmod +x /opt/pf/pdivert' >/dev/null
 
 cat > /tmp/g11.conf <<C
-pass in quick proto icmp from $CLI_IP to $PFLAN divert-to $PFLAN $PORT keep state
+pass in quick proto icmp from $CLI_IP to $PFLAN divert-to "$PFLAN" port $PORT keep state
 pass out quick
 C
 pfload /tmp/g11.conf || { bad "divert rule load"; finish; }
