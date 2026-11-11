@@ -92,6 +92,8 @@ pfk_reroute(struct sk_buff *skb)
 	fl4.flowi4_scope = RT_SCOPE_UNIVERSE;
 
 	rt = ip_route_output_key(&init_net, &fl4);
+	pr_info("pfk: RERDBG src=%08x dst=%08x rt=%px dev=%s\n", fl4.saddr, fl4.daddr,
+	    rt, (rt && !IS_ERR(rt) && rt->dst.dev) ? rt->dst.dev->name : "?");
 	if (IS_ERR(rt) || rt == NULL) {
 		kfree_skb(skb);
 		return;
@@ -102,18 +104,38 @@ pfk_reroute(struct sk_buff *skb)
 	rt->dst.output(&init_net, skb->sk, skb);
 }
 
+/*
+ * PFLINUX: pf rewrote the IPv4 addresses of the packet (NAT).  OpenBSD's
+ * ip_output() recomputes the IP header checksum on every packet it sends;
+ * Linux does not, so fix it up here after pf touched the header.
+ */
+static void
+pfk_fix_ip_csum(struct sk_buff *skb)
+{
+	struct iphdr *iph;
+
+	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
+		return;
+	iph = ip_hdr(skb);
+	iph->check = 0;
+	iph->check = csum_fold(csum_partial(skb->data, iph->ihl * 4, 0));
+	/* the transport checksum was already fixed by pf */
+	skb->ip_summed = CHECKSUM_NONE;
+}
+
 static void
 pfk_pkt_work(struct work_struct *w)
 {
 	struct pfk_pkt *pk = container_of(w, struct pfk_pkt, work);
 	struct mbuf *m, *m0;
 	struct sk_buff *orig;
-	__be32 orig_dst = 0;
+	__be32 orig_dst = 0, orig_src = 0;
 	int action;
 
-	if (pk->af == AF_INET && pk->dir == PF_IN &&
-	    pskb_may_pull(pk->skb, sizeof(struct iphdr)))
+	if (pk->af == AF_INET && pskb_may_pull(pk->skb, sizeof(struct iphdr))) {
 		orig_dst = ip_hdr(pk->skb)->daddr;
+		orig_src = ip_hdr(pk->skb)->saddr;
+	}
 
 	m = pfk_m_wrap_skb(pk->skb, pk->af);
 	if (!m) {
@@ -129,6 +151,12 @@ pfk_pkt_work(struct work_struct *w)
 	 * and packet walk run concurrently from here on — documented. */
 	action = pf_test(pk->af, pk->dir, pk->ifp, &m);
 
+	if (pk->af == AF_INET && orig_src != 0 &&
+	    pskb_may_pull(pk->skb, sizeof(struct iphdr)) &&
+	    (ip_hdr(pk->skb)->saddr != orig_src ||
+	    ip_hdr(pk->skb)->daddr != orig_dst))
+		pfk_fix_ip_csum(pk->skb);
+
 
 	if (m == m0) {
 		/* same buffer, possibly rewritten in place: our wrapper
@@ -138,6 +166,8 @@ pfk_pkt_work(struct work_struct *w)
 		    pk->af == AF_INET && pk->dir == PF_IN &&
 		    pskb_may_pull(pk->skb, sizeof(struct iphdr)) &&
 		    ip_hdr(pk->skb)->daddr != orig_dst) {
+			pr_info("pfk: RERDBG trigger old=%08x new=%08x\n", orig_dst,
+			    ip_hdr(pk->skb)->daddr);
 			/* pf translated the destination (reverse NAT):
 			 * re-route instead of delivering locally */
 			pfk_reroute(pk->skb);
