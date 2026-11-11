@@ -147,8 +147,6 @@ pfk_enqueue_verdict(int af, struct sk_buff *skb,
 	default:
 		return NF_ACCEPT;	/* LOCAL_IN/FORWARD */
 	}
-	    af, skb->len, ntohs(skb->protocol), skb->dev ? skb->dev->name : "?",
-	    skb->mark);
 	if (skb->mark & PFK_SKIP_PF)
 		return NF_ACCEPT;	/* reinjected by divert: don't re-filter */
 	if (skb->mark & (dir == PF_IN ? PFK_DONE_IN : PFK_DONE_OUT))
