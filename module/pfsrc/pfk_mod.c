@@ -91,6 +91,24 @@ static struct miscdevice pfk_dev = {
 	.mode	= 0600,
 };
 
+extern void pf_status_init(void);
+extern int pfattach(int);
+
+static void
+pfk_pfi_event(int added, struct pfk_ifnet *ifp)
+{
+	if (added)
+		pfi_attach_ifnet(ifp);
+	else
+		pfi_detach_ifnet(ifp);
+}
+
+static void
+pfk_pfi_attach_one(struct pfk_ifnet *ifp)
+{
+	pfi_attach_ifnet(ifp);
+}
+
 static int __init pfk_init(void)
 {
 	int err;
@@ -105,6 +123,13 @@ static int __init pfk_init(void)
 	err = pfk_if_init();
 	if (err)
 		goto err_pcb;
+	/* OpenBSD bring-up order: status/pools/rulesets, then kifs */
+	pfk_net_lock();
+	pf_status_init();
+	pfattach(0);
+	pfk_if_set_event_cb(pfk_pfi_event);
+	pfk_if_iterate(pfk_pfi_attach_one);
+	pfk_net_unlock();
 	err = pfk_hooks_register();
 	if (err)
 		goto err_if;

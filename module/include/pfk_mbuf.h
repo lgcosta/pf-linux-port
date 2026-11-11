@@ -141,6 +141,8 @@ struct mbuf {
 struct mbuf *m_get(int how, short type);
 struct mbuf *m_gethdr(int how, short type);
 struct mbuf *m_alloc_skb(struct sk_buff *skb, int how); /* wrap borrowed skb */
+struct mbuf *pfk_m_wrap_skb(struct sk_buff *skb, int af); /* ingress: extra ref */
+struct mbuf *pfk_m_wrap_skb(struct sk_buff *skb, int af); /* ingress: takes extra ref */
 struct mbuf *m_devget(char *buf, int totlen, int off,
 		      struct pfk_ifnet *ifp, void (*copyin_fc)(caddr_t, int));
 void  pfk_m_setpkthdr(struct mbuf *m);

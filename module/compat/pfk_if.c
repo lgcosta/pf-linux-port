@@ -7,6 +7,8 @@
  */
 #include <pfk.h>
 
+static void pfk_if_event_call(int added, struct pfk_ifnet *ifp);
+
 static DEFINE_IDR(pfk_ifnet_idr);
 static DEFINE_SPINLOCK(pfk_ifnet_lock);
 static struct pfk_ifnet *pfk_egress;
@@ -290,6 +292,7 @@ pfk_netdev_event(struct notifier_block *nb, unsigned long ev, void *ptr)
 			return NOTIFY_DONE;
 		}
 		spin_unlock_irqrestore(&pfk_ifnet_lock, flags);
+		pfk_if_event_call(1, ifp);
 		break;
 	case NETDEV_UNREGISTER:
 		spin_lock_irqsave(&pfk_ifnet_lock, flags);
@@ -297,6 +300,7 @@ pfk_netdev_event(struct notifier_block *nb, unsigned long ev, void *ptr)
 		if (ifp) {
 			ifp->alive = 0;
 			idr_remove(&pfk_ifnet_idr, dev->ifindex);
+			pfk_if_event_call(0, ifp);
 			call_rcu(&ifp->rcu, pfk_ifnet_release);
 		}
 		spin_unlock_irqrestore(&pfk_ifnet_lock, flags);
@@ -324,6 +328,35 @@ pfk_netdev_event(struct notifier_block *nb, unsigned long ev, void *ptr)
 static struct notifier_block pfk_netdev_nb = {
 	.notifier_call = pfk_netdev_event,
 };
+
+static void (*pfk_if_event_cb)(int added, struct pfk_ifnet *ifp);
+
+static void
+pfk_if_event_call(int added, struct pfk_ifnet *ifp)
+{
+	if (!pfk_if_event_cb)
+		return;
+	/* netdev notifiers run in process context; NET lock is sleepable */
+	pfk_net_lock();
+	pfk_if_event_cb(added, ifp);
+	pfk_net_unlock();
+}
+
+void
+pfk_if_set_event_cb(void (*cb)(int added, struct pfk_ifnet *ifp))
+{
+	pfk_if_event_cb = cb;
+}
+
+void
+pfk_if_iterate(void (*cb)(struct pfk_ifnet *ifp))
+{
+	struct pfk_ifnet *ifp;
+	int id = -1;
+
+	while ((ifp = pfk_if_next_from(&id)) != NULL)
+		cb(ifp);
+}
 
 /* -------- egress -------- */
 void
@@ -403,8 +436,10 @@ pfk_if_init(void)
 		else
 			ifp = NULL;	/* already tracked by notifier */
 		spin_unlock_irqrestore(&pfk_ifnet_lock, flags);
-		if (ifp)
+		if (ifp) {
 			pfk_if_refresh(ifp);
+			pfk_if_event_call(1, ifp);
+		}
 	}
 	rtnl_unlock();
 	pfk_egress_refresh();

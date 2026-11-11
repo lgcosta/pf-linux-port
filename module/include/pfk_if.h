@@ -86,6 +86,12 @@ struct pfk_ifnet *pfk_if_next(struct pfk_ifnet *ifp);
 struct pfk_ifnet *pfk_if_next_from(int *idp);
 struct net_device *ip_rt_get_default_dev(struct net *net);
 
+/* Notification for PF engine (pfi attach/detach), called under NET_LOCK:
+ * added=1 new interface (after populate), added=0 interface going away. */
+void pfk_if_set_event_cb(void (*cb)(int added, struct pfk_ifnet *ifp));
+/* Iterate all live interfaces with cb(ifp) under NET_LOCK-read. */
+void pfk_if_iterate(void (*cb)(struct pfk_ifnet *ifp));
+
 /* xmit API used by pf_route/pf output (implemented in pfk_xmit.c).
  * PFLINUX: `dst` is void * so BSD accessor macros (sintosa/sin6tosa,
  * which keep the sockaddr_in/sockaddr_in6 type for field access) can be

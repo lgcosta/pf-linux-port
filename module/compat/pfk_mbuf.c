@@ -50,6 +50,30 @@ pfk_m_setpkthdr(struct mbuf *m)
 	m->m_pkthdr.tags = NULL;
 }
 
+/*
+ * Ingress wrapper for netfilter hook skbs: takes an EXTRA skb reference so
+ * the wrapper can be consumed (m_freem) without disturbing netfilter's own
+ * reference; fills the pkthdr the way OpenBSD's ip_input/ip_output does.
+ */
+struct mbuf *
+pfk_m_wrap_skb(struct sk_buff *skb, int af)
+{
+	struct mbuf *m;
+
+	skb_get(skb);
+	m = m_alloc_skb(skb, M_NOWAIT);
+	if (!m)
+		return NULL;
+	m->m_pkthdr.af = af;
+	m->m_pkthdr.proto = (af == AF_INET) ?
+		((struct pf_ip *)skb->data)->ip_p : -1;
+	m->m_pkthdr.ph_ifidx = skb->dev ? skb->dev->ifindex : 0;
+	m->m_pkthdr.ifp = m->m_pkthdr.rcvif =
+		skb->dev ? pfk_ifp_bydev(skb->dev) : NULL;
+	m->m_pkthdr.ph_rtableid = 0;
+	return m;
+}
+
 struct mbuf *
 m_alloc_skb(struct sk_buff *skb, int how)
 {

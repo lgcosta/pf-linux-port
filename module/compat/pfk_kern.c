@@ -100,10 +100,28 @@ taskq_create(const char *name, unsigned int nthreads, int ipl,
 /* ---------------- NET_LOCK ---------------- */
 static DECLARE_RWSEM(pfk_net_sem);
 static atomic_t pfk_net_readers = ATOMIC_INIT(0);
+static atomic_t pfk_net_owner = ATOMIC_INIT(0);	/* task pid holding write */
 
 void pfk_net_lock_init(void) { }
-void pfk_net_lock(void)        { down_write(&pfk_net_sem); }
-void pfk_net_unlock(void)      { up_write(&pfk_net_sem); }
+void
+pfk_net_lock(void)
+{
+	/* Re-entrant for the holder: OpenBSD's NET_LOCK is friendly with
+	 * nested calls in the same path (e.g. our netdev notifier firing
+	 * while pfioctl holds the lock). */
+	if (atomic_read(&pfk_net_owner) == current->pid)
+		return;
+	down_write(&pfk_net_sem);
+	atomic_set(&pfk_net_owner, current->pid);
+}
+void
+pfk_net_unlock(void)
+{
+	if (atomic_read(&pfk_net_owner) != current->pid)
+		return;		/* nested no-op for non-holders */
+	atomic_set(&pfk_net_owner, 0);
+	up_write(&pfk_net_sem);
+}
 void pfk_net_read_enter(void)  { down_read(&pfk_net_sem);
 				 atomic_inc(&pfk_net_readers); }
 void pfk_net_read_release(void){ atomic_dec(&pfk_net_readers);
