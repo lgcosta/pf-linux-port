@@ -6254,17 +6254,8 @@ pf_icmp_state_lookup(struct pf_pdesc *pd, struct pf_state_key_cmp *key,
 	    &key->addr[0], &key->addr[1], 0, 0);
 
 	action = pf_find_state(pd, key, stp);
-	pr_info("pfk: ICMPDBG dir=%d sidx=%d icmp_dir=%d key0=%08x key1=%08x p0=%u p1=%u act=%d\n",
-	    pd->dir, pd->sidx, icmp_dir, key->addr[0].v4.s_addr,
-	    key->addr[1].v4.s_addr, key->port[0], key->port[1], action);
 	if (action != PF_MATCH)
 		return (action);
-	pr_info("pfk: ICMPDBG st wire0=%08x wire1=%08x wp0=%u wp1=%u stack0=%08x stack1=%08x\n",
-	    (*stp)->key[PF_SK_WIRE]->addr[0].v4.s_addr,
-	    (*stp)->key[PF_SK_WIRE]->addr[1].v4.s_addr,
-	    (*stp)->key[PF_SK_WIRE]->port[0], (*stp)->key[PF_SK_WIRE]->port[1],
-	    (*stp)->key[PF_SK_STACK]->addr[0].v4.s_addr,
-	    (*stp)->key[PF_SK_STACK]->addr[1].v4.s_addr);
 
 	if ((*stp)->state_flags & PFSTATE_SLOPPY)
 		return (-1);

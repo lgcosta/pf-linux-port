@@ -97,8 +97,6 @@ pfk_reroute(struct sk_buff *skb)
 	fl4.flowi4_scope = RT_SCOPE_UNIVERSE;
 
 	rt = ip_route_output_key(&init_net, &fl4);
-	pr_info("pfk: RERDBG src=%08x dst=%08x rt=%px dev=%s\n", fl4.saddr, fl4.daddr,
-	    rt, (rt && !IS_ERR(rt) && rt->dst.dev) ? rt->dst.dev->name : "?");
 	if (IS_ERR(rt) || rt == NULL) {
 		kfree_skb(skb);
 		return;
@@ -171,8 +169,6 @@ pfk_pkt_work(struct work_struct *w)
 		    pk->af == AF_INET && pk->dir == PF_IN &&
 		    pskb_may_pull(pk->skb, sizeof(struct iphdr)) &&
 		    ip_hdr(pk->skb)->daddr != orig_dst) {
-			pr_info("pfk: RERDBG trigger old=%08x new=%08x\n", orig_dst,
-			    ip_hdr(pk->skb)->daddr);
 			/* pf translated the destination (reverse NAT):
 			 * re-route instead of delivering locally */
 			pfk_reroute(pk->skb);
