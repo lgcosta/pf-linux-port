@@ -86,13 +86,16 @@ struct pfk_ifnet *pfk_if_next(struct pfk_ifnet *ifp);
 struct pfk_ifnet *pfk_if_next_from(int *idp);
 struct net_device *ip_rt_get_default_dev(struct net *net);
 
-/* xmit API used by pf_route/pf output (implemented in pfk_xmit.c) */
+/* xmit API used by pf_route/pf output (implemented in pfk_xmit.c).
+ * PFLINUX: `dst` is void * so BSD accessor macros (sintosa/sin6tosa,
+ * which keep the sockaddr_in/sockaddr_in6 type for field access) can be
+ * passed directly, as staged pf.c does. */
 int if_output_tso(struct pfk_ifnet *ifp, struct mbuf **mp,
-	struct sockaddr *dst, void *rt, int mtu);
+	void *dst, void *rt, int mtu);
 int if_output_ml(struct pfk_ifnet *ifp, struct mbuf_list *ml,
-	struct sockaddr *dst, void *rt);
+	void *dst, void *rt);
 int if_enqueue(struct pfk_ifnet *ifp, struct mbuf *m);
-int pfk_if_output(struct pfk_ifnet *ifp, struct mbuf *m, struct sockaddr *dst, void *rt);
+int pfk_if_output(struct pfk_ifnet *ifp, struct mbuf *m, void *dst, void *rt);
 
 /* addr lookups (ifa_ifwithaddr, in_ifwithaddr etc.) */
 struct ifaddr *pfk_ifwithaddr(const struct sockaddr *sa);

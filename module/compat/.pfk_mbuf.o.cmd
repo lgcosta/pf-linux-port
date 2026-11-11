@@ -1811,6 +1811,9 @@ deps_compat/pfk_mbuf.o := \
   include/compat/net/if_types.h \
   include/compat/net/if_var.h \
   include/compat/net/ifq.h \
+  include/compat/net/rtable.h \
+  include/compat/sys/percpu.h \
+  include/compat/netinet/in.h \
   include/pfk_mbuf.h \
   include/pfk_net.h \
   include/pfk_if.h \
@@ -1820,13 +1823,11 @@ deps_compat/pfk_mbuf.o := \
   include/compat/net/toeplitz.h \
   include/net/pfvar.h \
   include/compat/sys/syslimits.h \
-  include/compat/netinet/in.h \
   include/compat/net/radix.h \
   include/net/pfvar_priv.h \
   include/compat/sys/rwlock.h \
   include/compat/sys/mutex.h \
   include/compat/sys/pclock.h \
-  include/compat/sys/percpu.h \
 
 compat/pfk_mbuf.o: $(deps_compat/pfk_mbuf.o)
 

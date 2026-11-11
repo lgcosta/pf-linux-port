@@ -13,7 +13,7 @@
  * pfk.h before this header. */
 struct mbuf;
 struct mbuf_list;
-struct ifnet;
+struct pfk_ifnet;
 struct pfk_ifnet;
 struct pf_queuespec;
 
@@ -60,7 +60,7 @@ extern const struct ifq_ops * const ifq_fqcodel_ops;
 extern const struct pfq_ops * const pfq_hfsc_ops;
 extern const struct pfq_ops * const pfq_fqcodel_ops;
 
-void		 ifq_init(struct ifqueue *, struct ifnet *, unsigned int);
+void		 ifq_init(struct ifqueue *, struct pfk_ifnet *, unsigned int);
 void		 ifq_init_maxlen(struct ifqueue *, unsigned int);
 void		 ifq_attach(struct ifqueue *, const struct ifq_ops *, void *);
 void		 ifq_destroy(struct ifqueue *);

@@ -13,4 +13,5 @@
 #define IFT_PFLOG	0xf0
 #define IFT_PFSYNC	0xf1
 #define IFT_CARP	0xf8
+#define IFT_ENC		0xf4	/* Encapsulation (OpenBSD net/if_types.h) */
 #endif

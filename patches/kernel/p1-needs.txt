@@ -1,0 +1,15 @@
+# P1 kernel-export requirements collected by the M1 compile-port.
+# Format: <symbol>:<kernel-source-file>:<line>  (one per line)
+#
+# M1 result (linux-7.3.4, Module.symvers present):
+#   modpost reported NO undefined symbols for pf.ko — all kernel helpers
+#   used by the compat layer are already exported:
+#     __inet_lookup_established, __inet_lookup_listener   (net/ipv4/inet_hashtables.c)
+#     __inet6_lookup_established, inet6_lookup_listener   (net/ipv6/inet6_hashtables.c)
+#     __udp4_lib_lookup (net/ipv4/udp.c), __udp6_lib_lookup (net/ipv6/udp.c)
+#     ip_route_output_flow / ip6_route_output_flags       (inline wrappers used)
+#     icmp_send (net/ipv4/icmp_stub? net/ipv4/icmp.c)
+#   Nothing pending in M1.
+#
+# Watch list (will need exports when their milestone lands):
+#   tcp_v4_send_reset   net/ipv4/tcp_ipv4.c   (only if userland RST helpers are used)

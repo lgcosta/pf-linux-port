@@ -218,6 +218,7 @@ struct ip6_frag {
 /* PF mbuf tags (our namespace; upstream uses PACKET_TAG_PF_*) */
 #define PACKET_TAG_PF_REASSEMBLED	0x50460001
 #define PACKET_TAG_PF_REFRAGMENTED	0x50460002
+#define PACKET_TAG_PF_DIVERT		0x50460003
 
 /* OpenBSD builds the kernel with DIAGNOSTIC (extra KASSERT coverage) */
 #ifndef DIAGNOSTIC
@@ -326,6 +327,7 @@ struct pfk_rwlock {
 #define PFKIOC_TYPE(nr)     (((nr) >> PFKXIOC_TYPESHIFT) & ((1U<<PFKXIOC_TYPEBITS)-1))
 #define PFKIOC_NR(nr)       (((nr) >> PFKXIOC_NRSHIFT) & ((1U<<PFKXIOC_NRBITS)-1))
 #define PFKIOC_DIR(nr)      (((nr) >> PFKXIOC_DIRSHIFT) & ((1U<<PFKXIOC_DIRBITS)-1))
+#define PFKIOC_SIZE(nr)     (((nr) >> PFKXIOC_SIZESHIFT) & ((1U<<PFKXIOC_SIZEBITS)-1))
 
 /* BSD host<->big endian names (the kernel uses cpu_to_beXX spellings) */
 #ifndef htobe16
@@ -580,9 +582,186 @@ unhandled_af(int af)
 
 /* mbuf + BSD wire structs + pf ifnet registry */
 #include "compat/net/ifq.h"
+#include "compat/net/rtable.h"
+#include "compat/sys/percpu.h"
+#include "compat/netinet/in.h"
 #include "pfk_mbuf.h"
 #include "pfk_net.h"
 #include "pfk_if.h"
+
+/* ---------------------------------------------------------------- M1 glue */
+/* BSD parameter helpers (OpenBSD <sys/param.h>) */
+#ifndef imax
+#define imax(a, b)	((a) > (b) ? (a) : (b))
+#endif
+#ifndef imin
+#define imin(a, b)	((a) < (b) ? (a) : (b))
+#endif
+#define ALIGNED_POINTER(p, t) ((((unsigned long)(p) % __alignof__(t)) == 0) && \
+	(((unsigned long)(p) % sizeof(t)) == 0))
+
+/* BSD asserts with message */
+#define KASSERTMSG(cond, fmt...)	KASSERT(cond)
+
+/* BSD process sentinel (OpenBSD <sys/proc.h> NO_PID) */
+#ifndef NO_PID
+#define NO_PID		((pid_t)-1)
+#endif
+
+/* BSD atomic swap helpers (OpenBSD <sys/atomic.h>): like Linux cmpxchg but
+ * return the old value on success and 0/NULL on failure (OpenBSD semantics
+ * as used by pf.c). */
+#define atomic_cas_ptr(p, o, n) \
+	((cmpxchg((p), (o), (n)) == (o)) ? (o) : (typeof(o))NULL)
+#define atomic_cas_uint(p, o, n) \
+	((cmpxchg((p), (o), (n)) == (unsigned int)(o)) ? (unsigned int)(o) : 0u)
+
+/* SMR → Linux RCU */
+static inline void smr_read_enter(void) { rcu_read_lock(); }
+static inline void smr_read_leave(void) { rcu_read_unlock(); }
+
+/*
+ * struct inpcb — OpenBSD's kernel PCB view as used by PF (pf.c:
+ * pf_socket_lookup/pf_mbuf_link_inpcb/pf_state_key_link_inpcb).  The port
+ * does not have BSD PCBs: one struct inpcb is created per successful Linux
+ * socket lookup and lives as long as PF holds references to it (mbufs,
+ * state keys).  Implemented in compat/pfk_pcb.c.
+ */
+struct pfk_socket {		/* BSD struct socket fields PF consumes */
+	uid_t		so_euid;
+	gid_t		so_egid;
+	pid_t		so_cpid;
+};
+struct inpcb {
+	refcount_t		inp_refcnt;
+	struct pf_state_key	*inp_pf_sk;	/* PF state linkage */
+	struct sock		*inp_sock;	/* backing Linux socket */
+	struct pfk_socket	inp_soinfo_storage;
+	struct pfk_socket	*inp_socket;	/* → storage above */
+};
+struct inpcbtable {		/* OpenBSD PCB table head (opaque handle) */
+	int		pfk_unused;
+};
+extern struct inpcbtable tcbtable, udbtable, tcb6table, udb6table;
+
+struct inpcb *in_pcbref(struct inpcb *);
+void	in_pcbunref(struct inpcb *);
+struct inpcb *in_pcblookup(struct inpcbtable *, struct in_addr faddr,
+	    u_int fport, struct in_addr laddr, u_int lport, u_int rtableid);
+struct inpcb *in_pcblookup_listen(struct inpcbtable *, struct in_addr laddr,
+	    u_int lport, struct mbuf *m, u_int rtableid);
+struct inpcb *in6_pcblookup(struct inpcbtable *, const struct in6_addr *faddr,
+	    u_int fport, const struct in6_addr *laddr, u_int lport,
+	    u_int rtableid);
+struct inpcb *in6_pcblookup_listen(struct inpcbtable *, struct in6_addr *laddr,
+	    u_int lport, struct mbuf *m, u_int rtableid);
+int	pfk_pcb_init(void);
+void	pfk_pcb_exit(void);
+
+/* OpenBSD counters(9): per-CPU u64 slots (struct cpumem from percpu.h) */
+struct cpumem *counters_alloc(u_int count);
+void	counters_free(struct cpumem *);
+void	counters_inc(struct cpumem *, u_int idx);
+void	counters_zero(struct cpumem *, u_int count);
+void	counters_read(struct cpumem *, uint64_t *result, u_int count,
+	    uint64_t *scratch);
+
+/* task/timeout static initializers (OpenBSD <sys/task.h> <sys/timeout.h>) */
+#define TASK_INITIALIZER(_f, _a)	{ .ta_data = (_a), .ta_func = (_f) }
+#define TIMEOUT_INITIALIZER(_f, _a)	{ .fn = (_f), .arg = (_a) }
+
+/* timeout_add_msec: timeout_add() already takes milliseconds upstream */
+int	timeout_add_msec(struct timeout *to, int msecs);
+
+/* curcpu(9): OpenBSD per-CPU info; only ci_schedstate.spc_schedflags is
+ * consumed by pf.c (SPCF_SHOULDYIELD).  Mapped to need_resched(). */
+struct pfk_schedstate { int spc_schedflags; };
+struct pfk_cpu_info { struct pfk_schedstate ci_schedstate; };
+#define SPCF_SHOULDYIELD	0x1
+struct pfk_cpu_info *pfk_curcpu(void);
+#define curcpu()		pfk_curcpu()
+
+/* interface refcounting (OpenBSD if_get/if_put/if_get_smr) */
+struct pfk_ifnet *if_get(int ifidx);
+struct pfk_ifnet *if_get_smr(int ifidx);
+void	if_put(struct pfk_ifnet *ifp);
+int	if_congested(void);
+void	pfk_if_congestion(void);	/* stamp "tx resources exhausted" now */
+
+/* OpenBSD route/rtable API for PF (compat/pfk_rtable.c over the Linux FIB) */
+#define RT_RESOLVE	1	/* rtalloc() flag: resolve the route */
+/* PFLINUX: `sa` is const void * so BSD sintosa/sin6tosa/sstosa macro
+ * results (which keep their concrete sockaddr types) pass directly. */
+struct pf_rtentry *rtalloc(const void *sa, int, unsigned int);
+struct pf_rtentry *rtalloc_mpath(const void *sa, uint32_t *,
+	    unsigned int);
+int	rtisvalid(struct pf_rtentry *);
+void	rtfree(struct pf_rtentry *);
+#define sstosa(ss)	((struct sockaddr *)(void *)(ss))
+
+/* BSD in_ifaddr/in6_ifaddr views (OpenBSD <netinet/in_var.h>).  The Linux
+ * in_ifaddr tag is already taken, so the port keeps its own types. */
+struct pfk_in_ifaddr {
+	struct ifaddr	ifa_ifa;
+	struct sockaddr_in ia_addr;
+};
+struct pfk_in6_ifaddr {
+	struct ifaddr	ifa_ifa;
+	struct sockaddr_in6 ia_addr;
+};
+#define ifatoia(ifa)	((struct pfk_in_ifaddr *)(void *)(ifa))
+#define ifatoia6(ifa)	((struct pfk_in6_ifaddr *)(void *)(ifa))
+
+/* OpenBSD sysctl-backed globals (pfk_kern.c) */
+extern int ip_forwarding;	/* 0 off, 1 on, 2 ipsec-only (we: init-synced) */
+extern int ip_directedbcast;	/* accept directed broadcast */
+extern int ipmultipath;		/* multipath routing enable */
+extern int ip6_multipath;
+extern int ip_mtudisc;		/* PMTU discovery */
+extern int ip_defttl;		/* default IPv4 TTL */
+extern u_int max_linkhdr;	/* max link-level header size */
+void	pfk_sysctl_sync(void);	/* mirror Linux sysctls into BSD globals */
+extern tcp_seq tcp_iss;		/* tcp initial send seq # (random salt) */
+
+/* ip_output/ip_forward flags (OpenBSD <netinet/ip_var.h>) */
+#define IP_FORWARDING		0x0001
+#define IP_ALLOWBROADCAST	0x0002
+#define IP_MINMTU		0x0004
+#define IP_REDIRECT		0x0008
+#define IP_FORWARDING_IPSEC	0x0010
+#define IPTTLDEC		1
+
+/* BSD IPv4 layer entry points used by pf.c (compat/pfk_ip4.c).  ip_output/
+ * ip_forward/ip6_output clash with Linux declarations, so the staging seds
+ * rename them to pfk_* (see stage-port.sh). */
+void	ip_send(struct mbuf *);
+void	ip6_send(struct mbuf *);
+void	icmp_error(struct mbuf *, u_int type, u_int code, u_int dest,
+	    u_int mtu);
+int	ip_fragment(struct mbuf *, struct mbuf_list *, struct pfk_ifnet *,
+	    int);
+int	pfk_ip_output(struct mbuf *, void *, void *, u_int, void *, void *,
+	    u_int);
+void	pfk_ip_forward(struct mbuf *, struct pfk_ifnet *, void *, u_int);
+int	pfk_ip6_output(struct mbuf *, void *, void *, u_int, void *, void *);
+
+/* BSD checksum helpers (compat/pfk_ip4.c) */
+u_int16_t in_cksum(struct mbuf *, int);
+u_int16_t in4_cksum(struct mbuf *m, __u8 nxt, u_int32_t off, u_int32_t len);
+u_int16_t in6_cksum(struct mbuf *m, __u8 nxt, u_int32_t off, u_int32_t len);
+void	in_hdr_cksum_out(struct mbuf *, void *);
+
+/* divert layer (pfsrc/divert_sock.c; BSD AF_DIVERT semantics) */
+void	divert_packet(struct mbuf *, int dir, u_int16_t divert_port);
+void	divert6_packet(struct mbuf *, int dir, u_int16_t divert_port);
+
+/* BSD statistics hooks: counters live in pf_status_fcounters/pf_kif in the
+ * port; the netinet ip/tcp counters are not ported (no-op).  */
+#define ipstat_inc(c)		do { } while (0)
+#define tcpstat_inc(c)		do { } while (0)
+
+/* BSD SEQ helpers (OpenBSD <netinet/tcp_seq.h>) */
+#define SEQ_LEQ(a, b)		((int)((a) - (b)) <= 0)
 
 struct pf_source;
 #define SEC_TO_NSEC(x)	((uint64_t)(x) * 1000000000ULL)
@@ -626,6 +805,9 @@ struct m_tag *m_tag_get(int type, int len, int flags);
 #define PF_TAG_REFRAGMENTED_PACKET 0x0020
 #define PF_TAG_SYNCOOKIE_RECREATED	0x0040
 #define PF_TAG_SYNCOOKIE		0x0080
+/* m_pkthdr.pf.flag bits, continuing the upstream bit space */
+#define PF_TAG_DIVERTED_PACKET	0x0100
+#define PF_TAG_PROCESSED		0x0200
 
 /* OpenBSD route entry (kernel-internal PF type; pointer use only) */
 struct pf_rtentry;
@@ -896,10 +1078,14 @@ timersub(const struct timeval *tvp, const struct timeval *uvp,
 	}
 }
 
-/* IPv6 forwarding state (OpenBSD sys/netinet6 variables) */
+/* IPv6 forwarding state (OpenBSD sys/netinet6 variables).
+ * ip6_output/ip6_forward flag values per OpenBSD <netinet6/ip6_var.h>;
+ * IPV6_MINMTU/IPV6_UNSPECSRC are omitted: upstream PF code never uses
+ * them and IPV6_MINMTU already means 1280 above (name clash upstream). */
 extern int ip6_forwarding;
-#define IPV6_FORWARDING		0x1
-#define IPV6_FORWARDING_IPSEC	0x2
+#define IPV6_FORWARDING		0x02
+#define IPV6_REDIRECT		0x08
+#define IPV6_FORWARDING_IPSEC	0x10
 #define ip6s_cantforward	0
 #define ip6stat_inc(c)		do { } while (0)
 
@@ -995,5 +1181,21 @@ void pf_state_list_remove(struct pf_state_list *, struct pf_state *);
 void pf_update_state_timeout(struct pf_state *, int);
 
 void pfk_mod_init_done(void);
+
+/* pf.c entry points that are non-static upstream but have no header
+ * prototype at this include order (-Wmissing-prototypes). */
+struct pf_anchor_stackframe;
+struct pf_anchor;
+struct pf_ruleset;
+void	pf_anchor_stack_init(void);
+int	pf_anchor_stack_is_full(struct pf_anchor_stackframe *);
+int	pf_anchor_stack_is_empty(struct pf_anchor_stackframe *);
+struct pf_anchor_stackframe *pf_anchor_stack_top(void);
+int	pf_anchor_stack_push(struct pf_ruleset *, struct pf_rule *,
+	    struct pf_rule *, struct pf_anchor *, int);
+int	pf_anchor_stack_pop(struct pf_ruleset **, struct pf_rule **,
+	    struct pf_rule **, struct pf_anchor **, int *);
+struct inpcb;
+void	pf_remove_divert_state(struct inpcb *);
 
 #endif /* _PFK_H */

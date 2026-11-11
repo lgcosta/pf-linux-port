@@ -48,12 +48,13 @@ pfk_route6(const struct in6_addr *daddr, const struct in6_addr *saddr, int oif)
 /* xmit: BSD semantics — caller hands fully-formed IP packet + dst sock.
  * rt arg is OpenBSD's cached route (opaque to us). Returns 0/errno. */
 int
-if_output_tso(struct pfk_ifnet *ifp, struct mbuf **mp, struct sockaddr *dst,
+if_output_tso(struct pfk_ifnet *ifp, struct mbuf **mp, void *dst,
 	      void *rt, int mtu)
 {
 	struct mbuf *m = *mp;
 	struct sk_buff *skb = m_to_skb(m);
 	struct dst_entry *d = NULL;
+	struct sockaddr *sa = (struct sockaddr *)dst;
 	int ret = 0;
 
 	if (!pskb_may_pull(skb, sizeof(struct pf_ip))) {
@@ -64,7 +65,7 @@ if_output_tso(struct pfk_ifnet *ifp, struct mbuf **mp, struct sockaddr *dst,
 		ret = ENOBUFS;
 		goto drop;
 	}
-	switch (dst->sa_family) {
+	switch (sa->sa_family) {
 	case AF_INET: {
 		struct pf_ip *ip = mtod(m, struct pf_ip *);
 		__be32 gw = 0;
@@ -129,12 +130,14 @@ drop:
 		m_freem(m);
 		*mp = NULL;
 	}
+	if (ret == ENOBUFS || ret == ENETDOWN || ret == EHOSTUNREACH)
+		pfk_if_congestion();
 	return ret;
 }
 
 int
 if_output_ml(struct pfk_ifnet *ifp, struct mbuf_list *ml,
-	     struct sockaddr *dst, void *rt)
+	     void *dst, void *rt)
 {
 	struct mbuf *m;
 	int err = 0, n;
@@ -212,7 +215,7 @@ pfk_send_icmp_error(int family, struct sk_buff *skb_in, int type, int code,
  * ported PF code (route-to / refragment / divert paths).
  */
 int
-pfk_if_output(struct pfk_ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
+pfk_if_output(struct pfk_ifnet *ifp, struct mbuf *m, void *dst,
     void *rt)
 {
 	struct mbuf *mp = m;

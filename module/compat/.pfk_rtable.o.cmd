@@ -3,6 +3,7 @@ savedcmd_compat/pfk_rtable.o := gcc -Wp,-MMD,compat/.pfk_rtable.o.d -nostdinc -I
 source_compat/pfk_rtable.o := compat/pfk_rtable.c
 
 deps_compat/pfk_rtable.o := \
+    $(wildcard include/config/IPV6) \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/linux/compiler-version.h \
     $(wildcard include/config/CC_VERSION_TEXT) \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/linux/kconfig.h \
@@ -1207,7 +1208,6 @@ deps_compat/pfk_rtable.o := \
     $(wildcard include/config/DEBUG_NET_SMALL_RTNL) \
     $(wildcard include/config/WIRELESS_EXT) \
     $(wildcard include/config/NET_L3_MASTER_DEV) \
-    $(wildcard include/config/IPV6) \
     $(wildcard include/config/TLS_DEVICE) \
     $(wildcard include/config/VLAN_8021Q) \
     $(wildcard include/config/NET_DSA) \
@@ -1811,6 +1811,9 @@ deps_compat/pfk_rtable.o := \
   include/compat/net/if_types.h \
   include/compat/net/if_var.h \
   include/compat/net/ifq.h \
+  include/compat/net/rtable.h \
+  include/compat/sys/percpu.h \
+  include/compat/netinet/in.h \
   include/pfk_mbuf.h \
   include/pfk_net.h \
   include/pfk_if.h \
@@ -1820,14 +1823,11 @@ deps_compat/pfk_rtable.o := \
   include/compat/net/toeplitz.h \
   include/net/pfvar.h \
   include/compat/sys/syslimits.h \
-  include/compat/netinet/in.h \
   include/compat/net/radix.h \
   include/net/pfvar_priv.h \
   include/compat/sys/rwlock.h \
   include/compat/sys/mutex.h \
   include/compat/sys/pclock.h \
-  include/compat/sys/percpu.h \
-  include/compat/net/rtable.h \
 
 compat/pfk_rtable.o: $(deps_compat/pfk_rtable.o)
 

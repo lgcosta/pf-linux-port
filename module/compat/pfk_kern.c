@@ -284,7 +284,7 @@ pfk_timeout_fire(struct timer_list *tl)
 void
 timeout_set(struct timeout *to, timeout_fn *fn, void *arg)
 {
-	if (!to->fn) {		/* one-time setup */
+	if (!to->timer.function) {	/* one-time setup */
 		timer_setup(&to->timer, pfk_timeout_fire, 0);
 		INIT_WORK(&to->work, pfk_timeout_work);
 		to->period_ms = -1;
@@ -299,14 +299,33 @@ timeout_set_micro(struct timeout *to, timeout_fn *fn, void *arg)
 	timeout_set(to, fn, arg);
 }
 
+/* OpenBSD TIMEOUT_INITIALIZER() statics never see timeout_set(): lazily
+ * complete the Linux timer/work plumbing on the first use (PFLINUX). */
+static inline void
+pfk_timeout_ensure(struct timeout *to)
+{
+	if (!to->timer.function) {
+		timer_setup(&to->timer, pfk_timeout_fire, 0);
+		INIT_WORK(&to->work, pfk_timeout_work);
+		to->period_ms = -1;
+	}
+}
+
 int
 timeout_add(struct timeout *to, long ms)
 {
+	pfk_timeout_ensure(to);
 	if (ms < 0)
 		ms = 0;
 	to->pending = 1;
 	to->deadline_jif = jiffies + msecs_to_jiffies(ms);
 	return mod_timer(&to->timer, to->deadline_jif);
+}
+
+int
+timeout_add_msec(struct timeout *to, int msecs)
+{
+	return timeout_add(to, msecs);
 }
 
 int
@@ -331,6 +350,8 @@ int
 timeout_del(struct timeout *to)
 {
 	to->pending = 0;
+	if (!to->timer.function)
+		return 0;
 	return timer_delete(&to->timer);
 }
 
@@ -338,6 +359,8 @@ void
 timeout_del_sync(struct timeout *to)
 {
 	to->pending = 0;
+	if (!to->timer.function)
+		return;
 	timer_delete_sync(&to->timer);
 	cancel_work_sync(&to->work);
 }
@@ -345,6 +368,8 @@ timeout_del_sync(struct timeout *to)
 void
 timeout_barrier(struct timeout *to, int flags)
 {
+	if (!to->timer.function)
+		return;
 	timer_delete_sync(&to->timer);
 	cancel_work_sync(&to->work);
 }
@@ -404,4 +429,154 @@ pfk_wakeup(void *p)
 		}
 	}
 	spin_unlock(&pfk_tsleep_lock);
+}
+
+/* ---------------- OpenBSD counters(9) over cpumem ---------------- */
+/* Each "counter" slot is an array of `count` u64s per possible CPU.
+ * PFLINUX deviation from OpenBSD's cpumem-based counters_read(): the
+ * scratch argument is accepted but unused (no cpu_info walk needed). */
+struct cpumem *
+counters_alloc(u_int count)
+{
+	return cpumem_malloc((size_t)count * sizeof(uint64_t), M_WAITOK);
+}
+
+void
+counters_free(struct cpumem *cm)
+{
+	cpumem_free(cm, 0);
+}
+
+void
+counters_inc(struct cpumem *cm, u_int idx)
+{
+	uint64_t *p;
+
+	if (!cm)
+		return;
+	preempt_disable();
+	p = (uint64_t *)cm->cm_base +
+	    (size_t)smp_processor_id() * cm->cm_item / sizeof(uint64_t);
+	p[idx]++;
+	preempt_enable();
+}
+
+void
+counters_zero(struct cpumem *cm, u_int count)
+{
+	unsigned int cpu;
+
+	if (!cm)
+		return;
+	for_each_possible_cpu(cpu) {
+		uint64_t *p = (uint64_t *)cm->cm_base +
+		    (size_t)cpu * cm->cm_item / sizeof(uint64_t);
+		unsigned int i;
+
+		for (i = 0; i < count; i++)
+			p[i] = 0;
+	}
+}
+
+void
+counters_read(struct cpumem *cm, uint64_t *result, u_int count,
+    uint64_t *scratch)
+{
+	unsigned int cpu;
+
+	(void)scratch;		/* PFLINUX: unused (see header note) */
+	memset(result, 0, count * sizeof(*result));
+	if (!cm)
+		return;
+	for_each_possible_cpu(cpu) {
+		uint64_t *p = (uint64_t *)cm->cm_base +
+		    (size_t)cpu * cm->cm_item / sizeof(uint64_t);
+		unsigned int i;
+
+		for (i = 0; i < count; i++)
+			result[i] += p[i];
+	}
+}
+
+/* ---------------- OpenBSD sysctl-backed globals ---------------- */
+/* PFLINUX: these are OpenBSD kern.sysctls PF consults per-packet.  The
+ * port keeps plain globals; ip_forwarding is synced from
+ * init_net.ipv4.sysctl_ip_forward on ifevents (pfk_if.c) — a runtime
+ * `sysctl -w net.ipv4.ip_forward` is picked up on the next event, not
+ * instantly (recorded deviation). */
+int ip_forwarding;
+int ip_directedbcast;
+int ipmultipath;
+int ip6_multipath;
+int ip_mtudisc = 1;		/* Linux enables PMTU discovery by default */
+int ip_defttl = 64;		/* OpenBSD IP_DEFTTL */
+u_int max_linkhdr = 14;		/* refreshed by pfk_if_refresh() */
+tcp_seq tcp_iss;		/* PFLINUX: stays 0; pf_tcp_iss() supplies
+				 * the randomness (SHA512 + per-packet off) */
+
+void
+pfk_sysctl_sync(void)
+{
+	/* PFLINUX: OpenBSD ip_forwarding 0/1(/2 ipsec).  Linux 7.3 keeps
+	 * the forwarding boolean in the "all" ipv4 device-configuration
+	 * (per-net ipv4.devconf_all, the old net.ipv4.ip_forward sysctl
+	 * storage); we mirror it as 0/1. */
+	int fwd = 0;
+
+	if (init_net.ipv4.devconf_all)
+		fwd = IPV4_DEVCONF(*init_net.ipv4.devconf_all, FORWARDING);
+	WRITE_ONCE(ip_forwarding, fwd ? 1 : 0);
+}
+
+/* ---------------- curcpu(9) ---------------- */
+static DEFINE_PER_CPU(struct pfk_cpu_info, pfk_cpu_infos);
+
+struct pfk_cpu_info *
+pfk_curcpu(void)
+{
+	struct pfk_cpu_info *ci;
+
+	preempt_disable();
+	ci = this_cpu_ptr(&pfk_cpu_infos);
+	ci->ci_schedstate.spc_schedflags =
+	    need_resched() ? SPCF_SHOULDYIELD : 0;
+	preempt_enable();
+	return ci;
+}
+
+/* ---------------- if_congested(9) ---------------- */
+/* PFLINUX: OpenBSD sets ifq_congestion when any ifq hits resource
+ * pressure; the port stamps the same instant from its xmit path
+ * (pfk_if_congestion(), called on ENOBUFS-class drops in pfk_xmit.c). */
+static unsigned long pfk_congestion_jif;
+
+void
+pfk_if_congestion(void)
+{
+	WRITE_ONCE(pfk_congestion_jif, jiffies);
+}
+
+int
+if_congested(void)
+{
+	unsigned long c = READ_ONCE(pfk_congestion_jif);
+
+	if (!c || time_after(jiffies, c + HZ / 100))
+		return 0;
+	return 1;
+}
+
+
+/* ---------------- pflog (netlink backend, milestone M4) ---------------- */
+/* NPFLOG=1: the staged if_pflog.c needs the OpenBSD ifpf layer; until the
+ * netlink-backed pflog lands (M4), pflog_packet() consumes nothing and
+ * reports the missing backend at least once so logged packets are never
+ * silently vanished (see docs/porting-notes.md). */
+int
+pflog_packet(struct pf_pdesc *pd, u_int8_t reason, struct pf_rule *rm,
+    struct pf_rule *am, struct pf_ruleset *ruleset, struct pf_rule *cm)
+{
+	(void)pd; (void)reason; (void)rm; (void)am; (void)ruleset; (void)cm;
+	pr_warn_once("pfk: pflog backend pending M4; packet not logged\n");
+	return (0);
 }

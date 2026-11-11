@@ -162,7 +162,7 @@ struct pfk_pfq {
 };
 
 static void *
-pfk_pfq_alloc(struct ifnet *ifp)
+pfk_pfq_alloc(struct pfk_ifnet *ifp)
 {
 	struct pfk_pfq *pfq = kzalloc(sizeof(*pfq), GFP_KERNEL);
 
@@ -280,7 +280,7 @@ const struct pfq_ops * const pfq_fqcodel_ops = &pfk_priq_pfq_ops;
 
 /* ---------------- framework ---------------- */
 void
-ifq_init(struct ifqueue *ifq, struct ifnet *ifp, unsigned int maxlen)
+ifq_init(struct ifqueue *ifq, struct pfk_ifnet *ifp, unsigned int maxlen)
 {
 	memset(ifq, 0, sizeof(*ifq));
 	ifq->ifq_if = ifp;
@@ -421,4 +421,21 @@ ifq_hdatalen(struct ifqueue *ifq)
 {
 	(void)ifq;
 	return 0;
+}
+
+/* ---------------- scheduler back ends (milestone M5) ---------------- */
+/* The staged OpenBSD hfsc.c/fq_codel.c are not in the build yet; the priq
+ * ops above are the active scheduler.  These wrappers keep pf_ioctl's
+ * initialisation calls valid until M5 replaces them with the ported
+ * schedulers (docs/porting-notes.md). */
+void
+hfsc_initialize(void)
+{
+	pr_info("pfk: hfsc back end pending M5 (priq active)\n");
+}
+
+void
+fq_codel_initialize(void)
+{
+	pr_info("pfk: fq_codel back end pending M5 (priq active)\n");
 }

@@ -187,6 +187,80 @@ m_dup(struct mbuf *m, int wait)
 	return n;
 }
 
+/*
+ * m_prepend(m, len, how): make room for `len` bytes at the front of the
+ * packet (contents moved, not initialised — BSD semantics).
+ */
+struct mbuf *
+m_prepend(struct mbuf *m, int len, int how)
+{
+	if (!m || len <= 0)
+		return m;
+	if (skb_headroom(m->skb) < len) {
+		int extra = ALIGN(len - skb_headroom(m->skb), 64);
+		gfp_t g = (how & M_WAITOK) ? GFP_ATOMIC : GFP_ATOMIC;
+
+		if ((how & (M_WAITOK|M_CANFAIL)) == M_WAITOK)
+			g = GFP_KERNEL;
+		if (pskb_expand_head(m->skb, extra, 0, g)) {
+			m_freem(m);
+			return NULL;
+		}
+	}
+	skb_push(m->skb, len);
+	pfk_mbuf_refresh(m);
+	if (m->m_flags & M_PKTHDR)
+		m->m_pkthdr.len += len;
+	return m;
+}
+
+/*
+ * m_split(m, len, flags): cut m at `len`, return the tail (second half).
+ * m keeps the first `len` bytes.  On failure returns NULL and leaves m
+ * untouched (OpenBSD semantics: m unchanged).
+ */
+struct mbuf *
+m_split(struct mbuf *m, int len, int flags)
+{
+	struct mbuf *tail;
+
+	if (len >= m->m_len)
+		return NULL;	/* nothing to split off */
+	tail = m_copym(m, len, m->m_len - len, flags);
+	if (!tail)
+		return NULL;
+	skb_trim(m->skb, len);
+	pfk_mbuf_refresh(m);
+	if (m->m_flags & M_PKTHDR)
+		m->m_pkthdr.len = len;
+	return tail;
+}
+
+/*
+ * m_dup_pkt(m, hdr, how): full duplicate of m with at least `hdr` bytes of
+ * headroom in front of the data (for link-layer rewriting downstream).
+ */
+struct mbuf *
+m_dup_pkt(struct mbuf *m, u_int hdr, int how)
+{
+	struct mbuf *n = m_dup(m, how);
+
+	if (!n)
+		return NULL;
+	if ((unsigned int)skb_headroom(n->skb) < hdr) {
+		int extra = ALIGN((int)hdr - skb_headroom(n->skb), 64);
+
+		if (pskb_expand_head(n->skb, extra, 0,
+		    (how & (M_WAITOK|M_CANFAIL)) == M_WAITOK ?
+			GFP_KERNEL : GFP_ATOMIC)) {
+			m_freem(n);
+			return NULL;
+		}
+		pfk_mbuf_refresh(n);
+	}
+	return n;
+}
+
 void
 m_adj(struct mbuf *m, int dlen)
 {

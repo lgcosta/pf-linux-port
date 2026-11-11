@@ -12,8 +12,10 @@ ccflags-y := -I$(src)/include -I$(src)/include/compat -DPFLINUX=1 \
 # our glue + compat layer
 pf-objs := pfsrc/pfk_mod.o pfsrc/pfk_hooks.o \
            compat/pfk_mbuf.o compat/pfk_kern.o compat/pfk_if.o compat/pfk_xmit.o \
+           compat/pfk_pcb.o compat/pfk_ip4.o \
            compat/siphash.o compat/toeplitz.o compat/md5.o compat/sha2.o \
-           compat/radix.o compat/pfk_rtable.o compat/pfk_ip6.o
+           compat/radix.o compat/pfk_rtable.o compat/pfk_ip6.o \
+           compat/subr_tree.o
 
 # ported OpenBSD 8.0 engine
 pf-objs += pfsrc/pf_ruleset.o pfsrc/pf_table.o pfsrc/pf_norm.o pfsrc/pf_if.o \

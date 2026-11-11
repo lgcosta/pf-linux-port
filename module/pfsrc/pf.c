@@ -152,7 +152,7 @@ static __inline int	 pf_create_state(struct pf_pdesc *, struct pf_rule *,
 			    struct pf_state_key **, struct pf_state_key **,
 			    int *, struct pf_state **, int,
 			    struct pf_rule_slist *, struct pf_rule_actions *,
-			    struct pf_src_node **, struct pf_test_ctx *);
+			    struct pf_src_node *[PF_SN_MAX], struct pf_test_ctx *);
 static __inline int	 pf_state_key_addr_setup(struct pf_pdesc *, void *,
 			    int, struct pf_addr *, int, struct pf_addr *,
 			    int, int);
@@ -4315,7 +4315,7 @@ pf_calc_mss(struct pf_addr *addr, sa_family_t af, int rtableid, uint16_t offer,
 		hlen = sizeof(struct pf_ip);
 		dst = (struct sockaddr_in *)&ss;
 		dst->sin_family = AF_INET;
-		dst->sin_len = sizeof(*dst);
+		;
 		dst->sin_addr = addr->v4;
 		rt = rtalloc(sintosa(dst), 0, rtableid);
 		break;
@@ -4324,7 +4324,7 @@ pf_calc_mss(struct pf_addr *addr, sa_family_t af, int rtableid, uint16_t offer,
 		hlen = sizeof(struct pf_ip6_hdr);
 		dst6 = (struct sockaddr_in6 *)&ss;
 		dst6->sin6_family = AF_INET6;
-		dst6->sin6_len = sizeof(*dst6);
+		;
 		dst6->sin6_addr = addr->v6;
 		rt = rtalloc(sin6tosa(dst6), 0, rtableid);
 		break;
@@ -5389,7 +5389,7 @@ pf_create_state(struct pf_pdesc *pd, struct pf_rule *r, struct pf_rule *a,
 		pf_set_protostate(st, PF_PEER_SRC, PF_TCPS_PROXY_SRC);
 		st->src.seqhi = arc4random();
 		/* Find mss option */
-		mssdflt = atomic_load_int(&tcp_mssdflt);
+		mssdflt = atomic_load_int(&pfk_tcp_mssdflt);
 		mss = pf_get_mss(pd, mssdflt);
 		mss = pf_calc_mss(pd->src, pd->af, rtid, mss, mssdflt);
 		mss = pf_calc_mss(pd->dst, pd->af, rtid, mss, mssdflt);
@@ -6066,7 +6066,7 @@ pf_synproxy_ack(struct pf_rule *r, struct pf_pdesc *pd, struct pf_state **sm,
 	pf_set_protostate(s, PF_PEER_SRC, PF_TCPS_PROXY_SRC);
 	s->src.seqhi = arc4random();
 	/* Find mss option */
-	mssdflt = atomic_load_int(&tcp_mssdflt);
+	mssdflt = atomic_load_int(&pfk_tcp_mssdflt);
 	mss = pf_get_mss(pd, mssdflt);
 	mss = pf_calc_mss(pd->src, pd->af, rtid, mss, mssdflt);
 	mss = pf_calc_mss(pd->dst, pd->af, rtid, mss, mssdflt);
@@ -7185,7 +7185,7 @@ pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kif *kif,
 	case AF_INET:
 		dst = (struct sockaddr_in *)&ss;
 		dst->sin_family = AF_INET;
-		dst->sin_len = sizeof(*dst);
+		;
 		dst->sin_addr = addr->v4;
 		if (atomic_load_int(&ipmultipath))
 			check_mpath = 1;
@@ -7200,7 +7200,7 @@ pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kif *kif,
 			goto out;
 		dst6 = (struct sockaddr_in6 *)&ss;
 		dst6->sin6_family = AF_INET6;
-		dst6->sin6_len = sizeof(*dst6);
+		;
 		dst6->sin6_addr = addr->v6;
 		if (atomic_load_int(&ip6_multipath))
 			check_mpath = 1;
@@ -7268,14 +7268,14 @@ pf_rtlabel_match(struct pf_addr *addr, sa_family_t af, struct pf_addr_wrap *aw,
 	case AF_INET:
 		dst = (struct sockaddr_in *)&ss;
 		dst->sin_family = AF_INET;
-		dst->sin_len = sizeof(*dst);
+		;
 		dst->sin_addr = addr->v4;
 		break;
 #ifdef INET6
 	case AF_INET6:
 		dst6 = (struct sockaddr_in6 *)&ss;
 		dst6->sin6_family = AF_INET6;
-		dst6->sin6_len = sizeof(*dst6);
+		;
 		dst6->sin6_addr = addr->v6;
 		break;
 #endif /* INET6 */
@@ -7342,7 +7342,7 @@ pf_route(struct pf_pdesc *pd, struct pf_state *st)
 	memset(&sin, 0, sizeof(sin));
 	dst = &sin;
 	dst->sin_family = AF_INET;
-	dst->sin_len = sizeof(*dst);
+	;
 	dst->sin_addr = st->rt_addr.v4;
 	rtableid = m0->m_pkthdr.ph_rtableid;
 
@@ -7460,7 +7460,7 @@ pf_route6(struct pf_pdesc *pd, struct pf_state *st)
 	memset(&sin6, 0, sizeof(sin6));
 	dst = &sin6;
 	dst->sin6_family = AF_INET6;
-	dst->sin6_len = sizeof(*dst);
+	;
 	dst->sin6_addr = st->rt_addr.v6;
 	rtableid = m0->m_pkthdr.ph_rtableid;
 
@@ -8723,9 +8723,9 @@ done:
 				}
 				if (atomic_load_int(&ip_directedbcast))
 					SET(flags, IP_ALLOWBROADCAST);
-				ip_forward(pd.m, ifp, NULL, flags);
+				pfk_ip_forward(pd.m, ifp, NULL, flags);
 			} else
-				ip_output(pd.m, NULL, NULL, 0, NULL, NULL, 0);
+				pfk_ip_output(pd.m, NULL, NULL, 0, NULL, NULL, 0);
 			break;
 		case AF_INET6:
 			if (pd.dir == PF_IN) {
@@ -8745,7 +8745,7 @@ done:
 				}
 				pfk_ip6_forward(pd.m, NULL, flags);
 			} else
-				ip6_output(pd.m, NULL, NULL, 0, NULL, NULL);
+				pfk_ip6_output(pd.m, NULL, NULL, 0, NULL, NULL);
 			break;
 		}
 		pd.m = NULL;

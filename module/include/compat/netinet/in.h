@@ -3,6 +3,10 @@
 #define _PFK_NETINET_IN_H
 #include <linux/in.h>
 #include <linux/in6.h>
+/* BSD protocol number aliases (OpenBSD <netinet/in.h>) */
+#ifndef IPPROTO_IPV4
+#define IPPROTO_IPV4	IPPROTO_IPIP	/* IP inside IP */
+#endif
 /* BSD IP-level option numbers (Linux uapi uses different values) */
 #define PF_IP_OPTIONS		1
 #define PF_IP_RECORD_ROUTE	7

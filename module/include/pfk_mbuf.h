@@ -91,6 +91,26 @@ struct pkthdr {
 #define M_BCAST		0x0020
 #define M_MCAST		0x0040
 #define M_LOOP		0x0080
+/* m_pkthdr.csum_flags bits (OpenBSD <sys/mbuf.h> names, port values).
+ * PFLINUX: the port does not trust driver offload yet; ingress packets get
+ * no IN_OK bit and pf.c re-checksums in software (pf_check_tcp_cksum). */
+#define M_TCP_CSUM_IN_OK	0x0001
+#define M_TCP_CSUM_IN_BAD	0x0002
+#define M_TCP_CSUM_OUT		0x0004
+#define M_UDP_CSUM_IN_OK	0x0010
+#define M_UDP_CSUM_IN_BAD	0x0020
+#define M_UDP_CSUM_OUT		0x0040
+#define M_ICMP_CSUM_OUT		0x0100
+#define M_IPV4_CSUM_OUT		0x0200
+#define M_FLOWID		0x0400
+/* m_copym/m_dup "copy everything" length (OpenBSD <sys/mbuf.h>) */
+#ifndef M_COPYALL
+#define M_COPYALL		1000000000
+#endif
+/* BSD M_PREPEND (OpenBSD <sys/mbuf.h>): m = m_prepend(m, h, f) */
+#ifndef M_PREPEND
+#define M_PREPEND(m, h, f)	((m) = m_prepend((m), (h), (f)))
+#endif
 #define M_SKIP_FIREWALL	0x0100
 #define M_BPF_MCAST	0x0200
 #define M_PROMISC	0x0400
@@ -127,6 +147,9 @@ void  pfk_m_setpkthdr(struct mbuf *m);
 
 struct mbuf *m_copym(struct mbuf *m, int off, int len, int wait);
 struct mbuf *m_dup(struct mbuf *m, int wait);	/* full dup + headroom */
+struct mbuf *m_prepend(struct mbuf *m, int len, int how);
+struct mbuf *m_split(struct mbuf *m, int len, int flags);
+struct mbuf *m_dup_pkt(struct mbuf *m, u_int hdr, int how);
 #define m_copypacket(m, w) m_copym((m), 0, 0, (w))
 void  m_adj(struct mbuf *m, int dlen);
 void  m_trim(struct mbuf *m, int dlen);

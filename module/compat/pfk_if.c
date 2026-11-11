@@ -30,6 +30,11 @@ pfk_ifnet_new(struct net_device *dev)
 	ifp->dev = dev;
 	ifp->alive = 1;
 	INIT_LIST_HEAD(&ifp->link);
+	/* BSD TAILQ heads are self-referential when empty (tqh_last points
+	 * at &tqh_first); kzalloc leaves tqh_last == NULL, which the first
+	 * TAILQ_INSERT_TAIL would dereference. */
+	TAILQ_INIT(&ifp->if_addrlist);
+	TAILQ_INIT(&ifp->if_groups);
 	ifp->if_type = IFT_OTHER;
 	switch (dev->type) {
 	case ARPHRD_ETHER: ifp->if_type = IFT_ETHER; break;
@@ -64,8 +69,35 @@ pfk_if_refresh(struct pfk_ifnet *ifp)
 {
 	ifp->if_mtu = ifp->dev->mtu;
 	ifp->if_flags = pfk_dev_flags_bsd(ifp->dev);
+	if (ifp->dev->hard_header_len > max_linkhdr)
+		max_linkhdr = ifp->dev->hard_header_len;
+	/* PFLINUX: sync the BSD sysctl mirrors on device events */
+	pfk_sysctl_sync();
 	/* address snapshot: rebuild list from Linux in_ifaddr/inet6_ifaddr */
 	pfk_if_addrlist_refresh(ifp);
+}
+
+/*
+ * OpenBSD if_get/if_put: registry entries are refcounted there; the port's
+ * pfk_ifnet objects are freed via call_rcu on UNREGISTER, so RCU/NET_LOCK
+ * readers can use them without an extra count (PFLINUX: if_put is a no-op).
+ */
+struct pfk_ifnet *
+if_get(int ifidx)
+{
+	return pfk_ifp_byindex(ifidx);
+}
+
+struct pfk_ifnet *
+if_get_smr(int ifidx)
+{
+	return pfk_ifp_byindex(ifidx);
+}
+
+void
+if_put(struct pfk_ifnet *ifp)
+{
+	(void)ifp;
 }
 
 struct pfk_ifnet *

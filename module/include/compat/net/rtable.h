@@ -11,9 +11,12 @@ struct pf_rtentry {
 	void		*rt_addr;	/* destination */
 	unsigned int	 rt_ifidx;	/* egress ifindex */
 	unsigned int	 rt_flags;
+#ifndef RTF_UP
+#define	RTF_UP		0x1	/* route usable (OpenBSD net/route.h) */
+#endif
 	int		 rt_listid;
 	int		 rt_labelid;
-	void		*rt_ifa;
+	void		*rt_ifa;	/* BSD in_ifaddr/in6_ifaddr view */
 };
 
 int		rtable_exists(unsigned int rtableid);

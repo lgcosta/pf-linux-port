@@ -83,12 +83,19 @@ struct pf_icmp {
 		__be16	ih_id[2];	/* id, seq */
 		struct { __u8 type, code; __be16 cksum; } ih_type_hdr;
 		__be32	ih_gwaddr;
+		__u8	ih_pptr;	/* ICMP_PARAMPROB pointer byte */
+		__be32	ih_void;
+		struct { __be16 ipm_void; __be16 ipm_nextmtu; } ih_pmtu;
 		struct ih_frags { __be16 ih_rrechk; __be16 ih_length; } ih_frag;
 	} icmp_hun;
 #define	icmp_id		icmp_hun.ih_id[0]
 #define icmp_seq	icmp_hun.ih_id[1]
 #define icmp_cksum_alt	icmp_hun.ih_type_hdr.cksum
 #define icmp_gwaddr	icmp_hun.ih_gwaddr
+#define icmp_pptr	icmp_hun.ih_pptr
+#define icmp_void	icmp_hun.ih_void
+#define icmp_pmvoid	icmp_hun.ih_pmtu.ipm_void
+#define icmp_nextmtu	icmp_hun.ih_pmtu.ipm_nextmtu
 	union {
 		__s8	id_pad[8];
 		__be16		id_ipid[2];
@@ -136,8 +143,31 @@ struct pf_icmp {
 #define ICMP_ADDRESS		17
 #define ICMP_ADDRESSREPLY	18
 #define ICMP_MAXTYPE		18
+/* OpenBSD <netinet/ip_icmp.h> additional type/code constants (values are
+ * RFC/IANA-frozen; names as used by pf.c). */
+#define ICMP_IREQ		15	/* information request */
+#define ICMP_IREQREPLY		16	/* information reply */
+#define ICMP_MASKREQ		17	/* address mask request */
+#define ICMP_MASKREPLY		18	/* address mask reply */
+#define ICMP_IPV6_WHEREAREYOU	33	/* IPv6 where-are-you */
+#define ICMP_IPV6_IAMHERE	34	/* IPv6 i-am-here */
+#define ICMP_MOBILE_REGREQUEST	35	/* mobile registration req */
+#define ICMP_MOBILE_REGREPLY	36	/* mobile registration reply */
+#define ICMP_MINLEN		8	/* abs minimum */
+#define ICMP_PARAMPROB_ERRATPTR	0	/* error at indicated pointer */
+#define ICMP_PARAMPROB_OPTABSENT 1	/* req. opt. absent */
+#define ICMP_PARAMPROB_LENGTH	2	/* bad length */
+#define ICMP_ECHOREQUEST	ICMP_ECHO
+#define ICMP_INFOTYPE(type) \
+	((type) == ICMP_ECHOREPLY || (type) == ICMP_ECHO || \
+	(type) == ICMP_ROUTERADVERT || (type) == ICMP_ROUTERSOLICIT || \
+	(type) == ICMP_TSTAMP || (type) == ICMP_TSTAMPREPLY || \
+	(type) == ICMP_IREQ || (type) == ICMP_IREQREPLY || \
+	(type) == ICMP_MASKREQ || (type) == ICMP_MASKREPLY)
 
 /* ---- IPv6 (OpenBSD <netinet/ip6.h> ctl-union + macros) ---- */
+#define IPV6_DEFHLIM	64	/* default hop limit */
+#define IPV6_HLIMDEC	1	/* subtracted when forwarding */
 struct pf_ip6_hdr {
 	union {
 		struct ip6_hdrctl {
@@ -146,10 +176,12 @@ struct pf_ip6_hdr {
 			__u8 ip6_un1_nxt;
 			__u8 ip6_un1_hlim;
 		} ip6_un1;
+		__u8 ip6_un2_vfc;	/* version << 4 | tclass >> 4 */
 	} ip6_ctlun;
 	struct in6_addr ip6_src;
 	struct in6_addr ip6_dst;
 };
+#define ip6_vfc		ip6_ctlun.ip6_un2_vfc
 #define ip6_flow	ip6_ctlun.ip6_un1->ip6_un1_flow
 #define ip6_plen	ip6_ctlun.ip6_un1.ip6_un1_plen
 #define ip6_nxt		ip6_ctlun.ip6_un1.ip6_un1_nxt
@@ -189,6 +221,7 @@ struct pf_icmp6 {
 			__be16	icmp6_seq;
 		} un_h;
 	} icmp6_dataun;
+#define icmp6_pptr	icmp6_dataun.un_data32[0]	/* parameter prob */
 };
 #define icmp6_id	icmp6_dataun.un_h.icmp6_id
 #define icmp6_seq	icmp6_dataun.un_h.icmp6_seq
@@ -219,5 +252,82 @@ __sum16 pfk_icmp6_cksum(const struct pf_ip6_hdr *ip6,
 	const struct icmp6hdr *ic6, int len);
 void pfk_send_icmp_error(int family, struct sk_buff *skb_in, int type,
 	int code, __be32 info);
+
+/* ---- IPv6 extension/option headers (OpenBSD <netinet/ip6.h>) ---- */
+struct ip6_opt {
+	__u8	ip6o_type;
+	__u8	ip6o_len;
+};
+#define IP6OPT_PAD1		0x00
+#define IP6OPT_PADN		0x01
+#define IP6OPT_JUMBO		0xC2
+#define IP6OPT_ROUTER_ALERT	0x05
+#define IP6OPT_MINLEN		2
+struct ip6_opt_jumbo {
+	__u8	ip6oj_type;
+	__u8	ip6oj_len;
+	__u8	ip6oj_jumbo_len[4];
+};
+#define IP6OPT_JUMBO_LEN	6
+struct ip6_opt_router {
+	__u8	ip6or_type;
+	__u8	ip6or_len;
+	__u8	ip6or_value[2];
+};
+struct ip6_rthdr {
+	__u8	ip6r_nxt;
+	__u8	ip6r_len;
+	__u8	ip6r_type;
+	__u8	ip6r_segleft;
+};
+#define IPV6_RTHDR_TYPE_0	0
+struct ip6_rthdr0 {
+	__u8	ip6r0_nxt;
+	__u8	ip6r0_len;
+	__u8	ip6r0_type;
+	__u8	ip6r0_segleft;
+	__u32	ip6r0_reserved;
+};
+
+/* ---- ICMPv6 types/codes (OpenBSD <netinet/icmp6.h>, RFC-frozen values) ---- */
+#define ICMP6_PARAM_PROB		 4
+#define ICMP6_WRUREQUEST		 139	/* who-are-you / NI query */
+#define ICMP6_WRUREPLY			 140
+#define ICMP6_NI_QUERY			 139
+#define ICMP6_NI_REPLY			 140
+#define ICMP6_MAXTYPE			 201
+#define ICMP6_DST_UNREACH_NOROUTE	 0
+#define ICMP6_DST_UNREACH_ADMIN		 1
+#define ICMP6_DST_UNREACH_BEYONDSCOPE	 2
+#define ICMP6_DST_UNREACH_ADDR		 3
+#define ICMP6_DST_UNREACH_NOPORT		 4
+#define ICMP6_TIME_EXCEED_TRANSIT	 0
+#define ICMP6_TIME_EXCEED_REASSEMBLY	 1
+#define ICMP6_PARAMPROB_HEADER		 0
+#define ICMP6_PARAMPROB_NEXTHEADER	 1
+#define ICMP6_PARAMPROB_OPTION		 2
+#define MLD_LISTENER_QUERY		 130
+#define MLD_LISTENER_REPORT		 131
+#define MLD_LISTENER_DONE		 132
+#define MLDV2_LISTENER_REPORT		 143
+#define MLD_MTRACE_RESP			 200
+#define MLD_MTRACE			 201
+#define ND_ROUTER_SOLICIT		 133
+#define ND_ROUTER_ADVERT		 134
+#define ND_NEIGHBOR_SOLICIT		 135
+#define ND_NEIGHBOR_ADVERT		 136
+#define ND_REDIRECT			 137
+
+/* ---- TCP (OpenBSD <netinet/tcp.h>/<netinet/tcp_var.h>/<netinet/tcp_seq.h>) */
+#define TCP_NSTATES		11	/* netinet/tcp_fsm.h */
+#define TCP_MAXWIN		65535	/* max value for (unscaled) window */
+#define TCP_MAX_WINSHIFT	14	/* max window shift */
+#define TCPOPT_SACK		5
+#define TCPOLEN_SACK		8	/* 2*sizeof(tcp_seq) */
+struct sackblk {
+	__u32	start;		/* start seq no. of sack block */
+	__u32	end;		/* end seq no. */
+};
+typedef __u32 tcp_seq;
 
 #endif /* _PFK_NET_H */
