@@ -860,3 +860,25 @@ ruleset's block line and the resulting state carries the reply).
   at all) on pf0, which looked like a PF failure.  Both now retry and
   verify the copy, and `vm-run-tests.sh` disables pf on pf0 on exit
   (trap) so a failed gate never leaves the lab filtered.
+
+## Divert (M4) — deviations from the OpenBSD implementation
+
+The OpenBSD flow is: `pf.c` tags the mbuf (`PACKET_TAG_PF_DIVERT`,
+`PF_TAG_DIVERTED`) and `netinet/ip_input.c` hands the tagged packet to the
+divert socket.  Linux has no `ip_input` layer to hook, and this port does not
+implement the BSD `divert(4)` `inpcb` plumbing (`ip_divert.c` is kept in the
+tree as reference but is not built).
+
+Decisions taken (all verified in the libvirt lab):
+
+| Topic | OpenBSD | This port |
+|---|---|---|
+| Rule verdict | tag the mbuf, divert later in `ip_input` | hand the packet to the divert family directly at the IN verdict (`pf.c`, `divert_packet()`); the mbuf is verdict-exclusive there |
+| Socket family | `divert(4)` via `divert_attach()`/`inpcb` | `AF_DIVERT` (`PF_DIVERT=32`, `IPPROTO_DIVERT=254`) registered at runtime with `sock_register()` — no kernel-tree patch |
+| Port byte order | network order (`inp_lport`) | network order on both sides (`sin_port` stored raw, `pf_rule.divert.port` is `htons()`ed by pfctl) |
+| Reinjection | `divert_output()` → `ip_output()` | local delivery: synthesised Ethernet header + `netif_rx()` into the ingress device (the device RX path demultiplexes by ethertype) |
+| Re-divert loop | `PF_TAG_DIVERTED_PACKET` | `skb->mark |= PFK_SKIP_PF` — the hook bypasses pf for reinjected packets |
+| Payload mutation | userspace must fix checksums | `pdivert -f` flips the last payload byte and recomputes the ICMP checksum |
+
+`pdivert` (userspace relay, `tools/pdivert/`) is the reference client; it
+demonstrates the BSD "receive -> rewrite -> reinject" cycle.

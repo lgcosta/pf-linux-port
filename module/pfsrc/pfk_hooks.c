@@ -138,14 +138,24 @@ pfk_enqueue_verdict(int af, struct sk_buff *skb,
 
 	switch (st->hook) {
 	case NF_INET_PRE_ROUTING:
+		/* OpenBSD evaluates the IN ruleset in ip_input(); every
+		 * arriving packet passes it. */
 		dir = PF_IN;
+		break;
+	case NF_INET_FORWARD:
+		/* OpenBSD evaluates the OUT ruleset of a forwarded packet in
+		 * ip_forward() (pf_test(PF_FWD)); the IN ruleset was already
+		 * applied at input time.  Without this, transit traffic never
+		 * sees the "out" rules and state matching for replies is
+		 * impossible. */
+		dir = PF_OUT;
 		break;
 	case NF_INET_LOCAL_OUT:
 	case NF_INET_POST_ROUTING:
 		dir = PF_OUT;
 		break;
 	default:
-		return NF_ACCEPT;	/* LOCAL_IN/FORWARD */
+		return NF_ACCEPT;	/* LOCAL_IN */
 	}
 	if (skb->mark & PFK_SKIP_PF)
 		return NF_ACCEPT;	/* reinjected by divert: don't re-filter */
@@ -160,7 +170,8 @@ pfk_enqueue_verdict(int af, struct sk_buff *skb,
 	if (dir == PF_IN)
 		ifp = pfk_ifp_bydev(st->in ? st->in : skb->dev);
 	else
-		ifp = pfk_ifp_bydev(skb->dev ? skb->dev : st->out);
+		ifp = pfk_ifp_bydev(st->out ? st->out :
+		    (skb->dev ? skb->dev : NULL));
 	if (!ifp)
 		return NF_ACCEPT;
 
