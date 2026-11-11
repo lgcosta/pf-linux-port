@@ -3,26 +3,48 @@
 # Recorded with:  asciinema rec out/demo-pf-linux.cast -c "bash scripts/demo-session.sh"
 #
 # Everything printed is the REAL output of the lab (Alpine VMs under libvirt
-# running the kernel built from source with our pf.ko).  The ssh aliases
-# (pf0/cli/srv) come from ~/.ssh/config.d/pflab.
+# running the kernel built from source with our pf.ko).  The VM management
+# addresses are resolved from the hypervisor (they are DHCP), the lab
+# topology (10.0.1.0/24, 10.0.2.0/24, ...) is fixed.
 set -u
 
+DEB=${DEB:-root@192.168.1.242}
 CLI_IP=${CLI_IP:-10.0.1.10}
 SRV_IP=${SRV_IP:-10.0.2.20}
+KEY=${KEY:-$HOME/.ssh/pflab_ed}
 
 bold()  { printf '\033[1m%s\033[0m\n' "$*"; }
 cyan()  { printf '\033[1;36m%s\033[0m\n' "$*"; }
 
+# management address of a lab VM (DHCP, so ask the hypervisor)
+mgmt() {
+	ssh -o ConnectTimeout=8 "$DEB" "virsh domifaddr $1 | awk '/vnet/{print \$4}' | cut -d/ -f1" \
+	    2>/dev/null | tr -d '\r' | head -1
+}
+
+PF0_MGMT=$(mgmt pftest-pf0)
+CLI_MGMT=$(mgmt pftest-cli)
+[ -n "$PF0_MGMT" ] || PF0_MGMT=192.168.122.8
+[ -n "$CLI_MGMT" ] || CLI_MGMT=192.168.122.80
+
+# run a command on a lab VM (through the hypervisor)
+onvm() {
+	local ip=$1; shift
+	ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new \
+	    -o ProxyJump=root@192.168.1.242 -i "$KEY" root@"$ip" "$@" 2>&1
+}
+
 p0() {
 	cyan "pftest-pf0# $*"
-	ssh pf0 "$*" 2>&1 | sed 's/^/  /'
+	onvm "$PF0_MGMT" "$@"
 	sleep 0.4
 }
 vmc() {
 	cyan "pftest-cli# $*"
-	ssh cli "$*" 2>&1 | sed 's/^/  /'
+	onvm "$CLI_MGMT" "$@"
 	sleep 0.4
 }
+
 
 CONF=/tmp/demo-pf.conf
 DIV=/tmp/demo-divert.conf
@@ -49,11 +71,12 @@ pass in quick proto icmp from $CLI_IP to 10.0.1.1 divert-to "10.0.1.1" port 1000
 pass out quick
 CONF
 
-EGRESS_IF=$(ssh pf0 "ip route get $SRV_IP | grep -o 'dev [a-z0-9]*' | cut -d' ' -f2" 2>/dev/null | tr -d '\r')
+# the pf0 interface towards the server (used by the NAT pool)
+EGRESS_IF=$(onvm "$PF0_MGMT" "ip route get $SRV_IP | grep -o 'dev [a-z0-9]*' | cut -d' ' -f2" | tr -d '\r')
 [ -n "$EGRESS_IF" ] || EGRESS_IF=eth2
 
-scp -q "$CONF" "$DIV" pf0:/tmp/ 2>/dev/null
-scp -q tools/out/pdivert pf0:/tmp/pdivert 2>/dev/null
+scp -q -o ProxyJump=root@192.168.1.242 -i "$KEY" "$CONF" "$DIV" \
+    tools/out/pdivert "root@$PF0_MGMT:/tmp/" 2>/dev/null
 
 bold "==============================================================="
 bold " PF on Linux - the OpenBSD PF 8.0 engine inside the Linux kernel"
@@ -83,7 +106,7 @@ echo
 
 bold "--- 4. transit traffic is allowed and stateful ---"
 vmc "ping -c2 -W2 $SRV_IP | tail -3"
-p0 "/opt/pf/pfctl -ss"
+p0 "/opt/pf/pfctl -ss | grep -E 'icmp' | head -4"
 echo
 
 bold "--- 5. tables are live objects ---"
@@ -111,7 +134,7 @@ pass out quick on egress proto icmp keep state
 EOF"
 p0 "/opt/pf/pfctl -f /tmp/demo-nat.conf && echo 'nat rules loaded'"
 vmc "ping -c2 -W2 $SRV_IP | tail -3"
-p0 "/opt/pf/pfctl -ss"
+p0 "/opt/pf/pfctl -ss | grep -E 'icmp' | head -4"
 p0 "/opt/pf/pfctl -f /tmp/demo-pf.conf && echo 'back to the stateful ruleset'"
 echo
 

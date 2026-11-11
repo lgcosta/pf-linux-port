@@ -48,7 +48,7 @@ Estado em 2026-11-11; evidência por linha: `out/test-logs/`,
 
 | Feature | Sintaxe de upstream | Milestone | Status |
 |---|---|---|---|
-| `nat-to` (pools de portas, sticky-port, static-port) | `pass out … nat-to (eth1:0)` | M3 | PENDING-M3 (`pf.c`/`pf_lb.c` compilados; fiação + gate VM no M3) |
+| `nat-to` (pools de portas, sticky-port, static-port) | `pass out … nat-to (eth1:0)` | M3 | **VERIFICADO em lab** — NAT de origem funciona ponta a ponta: o pacote sai com o endereço do pool (prova via tcpdump), a resposta é des-NATeada e roteada de novo para o cliente, e o estado mostra as duas tuplas (`10.0.2.1:59335 (10.0.1.10:4380) -> 10.0.2.20:8`). Gate: `tests/vm/05-nat.sh`. |
 | `rdr-to` | `rdr pass on wan proto tcp from any to any port 8080 -> srv port 80` | M3 | PENDING-M3 |
 | `binat-to` | `binat-to …` | M3 | PENDING-M3 |
 | Scrub/normalize: remontagem, `fragment drop-overlap`, `min-ttl`, `max-mss`, `df`/`no-df`, `random-id`, `set reassemble yes` | `match on all scrub (max-mss 1380 …)` | M3 | COMPILES-untested (`pf_norm.c` compilado no pf.ko e alcançado pelo `pf_test`; gate scapy 08 pendente) |
