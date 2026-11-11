@@ -1,5 +1,72 @@
 /* PFLINUX port of OpenBSD 8.0 net/pf_syncookies.c — see docs/porting-notes.md */
 #include <pfk.h>
+#include <net/pfvar.h>
+#include <net/pfvar_priv.h>
+
+/*	$OpenBSD: pf_syncookies.c,v 1.10 2025/07/07 02:28:50 jsg Exp $ */
+
+/* Copyright (c) 2016,2017 Henning Brauer <henning@openbsd.org>
+ * Copyright (c) 2016 Alexandr Nedvedicky <sashan@openbsd.org>
+ *
+ * syncookie parts based on FreeBSD sys/netinet/tcp_syncache.c
+ *
+ * Copyright (c) 2001 McAfee, Inc.
+ * Copyright (c) 2006,2013 Andre Oppermann, Internet Business Solutions AG
+ * All rights reserved.
+ *
+ * This software was developed for the FreeBSD Project by Jonathan Lemon
+ * and McAfee Research, the Security Research Division of McAfee, Inc. under
+ * DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
+ * DARPA CHATS research program. [2001 McAfee, Inc.]
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+/*
+ * when we're under synflood, we use syncookies to prevent state table
+ * exhaustion. Trigger for the synflood mode is the number of half-open
+ * connections in the state table.
+ * We leave synflood mode when the number of half-open states - including
+ * in-flight syncookies - drops far enough again
+ */
+ 
+/*
+ * syncookie enabled Initial Sequence Number:
+ *  24 bit MAC
+ *   3 bit WSCALE index
+ *   3 bit MSS index
+ *   1 bit SACK permitted
+ *   1 bit odd/even secret
+ *
+ * References:
+ *  RFC4987 TCP SYN Flooding Attacks and Common Mitigations
+ *  http://cr.yp.to/syncookies.html    (overview)
+ *  http://cr.yp.to/syncookies/archive (details)
+ */
+
+
+
+
+
 
 union pf_syncookie {
 	uint8_t		cookie;
@@ -103,7 +170,7 @@ pf_syncookie_send(struct pf_pdesc *pd, u_short *reason)
 	uint16_t	mss, mssdflt;
 	uint32_t	iss;
 
-	mssdflt = atomic_load_int(&tcp_mssdflt);
+	mssdflt = atomic_load_int(&pfk_tcp_mssdflt);
 	mss = max(pf_get_mss(pd, mssdflt), mssdflt);
 	iss = pf_syncookie_generate(pd, mss);
 	pf_send_tcp(NULL, pd->af, pd->dst, pd->src, *pd->dport, *pd->sport,

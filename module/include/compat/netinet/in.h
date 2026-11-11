@@ -10,4 +10,11 @@
 #ifndef INADDR_MULTICAST
 #define INADDR_MULTICAST	0xe0000000U
 #endif
+
+/* BSD <netinet/in.h> union of socket address types */
+union sockaddr_union {
+	struct sockaddr		su;
+	struct sockaddr_in	sin;
+	struct sockaddr_in6	sin6;
+};
 #endif

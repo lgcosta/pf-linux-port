@@ -11,4 +11,4 @@ ethernets:
     match: {macaddress: "@CLI_MAC_LAN@"}
     addresses: [@CLI@]
     routes:
-      - {to: default, via: @CLI_GW@}
+      - {to: 0.0.0.0/0, via: @CLI_GW@}

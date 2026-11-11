@@ -10,8 +10,12 @@
 #ifndef __packed
 #define __packed	__attribute__((__packed__))
 #endif
+/* NOTE: the kernel redefines 'inline' as a macro that expands to
+ * 'inline __gnu_inline __inline_maybe_unused notrace'; any attribute placed
+ * between those tokens breaks the parse. Therefore __unused expands to
+ * nothing here (unused *static inline* functions do not warn in GCC). */
 #ifndef __unused
-#define __unused	__attribute__((__unused__))
+#define __unused
 #endif
 #ifndef __dead
 #define __dead		__attribute__((__noreturn__))

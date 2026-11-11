@@ -1,5 +1,46 @@
 /* PFLINUX port of OpenBSD 8.0 net/pf_table.c — see docs/porting-notes.md */
 #include <pfk.h>
+#include <net/pfvar.h>
+#include <net/pfvar_priv.h>
+
+/*	$OpenBSD: pf_table.c,v 1.151 2026/10/02 09:40:22 sashan Exp $	*/
+
+/*
+ * Copyright (c) 2002 Cedric Berger
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ *    - Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *    - Redistributions in binary form must reproduce the above
+ *      copyright notice, this list of conditions and the following
+ *      disclaimer in the documentation and/or other materials provided
+ *      with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ */
+
+
+
+
+#ifdef INET6
+#endif /* INET6 */
+
 
 #define ACCEPT_FLAGS(flags, oklist)		\
 	do {					\
@@ -26,14 +67,14 @@
 
 #define	FILLIN_SIN(sin, addr)			\
 	do {					\
-		(sin)./* PFLINUX sin_len */;	\
+		;	\
 		(sin).sin_family = AF_INET;	\
 		(sin).sin_addr = (addr);	\
 	} while (0)
 
 #define	FILLIN_SIN6(sin6, addr)			\
 	do {					\
-		(sin6).sin6_len = sizeof(sin6);	\
+		;	\
 		(sin6).sin6_family = AF_INET6;	\
 		(sin6).sin6_addr = (addr);	\
 	} while (0)
@@ -1215,13 +1256,13 @@ pfr_prepare_network(union sockaddr_union *sa, int af, int net)
 	bzero(sa, sizeof(*sa));
 	switch (af) {
 	case AF_INET:
-		sa->sin./* PFLINUX sin_len */;
+		;
 		sa->sin.sin_family = AF_INET;
 		sa->sin.sin_addr.s_addr = net ? htonl(-1 << (32-net)) : 0;
 		break;
 #ifdef	INET6
 	case AF_INET6:
-		sa->sin6.sin6_len = sizeof(sa->sin6);
+		;
 		sa->sin6.sin6_family = AF_INET6;
 		for (i = 0; i < 4; i++) {
 			if (net <= 32) {
@@ -2416,7 +2457,7 @@ pfr_kentry_byaddr(struct pfr_ktable *kt, struct pf_addr *a, sa_family_t af,
 	switch (af) {
 	case AF_INET:
 		bzero(&tmp4, sizeof(tmp4));
-		tmp4./* PFLINUX sin_len */;
+		;
 		tmp4.sin_family = AF_INET;
 		tmp4.sin_addr.s_addr = a->addr32[0];
 		ke = (struct pfr_kentry *)rn_match(&tmp4, kt->pfrkt_ip4);
@@ -2424,7 +2465,7 @@ pfr_kentry_byaddr(struct pfr_ktable *kt, struct pf_addr *a, sa_family_t af,
 #ifdef INET6
 	case AF_INET6:
 		bzero(&tmp6, sizeof(tmp6));
-		tmp6.sin6_len = sizeof(tmp6);
+		;
 		tmp6.sin6_family = AF_INET6;
 		bcopy(a, &tmp6.sin6_addr, sizeof(tmp6.sin6_addr));
 		ke = (struct pfr_kentry *)rn_match(&tmp6, kt->pfrkt_ip6);
@@ -2460,7 +2501,7 @@ pfr_update_stats(struct pfr_ktable *kt, struct pf_addr *a, struct pf_pdesc *pd,
 	switch (af) {
 	case AF_INET:
 		bzero(&tmp4, sizeof(tmp4));
-		tmp4./* PFLINUX sin_len */;
+		;
 		tmp4.sin_family = AF_INET;
 		tmp4.sin_addr.s_addr = a->addr32[0];
 		ke = (struct pfr_kentry *)rn_match(&tmp4, kt->pfrkt_ip4);
@@ -2468,7 +2509,7 @@ pfr_update_stats(struct pfr_ktable *kt, struct pf_addr *a, struct pf_pdesc *pd,
 #ifdef INET6
 	case AF_INET6:
 		bzero(&tmp6, sizeof(tmp6));
-		tmp6.sin6_len = sizeof(tmp6);
+		;
 		tmp6.sin6_family = AF_INET6;
 		bcopy(a, &tmp6.sin6_addr, sizeof(tmp6.sin6_addr));
 		ke = (struct pfr_kentry *)rn_match(&tmp6, kt->pfrkt_ip6);
@@ -2597,14 +2638,14 @@ pfr_pool_get(struct pf_pool *rpool, struct pf_addr **raddr,
 	switch (af) {
 	case AF_INET:
 		bzero(&tmp4, sizeof(tmp4));
-		tmp4./* PFLINUX sin_len */;
+		;
 		tmp4.sin_family = AF_INET;
 		addr = (struct pf_addr *)&tmp4.sin_addr;
 		break;
 #ifdef	INET6
 	case AF_INET6:
 		bzero(&tmp6, sizeof(tmp6));
-		tmp6.sin6_len = sizeof(tmp6);
+		;
 		tmp6.sin6_family = AF_INET6;
 		addr = (struct pf_addr *)&tmp6.sin6_addr;
 		break;

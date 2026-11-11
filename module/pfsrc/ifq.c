@@ -1,5 +1,33 @@
 /* PFLINUX port of OpenBSD 8.0 net/ifq.c — see docs/porting-notes.md */
 #include <pfk.h>
+#include <net/pfvar.h>
+#include <net/pfvar_priv.h>
+
+/*	$OpenBSD: ifq.c,v 1.62 2025/07/28 05:25:44 dlg Exp $ */
+
+/*
+ * Copyright (c) 2015 David Gwynne <dlg@openbsd.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+
+
+
+#if NBPFILTER > 0
+#endif
+
+#if NKSTAT > 0
 #endif
 
 /*
@@ -96,7 +124,7 @@ void
 ifq_start_task(void *p)
 {
 	struct ifqueue *ifq = p;
-	struct ifnet *ifp = ifq->ifq_if;
+	struct pfk_ifnet *ifp = ifq->ifq_if;
 
 	if (!ISSET(ifp->if_flags, PFIFF_RUNNING) ||
 	    ifq_empty(ifq) || ifq_is_oactive(ifq))
@@ -134,7 +162,7 @@ void
 ifq_restart_task(void *p)
 {
 	struct ifqueue *ifq = p;
-	struct ifnet *ifp = ifq->ifq_if;
+	struct pfk_ifnet *ifp = ifq->ifq_if;
 
 	ifq_clr_oactive(ifq);
 	ifp->if_qstart(ifq);
@@ -218,7 +246,7 @@ ifq_kstat_copy(struct kstat *ks, void *dst)
 #endif
 
 void
-ifq_init(struct ifqueue *ifq, struct ifnet *ifp, unsigned int idx)
+ifq_init(struct ifqueue *ifq, struct pfk_ifnet *ifp, unsigned int idx)
 {
 	ifq->ifq_if = ifp;
 	ifq->ifq_softnet = net_tq(idx);
@@ -616,7 +644,7 @@ ifiq_kstat_copy(struct kstat *ks, void *dst)
 static void	ifiq_process(void *);
 
 void
-ifiq_init(struct ifiqueue *ifiq, struct ifnet *ifp, unsigned int idx)
+ifiq_init(struct ifiqueue *ifiq, struct pfk_ifnet *ifp, unsigned int idx)
 {
 	ifiq->ifiq_if = ifp;
 	ifiq->ifiq_bpfp = NULL;
@@ -669,7 +697,7 @@ unsigned int ifiq_maxlen_return = 2048 * 3;
 int
 ifiq_input(struct ifiqueue *ifiq, struct mbuf_list *ml)
 {
-	struct ifnet *ifp = ifiq->ifiq_if;
+	struct pfk_ifnet *ifp = ifiq->ifiq_if;
 	struct mbuf *m;
 	uint64_t packets;
 	uint64_t bytes = 0;
@@ -763,7 +791,7 @@ ifiq_add_data(struct ifiqueue *ifiq, struct if_data *data)
 int
 ifiq_enqueue_qlim(struct ifiqueue *ifiq, struct mbuf *m, unsigned int qlim)
 {
-	struct ifnet *ifp = ifiq->ifiq_if;
+	struct pfk_ifnet *ifp = ifiq->ifiq_if;
 	unsigned int len;
 #if NBPFILTER > 0
 	caddr_t if_bpf = ifp->if_bpf;

@@ -71,5 +71,8 @@ struct radix_node *rn_delete(void *, void *, struct radix_node_head *,
 	    struct radix_node *);
 struct radix_node *rn_lookup(void *, void *, struct radix_node_head *);
 struct radix_node *rn_match(void *, struct radix_node_head *);
+int	rn_add_dupedkey(struct radix_node *saved_tt,
+	    struct radix_node_head *head, struct radix_node *tt, u_int8_t prio);
+int	rn_initmask(void);
 
 #endif /* _PFK_RADIX_H_ */

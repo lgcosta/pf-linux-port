@@ -1,5 +1,52 @@
 /* PFLINUX port of OpenBSD 8.0 net/pf_osfp.c — see docs/porting-notes.md */
 #include <pfk.h>
+#include <net/pfvar.h>
+#include <net/pfvar_priv.h>
+
+/*	$OpenBSD: pf_osfp.c,v 1.50 2026/09/13 03:27:17 deraadt Exp $ */
+
+/*
+ * Copyright (c) 2003 Mike Frantzen <frantzen@w4g.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
+ */
+
+#ifdef _KERNEL
+#endif /* _KERNEL */
+
+
+
+#ifdef INET6
+#endif /* INET6 */
+
+
+#ifdef _KERNEL
+typedef struct pool pool_t;
+
+#else	/* !_KERNEL */
+/* Userland equivalents so we can lend code to tcpdump et al. */
+
+#define pool_t			int
+#define pool_get(pool, flags)	malloc(*(pool))
+#define pool_put(pool, item)	free(item)
+#define pool_init(pool, size, a, ao, f, m, p)	(*(pool)) = (size)
+
+#define PF_LOCK()
+#define PF_UNLOCK()
+#define PF_ASSERT_LOCKED()
+
+#ifdef PFDEBUG
 #endif /* PFDEBUG */
 
 #endif /* _KERNEL */
@@ -88,7 +135,7 @@ pf_osfp_fingerprint_hdr(const struct pf_ip *ip, const struct pf_ip6_hdr *ip6,
 #else	/* !_KERNEL */
 		memset(&sin, 0, sizeof(sin));
 		sin.sin_family = AF_INET;
-		sin./* PFLINUX sin_len */;
+		;
 		sin.sin_addr = ip->ip_src;
 		(void)getnameinfo((struct sockaddr *)&sin,
 		    sizeof(struct sockaddr_in), srcname, sizeof(srcname),
@@ -111,7 +158,7 @@ pf_osfp_fingerprint_hdr(const struct pf_ip *ip, const struct pf_ip6_hdr *ip6,
 #else	/* !_KERNEL */
 		memset(&sin6, 0, sizeof(sin6));
 		sin6.sin6_family = AF_INET6;
-		sin6.sin6_len = sizeof(struct sockaddr_in6);
+		;
 		sin6.sin6_addr = ip6->ip6_src;
 		(void)getnameinfo((struct sockaddr *)&sin6,
 		    sizeof(struct sockaddr_in6), srcname, sizeof(srcname),

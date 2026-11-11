@@ -40,7 +40,7 @@ deb_cmd() { deb "bash -s" <<<"$1"; }
 # Run a shell script inside a lab VM (nested ssh from deb with the lab key).
 # Guest host keys change every lab rebuild -> pin-noise disabled for this hop.
 VMSSH_OPTS="-o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 -o LogLevel=ERROR"
-vm_cmd()  { local ip=$1; deb "ssh -i $LAB_KEY_DEB $VMSSH_OPTS root@$ip 'bash -s'" <<<"$2"; }
+vm_cmd()  { local ip=$1; deb "ssh -i $LAB_KEY_DEB $VMSSH_OPTS root@$ip 'sh -s'" <<<"$2"; }
 
 # --- template rendering: replace @KEY@ tokens from environment + extra K=V ---
 RENDER_KEYS=(
@@ -164,6 +164,7 @@ runcmd_extra() {
     cat > /etc/local.d/pflab.start <<'EOS'
     #!/bin/sh
     sysctl -q -p /etc/sysctl.d/00-pflab.conf 2>/dev/null
+    for f in /proc/sys/net/ipv4/conf/*/rp_filter; do echo 0 > "$f" 2>/dev/null; done
     IF=$(ip route show default 2>/dev/null | awk '{print $5; exit}')
     [ -n "$IF" ] || exit 0
     iptables -t nat -A POSTROUTING -o "$IF" -j MASQUERADE
@@ -222,6 +223,7 @@ packages_fixup() { # safety net if cloud-init ran before pf0 had transit up
   for a in $VMS; do
     ip=$(vm_ip "$a")
     vm_cmd "$ip" 'command -v iperf3 >/dev/null 2>&1 && command -v iptables >/dev/null 2>&1 || {
+      grep -q nameserver /etc/resolv.conf 2>/dev/null || echo nameserver 192.168.122.1 >> /etc/resolv.conf
       . /etc/os-release
       grep -qE "^[^#]*/community" /etc/apk/repositories || echo "${HOME}/v${VERSION_ID}/community" >> /etc/apk/repositories
       apk update -q >/dev/null 2>&1

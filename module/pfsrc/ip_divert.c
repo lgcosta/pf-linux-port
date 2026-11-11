@@ -1,5 +1,29 @@
 /* PFLINUX port of OpenBSD 8.0 netinet/ip_divert.c — see docs/porting-notes.md */
 #include <pfk.h>
+#include <net/pfvar.h>
+#include <net/pfvar_priv.h>
+
+/*      $OpenBSD: ip_divert.c,v 1.108 2026/06/24 15:56:17 claudio Exp $ */
+
+/*
+ * Copyright (c) 2009 Michele Marchetto <michele@openbsd.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+
+
+
 
 /*
  * Locks used to protect data:
@@ -91,8 +115,8 @@ divert_output(struct inpcb *inp, struct mbuf *m, struct mbuf *nam,
 	m->m_pkthdr.pf.flags |= PF_TAG_DIVERTED_PACKET;
 
 	if (dir == PF_IN) {
-		struct rtentry *rt;
-		struct ifnet *ifp;
+		struct pf_rtentry *rt;
+		struct pfk_ifnet *ifp;
 
 		rt = rtalloc(sintosa(sin), 0, inp->inp_rtableid);
 		if (!rtisvalid(rt) || !ISSET(rt->rt_flags, RTF_LOCAL)) {
@@ -168,11 +192,11 @@ divert_packet(struct mbuf *m, int dir, u_int16_t divert_port)
 
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
-	sin./* PFLINUX sin_len */;
+	;
 
 	if (dir == PF_IN) {
 		struct ifaddr *ifa;
-		struct ifnet *ifp;
+		struct pfk_ifnet *ifp;
 
 		ifp = if_get(m->m_pkthdr.ph_ifidx);
 		if (ifp == NULL) {

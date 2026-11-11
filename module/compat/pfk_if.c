@@ -108,33 +108,32 @@ pfk_if_stats(struct pfk_ifnet *ifp, struct pfk_if_data *out)
 }
 
 /* -------- address snapshots -------- */
-static struct pfk_ifaddr *
+/* Build a BSD-style ifaddr for the given interface address. */
+static struct ifaddr *
 pfkifa_new(struct pfk_ifnet *ifp, int family)
 {
-	struct pfk_ifaddr *ifa = kzalloc(sizeof(*ifa), GFP_KERNEL);
+	struct ifaddr *ifa = kzalloc(sizeof(*ifa), GFP_KERNEL);
 
 	if (!ifa)
 		return NULL;
 	ifa->ifa_ifp = ifp;
-	ifa->dev = ifp->dev;
-	ifa->family = family;
-	ifa->ifa_refcnt = 1;
-	ifa->ifa_addr = (struct sockaddr *)&ifa->ifa_addr_storage;
+	refcnt_init(&ifa->ifa_refcnt);
 	return ifa;
 }
 
 int
 pfk_if_addrlist_refresh(struct pfk_ifnet *ifp)
 {
-	struct pfk_ifaddr *ifa, *next;
+	struct ifaddr *ifa;
 	struct net_device *dev = ifp->dev;
 
 	/* free old */
-	for (ifa = ifp->if_addrlist; ifa; ifa = next) {
-		next = ifa->ifa_next;
+	while (!TAILQ_EMPTY(&ifp->if_addrlist)) {
+		ifa = TAILQ_FIRST(&ifp->if_addrlist);
+		TAILQ_REMOVE(&ifp->if_addrlist, ifa, ifa_list);
+		kfree(ifa->ifa_addr);
 		kfree(ifa);
 	}
-	ifp->if_addrlist = NULL;
 
 	rcu_read_lock();
 	/* IPv4 */
@@ -148,16 +147,20 @@ pfk_if_addrlist_refresh(struct pfk_ifnet *ifp)
 				ifa = pfkifa_new(ifp, AF_INET);
 				if (!ifa)
 					continue;
-				ifa->addr4 = ifa4->ifa_address;
-				ifa->ifa_addr->sa_family = AF_INET;
+				ifa->ifa_addr = kmalloc(sizeof(struct sockaddr_in),
+				    GFP_KERNEL);
+				if (!ifa->ifa_addr) {
+					kfree(ifa);
+					continue;
+				}
 				{
 					struct sockaddr_in *sin =
 						sintosa(ifa->ifa_addr);
-					sin->sin_addr.s_addr = ifa4->ifa_address;
+					memset(sin, 0, sizeof(*sin));
 					sin->sin_family = AF_INET;
+					sin->sin_addr.s_addr = ifa4->ifa_address;
 				}
-				ifa->ifa_next = ifp->if_addrlist;
-				ifp->if_addrlist = ifa;
+				TAILQ_INSERT_TAIL(&ifp->if_addrlist, ifa, ifa_list);
 			}
 	}
 	/* IPv6 */
@@ -171,17 +174,20 @@ pfk_if_addrlist_refresh(struct pfk_ifnet *ifp)
 				ifa = pfkifa_new(ifp, AF_INET6);
 				if (!ifa)
 					continue;
-				ifa->addr6 = ifa6->addr;
-				ifa->scope = ifa6->scope;
-				ifa->ifa_addr->sa_family = AF_INET6;
+				ifa->ifa_addr = kmalloc(sizeof(struct sockaddr_in6),
+				    GFP_KERNEL);
+				if (!ifa->ifa_addr) {
+					kfree(ifa);
+					continue;
+				}
 				{
 					struct sockaddr_in6 *sin6 =
 						sin6tosa(ifa->ifa_addr);
+					memset(sin6, 0, sizeof(*sin6));
 					sin6->sin6_family = AF_INET6;
 					sin6->sin6_addr = ifa6->addr;
 				}
-				ifa->ifa_next = ifp->if_addrlist;
-				ifp->if_addrlist = ifa;
+				TAILQ_INSERT_TAIL(&ifp->if_addrlist, ifa, ifa_list);
 			}
 	}
 #endif
@@ -189,22 +195,25 @@ pfk_if_addrlist_refresh(struct pfk_ifnet *ifp)
 	return 0;
 }
 
-struct pfk_ifaddr *
+struct ifaddr *
 pfk_ifwithaddr(const struct sockaddr *sa)
 {
 	struct pfk_ifnet *ifp;
-	struct pfk_ifaddr *ifa;
+	struct ifaddr *ifa;
 
 	for (ifp = pfk_if_first(); ifp; ifp = pfk_if_next(ifp)) {
-		for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next) {
-			if (ifa->family != sa->sa_family)
+		TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
+			if (!ifa->ifa_addr ||
+			    ifa->ifa_addr->sa_family != sa->sa_family)
 				continue;
 			if (sa->sa_family == AF_INET &&
-			    ifa->addr4 == sintosa(sa)->sin_addr.s_addr)
+			    sintosa(ifa->ifa_addr)->sin_addr.s_addr ==
+			    sintosa(sa)->sin_addr.s_addr)
 				return ifa;
 			if (sa->sa_family == AF_INET6 &&
-			    !memcmp(&ifa->addr6, &sin6tosa(sa)->sin6_addr,
-				    sizeof(struct in6_addr)))
+			    !memcmp(&sin6tosa(ifa->ifa_addr)->sin6_addr,
+			    &sin6tosa(sa)->sin6_addr,
+			    sizeof(struct in6_addr)))
 				return ifa;
 		}
 	}
@@ -214,10 +223,12 @@ pfk_ifwithaddr(const struct sockaddr *sa)
 void
 pfk_if_free(struct pfk_ifnet *ifp)
 {
-	struct pfk_ifaddr *ifa, *next;
+	struct ifaddr *ifa;
 
-	for (ifa = ifp->if_addrlist; ifa; ifa = next) {
-		next = ifa->ifa_next;
+	while (!TAILQ_EMPTY(&ifp->if_addrlist)) {
+		ifa = TAILQ_FIRST(&ifp->if_addrlist);
+		TAILQ_REMOVE(&ifp->if_addrlist, ifa, ifa_list);
+		kfree(ifa->ifa_addr);
 		kfree(ifa);
 	}
 	kfree(ifp);

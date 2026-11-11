@@ -1,5 +1,43 @@
 /* PFLINUX port of OpenBSD 8.0 net/pf_norm.c — see docs/porting-notes.md */
 #include <pfk.h>
+#include <net/pfvar.h>
+#include <net/pfvar_priv.h>
+
+/*	$OpenBSD: pf_norm.c,v 1.239 2026/08/11 14:28:59 bluhm Exp $ */
+
+/*
+ * Copyright 2001 Niels Provos <provos@citi.umich.edu>
+ * Copyright 2009 Henning Brauer <henning@openbsd.org>
+ * Copyright 2011-2018 Alexander Bluhm <bluhm@openbsd.org>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+
+
+
+#ifdef INET6
+#endif /* INET6 */
+
 
 struct pf_frent {
 	TAILQ_ENTRY(pf_frent) fr_next;
@@ -886,7 +924,7 @@ fail:
 
 int
 pf_refragment6(struct mbuf **m0, struct m_tag *mtag, struct sockaddr_in6 *dst,
-    struct ifnet *ifp, struct rtentry *rt)
+    struct pfk_ifnet *ifp, struct pf_rtentry *rt)
 {
 	struct mbuf		*m = *m0;
 	struct mbuf_list	 ml;
@@ -904,7 +942,7 @@ pf_refragment6(struct mbuf **m0, struct m_tag *mtag, struct sockaddr_in6 *dst,
 	ftag = NULL;
 
 	/* Checksum must be calculated for the whole packet */
-	in6_proto_cksum_out(m, NULL);
+	pfk_in6_proto_cksum_out(m, NULL);
 
 	if (extoff) {
 		int off;
@@ -928,12 +966,12 @@ pf_refragment6(struct mbuf **m0, struct m_tag *mtag, struct sockaddr_in6 *dst,
 	 * Maxlen may be less than 8 iff there was only a single
 	 * fragment.  As it was fragmented before, add a fragment
 	 * header also for a single fragment.  If total or maxlen
-	 * is less than 8, ip6_fragment() will return EMSGSIZE and
+	 * is less than 8, pfk_ip6_fragment() will return EMSGSIZE and
 	 * we drop the packet.
 	 */
 	mtu = hdrlen + sizeof(struct ip6_frag) + maxlen;
-	error = ip6_fragment(m, &ml, hdrlen, proto, mtu);
-	*m0 = NULL;	/* ip6_fragment() has consumed original packet. */
+	error = pfk_ip6_fragment(m, &ml, hdrlen, proto, mtu);
+	*m0 = NULL;	/* pfk_ip6_fragment() has consumed original packet. */
 	if (error) {
 		DPFPRINTF(LOG_NOTICE, "refragment error %d", error);
 		return (PF_DROP);
@@ -955,9 +993,9 @@ pf_refragment6(struct mbuf **m0, struct m_tag *mtag, struct sockaddr_in6 *dst,
 				ip6stat_inc(ip6s_cantforward);
 				return (PF_DROP);
 			}
-			ip6_forward(m, NULL, flags);
+			pfk_ip6_forward(m, NULL, flags);
 		} else if ((u_long)m->m_pkthdr.len <= ifp->if_mtu) {
-			ifp->if_output(ifp, m, sin6tosa(dst), rt);
+			pfk_if_output(ifp, m, (struct sockaddr *)sin6tosa(dst), rt);
 		} else {
 			icmp6_error(m, ICMP6_PACKET_TOO_BIG, 0, ifp->if_mtu);
 		}

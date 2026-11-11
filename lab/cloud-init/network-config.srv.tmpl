@@ -11,5 +11,5 @@ ethernets:
     match: {macaddress: "@SRV_MAC_WAN@"}
     addresses: [@SRV@]
     routes:
-      - {to: default, via: @SRV_GW@}
+      - {to: 0.0.0.0/0, via: @SRV_GW@}
       - {to: 10.0.3.0/24, via: @GW2_WAN_IP@}

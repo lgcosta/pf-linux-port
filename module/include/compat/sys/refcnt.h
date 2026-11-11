@@ -6,9 +6,9 @@
 struct refcnt { refcount_t rc; };
 #define REFCNT_INITIALIZER	{ .rc = REFCNT_INIT }
 
-static inline void refcnt_init(struct refcnt *r, unsigned int v)
+static inline void refcnt_init(struct refcnt *r)
 {
-	refcount_set(&r->rc, v ? (int)v : 1);
+	refcount_set(&r->rc, 1);
 }
 static inline unsigned int refcnt_value(const struct refcnt *r)
 {

@@ -1,5 +1,45 @@
 /* PFLINUX port of OpenBSD 8.0 net/fq_codel.c — see docs/porting-notes.md */
 #include <pfk.h>
+#include <net/pfvar.h>
+#include <net/pfvar_priv.h>
+
+/* $OpenBSD: fq_codel.c,v 1.21 2026/08/13 09:01:49 bket Exp $ */
+
+/*
+ * Copyright (c) 2017 Mike Belopuhov
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+/*
+ * K. Nichols, V. Jacobson, A. McGregor and J. Iyengar, Controlled Delay
+ * Active Queue Management, RFC 8289, January 2018
+ *
+ * Based on the algorithm by Kathleen Nichols and Van Jacobson with
+ * improvements from Dave Taht and Eric Dumazet.
+ */
+
+/*
+ * T. Hoeiland-Joergensen, P. McKenney, D. Taht, J. Gettys and E. Dumazet,
+ * The Flow Queue CoDel Packet Scheduler and Active Queue Management
+ * Algorithm, RFC 8290, January 2018
+ *
+ * Based on the implementation by Rasool Al-Saadi, Centre for Advanced
+ * Internet Architectures, Swinburne University of Technology, Melbourne,
+ * Australia.
+ */
+
+
 
 /* #define FQCODEL_DEBUG 1 */
 
@@ -59,7 +99,7 @@ struct fqcodel {
 	struct flow		*flows;
 	unsigned int		 qlength;
 
-	struct ifnet		*ifp;
+	struct pfk_ifnet		*ifp;
 
 	struct codel_params	 cparams;
 
@@ -107,7 +147,7 @@ static const struct ifq_ops fqcodel_ops = {
 
 const struct ifq_ops *const ifq_fqcodel_ops = &fqcodel_ops;
 
-void		*fqcodel_pf_alloc(struct ifnet *);
+void		*fqcodel_pf_alloc(struct pfk_ifnet *);
 int		 fqcodel_pf_addqueue(void *, struct pf_queuespec *);
 void		 fqcodel_pf_free(void *);
 int		 fqcodel_pf_qstats(struct pf_queuespec *, void *, int *);
@@ -701,7 +741,7 @@ fqcodel_if_purge(struct ifqueue *ifq, struct mbuf_list *ml)
 }
 
 void *
-fqcodel_pf_alloc(struct ifnet *ifp)
+fqcodel_pf_alloc(struct pfk_ifnet *ifp)
 {
 	struct fqcodel *fqc;
 
@@ -717,7 +757,7 @@ fqcodel_pf_alloc(struct ifnet *ifp)
 int
 fqcodel_pf_addqueue(void *arg, struct pf_queuespec *qs)
 {
-	struct ifnet *ifp = qs->kif->pfik_ifp;
+	struct pfk_ifnet *ifp = qs->kif->pfik_ifp;
 	struct fqcodel *fqc = arg;
 
 	if (qs->flowqueue.flows == 0 || qs->flowqueue.flows > 0xffff)
@@ -773,7 +813,7 @@ fqcodel_pf_free(void *arg)
 int
 fqcodel_pf_qstats(struct pf_queuespec *qs, void *ubuf, int *nbytes)
 {
-	struct ifnet *ifp = qs->kif->pfik_ifp;
+	struct pfk_ifnet *ifp = qs->kif->pfik_ifp;
 	struct fqcodel_stats stats;
 	struct fqcodel *fqc;
 	int64_t delay;

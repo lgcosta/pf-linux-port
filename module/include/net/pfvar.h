@@ -45,8 +45,8 @@
 #include <net/radix.h>
 #include <net/route.h>
 
-struct ip;
-struct ip6_hdr;
+struct pf_ip;
+struct pf_ip6_hdr;
 struct mbuf_list;
 
 #define	PF_TCPS_PROXY_SRC	((TCP_NSTATES)+0)
@@ -1058,7 +1058,7 @@ struct pfi_kif_cmp {
 	char				 pfik_name[IFNAMSIZ];
 };
 
-struct ifnet;
+struct pfk_ifnet;
 struct ifg_group;
 
 struct pfi_kif {
@@ -1070,7 +1070,7 @@ struct pfi_kif {
 	int				 pfik_flags;
 	int				 pfik_flags_new;
 	void				*pfik_ah_cookie;
-	struct ifnet			*pfik_ifp;
+	struct pfk_ifnet			*pfik_ifp;
 	struct ifg_group		*pfik_group;
 	int				 pfik_states;
 	int				 pfik_rules;
@@ -1314,7 +1314,7 @@ struct hfsc_opts {
 };
 
 struct pfq_ops {
-	void *		(*pfq_alloc)(struct ifnet *);
+	void *		(*pfq_alloc)(struct pfk_ifnet *);
 	int		(*pfq_addqueue)(void *, struct pf_queuespec *);
 	void		(*pfq_free)(void *);
 	int		(*pfq_qstats)(struct pf_queuespec *, void *, int *);
@@ -1786,7 +1786,7 @@ int				 pf_setup_pdesc(struct pf_pdesc *, sa_family_t,
 				    int, struct pfi_kif *, struct mbuf *,
 				    u_short *);
 
-int	pf_test(sa_family_t, int, struct ifnet *, struct mbuf **);
+int	pf_test(sa_family_t, int, struct pfk_ifnet *, struct mbuf **);
 
 void	pf_poolmask(struct pf_addr *, struct pf_addr*,
 	    struct pf_addr *, struct pf_addr *, sa_family_t);
@@ -1817,7 +1817,7 @@ struct pf_state_scrub *
 void	pf_state_scrub_put(struct pf_state_scrub *);
 
 int	pf_refragment6(struct mbuf **, struct m_tag *mtag,
-	    struct sockaddr_in6 *, struct ifnet *, struct rtentry *);
+	    struct sockaddr_in6 *, struct pfk_ifnet *, struct pf_rtentry *);
 void	pf_normalize_init(void);
 int	pf_normalize_ip(struct pf_pdesc *, u_short *);
 int	pf_normalize_ip6(struct pf_pdesc *, u_short *);
@@ -1906,8 +1906,8 @@ struct pfi_kif	*pfi_kif_get(const char *, struct pfi_kif **);
 void		 pfi_kif_ref(struct pfi_kif *, enum pfi_kif_refs);
 void		 pfi_kif_unref(struct pfi_kif *, enum pfi_kif_refs);
 int		 pfi_kif_match(struct pfi_kif *, struct pfi_kif *);
-void		 pfi_attach_ifnet(struct ifnet *);
-void		 pfi_detach_ifnet(struct ifnet *);
+void		 pfi_attach_ifnet(struct pfk_ifnet *);
+void		 pfi_detach_ifnet(struct pfk_ifnet *);
 void		 pfi_attach_ifgroup(struct ifg_group *);
 void		 pfi_detach_ifgroup(struct ifg_group *);
 void		 pfi_group_addmember(const char *);
@@ -1957,7 +1957,7 @@ extern struct pf_anchor_global	pf_anchors;
 extern struct pf_anchor		pf_main_anchor;
 #define pf_main_ruleset		pf_main_anchor.ruleset
 
-struct tcphdr;
+struct pf_tcphdr;
 
 /* these ruleset functions can be linked into userland programs (pfctl) */
 void			 pf_init_ruleset(struct pf_ruleset *);
@@ -1982,8 +1982,8 @@ struct pf_osfp_enlist *
 	pf_osfp_fingerprint(struct pf_pdesc *);
 #endif /* _KERNEL */
 struct pf_osfp_enlist *
-	pf_osfp_fingerprint_hdr(const struct ip *, const struct ip6_hdr *,
-	    const struct tcphdr *);
+	pf_osfp_fingerprint_hdr(const struct pf_ip *, const struct pf_ip6_hdr *,
+	    const struct pf_tcphdr *);
 void	pf_osfp_flush(void);
 int	pf_osfp_get(struct pf_osfp_ioctl *);
 void	pf_osfp_initialize(void);

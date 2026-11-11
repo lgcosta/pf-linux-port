@@ -124,11 +124,11 @@
 - [ ] Step 1: implement + port `pf_route/pf_route6` glue; compile.
 - [ ] Step 2: tests `09-routeto.sh` (tcpdump counts wan vs wan2: rr alternation exact, hash-source deterministic per src; loop-guard: pf0->pf0 route-to with gw=pf0 must not livelock: bounded pkts then block `block loop drop`? use upstream `pf_route` loop detection → drop; assert), `10-dup-fail.sh`; commit.
 
-### Task 15: divert
-**Files:** `module/pf/pf_divert_nl.c` (kernel: `netlink_kernel_create(NETLINK_USERSOCK, proto=31? use NETLINK_USERSOCK group id per divert port)`, table port→socket, `divert-to` path: copy skb → nl msg `{cookie, divport, af, ip hdr+payload}`; reinjection path on user `send`: parse → route per original semantics `ip_divert.c` reference (divert-to: re-route to original dst via gw if needed; plain divert tag: re-enter `netif_receive_skb`/local_xmit per 8.0 `pf_send` behavior; drop-after-timeout via per-packet timer default 5s? match upstream: no accept → packet never delivered (copy consumed? original held until accept/timeout then free — mirror OpenBSD: keep, timeout drop).
-**Interfaces:** `pdivert -p 10000` + rule `pass in divert-to 127.0.0.1 10000`? upstream model: `divert-to` sends to divert socket at **host:port**; ours: netlink port id; document mapping in `docs/en/divert.md`; stats `DIOCBUSYSTATS` unchanged.
-- [ ] Step 1: implement + tool link already from T8.
-- [ ] Step 2: test `11-divert.sh`: pdivert on pf0 flips a byte of ping payload → cli receives modified echo-replies; kill pdivert → traffic stops (timeout) not leaks; commit.
+### Task 15: divert — AF_DIVERT socket family (design §4.4, user-requested)
+**Files:** `module/pfsrc/divert_sock.c` (kernel-internal PF_DIVERT=32 family via `sock_register`, zero core patches), `tools/pdivert/` (BSD divert(8) workflow over the socket), tests reuse upstream `regress/sys/net/pf_divert` semantics (Perl client adapted to our socket).
+**Interfaces:** `divert_packet/divert6_packet(mbuf, dir, port)` consumed by pf.c (already wired); userspace ABI: `socket(PF_DIVERT=32, SOCK_RAW, IPPROTO_DIVERT=254)`, `bind(sin_port=divert_port)`, `recvmsg` → raw IP packet + cmsgs (IFINDEX/DIR/TYPE/DST), `sendmsg` → re-inject (divert-to ⇒ local `netif_rx`; tag-divert ⇒ re-route).
+- [ ] Step 1: kernel self-test (module_param `divert_selftest`): inject synthetic packet → socket recv → send → observed re-injection; no netfilter re-entry loop.
+- [ ] Step 2: test `11-divert.sh`: pdivert on pf0 flips a byte of ping payload → cli receives modified echo-replies; kill pdivert → traffic stops (no leak); `divert-to 10.0.99.9 10000` cross-host variant; commit.
 
 ### Task 16: ifq + pfq queueing
 **Files:** `module/ifq/ifq.c ifq.h hfsc.c fq_codel.c` ported (skb-backed via pfk_mbuf), `module/pfq/pfq_qdisc.c` (classful qdisc `pfq`: root=ifq attach; ops: enqueue→`ifq_enqueue(ifq_for_class)`, dequeue loop; classid = queue index from pf rule queue tag), `module/pf/pf_ifq_bridge.c` (DIOCADDQUEUE/GETQUEUES/GETQUEUE/QSTATS + `pf_test` queue assignment + `set queue` default-class + ifq per-iface registry via `pfq_q_enter`), scripts `pf-qdisc.sh` auto-attach on `queue on` detection at DIOCADDQUEUE.

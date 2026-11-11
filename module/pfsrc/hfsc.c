@@ -1,5 +1,54 @@
 /* PFLINUX port of OpenBSD 8.0 net/hfsc.c — see docs/porting-notes.md */
 #include <pfk.h>
+#include <net/pfvar.h>
+#include <net/pfvar_priv.h>
+
+/*	$OpenBSD: hfsc.c,v 1.53 2026/03/19 14:59:05 sthen Exp $	*/
+
+/*
+ * Copyright (c) 2012-2013 Henning Brauer <henning@openbsd.org>
+ * Copyright (c) 1997-1999 Carnegie Mellon University. All Rights Reserved.
+ *
+ * Permission to use, copy, modify, and distribute this software and
+ * its documentation is hereby granted (including for commercial or
+ * for-profit use), provided that both the copyright notice and this
+ * permission notice appear in all copies of the software, derivative
+ * works, or modified versions, and any portions thereof.
+ *
+ * THIS SOFTWARE IS EXPERIMENTAL AND IS KNOWN TO HAVE BUGS, SOME OF
+ * WHICH MAY HAVE SERIOUS CONSEQUENCES.  CARNEGIE MELLON PROVIDES THIS
+ * SOFTWARE IN ITS ``AS IS'' CONDITION, AND ANY EXPRESS OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED.  IN NO EVENT SHALL CARNEGIE MELLON UNIVERSITY BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+ * OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+ * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+ * DAMAGE.
+ *
+ * Carnegie Mellon encourages (but does not require) users of this
+ * software to return any improvements or extensions that they make,
+ * and to grant Carnegie Mellon the rights to redistribute these
+ * changes without encumbrance.
+ */
+/*
+ * H-FSC is described in Proceedings of SIGCOMM'97,
+ * "A Hierarchical Fair Service Curve Algorithm for Link-Sharing,
+ * Real-Time and Priority Service"
+ * by Ion Stoica, Hui Zhang, and T. S. Eugene Ng.
+ *
+ * Oleg Cherevko <olwi@aq.ml.com.ua> added the upperlimit for link-sharing.
+ * when a class has an upperlimit, the fit-time is computed from the
+ * upperlimit service curve.  the link-sharing scheduler does not schedule
+ * a class whose fit-time exceeds the current time.
+ */
+
+
+
 
 /*
  * kernel internal service curve representation
@@ -223,7 +272,7 @@ const struct ifq_ops * const ifq_hfsc_ops = &hfsc_ops;
  * pf queue glue.
  */
 
-void		*hfsc_pf_alloc(struct ifnet *);
+void		*hfsc_pf_alloc(struct pfk_ifnet *);
 int		 hfsc_pf_addqueue(void *, struct pf_queuespec *);
 void		 hfsc_pf_free(void *);
 int		 hfsc_pf_qstats(struct pf_queuespec *, void *, int *);
@@ -320,7 +369,7 @@ hfsc_initialize(void)
 }
 
 void *
-hfsc_pf_alloc(struct ifnet *ifp)
+hfsc_pf_alloc(struct pfk_ifnet *ifp)
 {
 	struct hfsc_if *hif;
 
@@ -416,7 +465,7 @@ hfsc_pf_addqueue(void *arg, struct pf_queuespec *q)
 int
 hfsc_pf_qstats(struct pf_queuespec *q, void *ubuf, int *nbytes)
 {
-	struct ifnet *ifp = q->kif->pfik_ifp;
+	struct pfk_ifnet *ifp = q->kif->pfik_ifp;
 	struct hfsc_if *hif;
 	struct hfsc_class *cl;
 	struct hfsc_class_stats stats;
@@ -876,7 +925,7 @@ hfsc_update_sc(struct hfsc_if *hif, struct hfsc_class *cl, int len)
 void
 hfsc_deferred(void *arg)
 {
-	struct ifnet *ifp = arg;
+	struct pfk_ifnet *ifp = arg;
 	struct ifqueue *ifq = &ifp->if_snd;
 	struct hfsc_if *hif;
 

@@ -28,7 +28,6 @@ done
 
 lab_env
 command -v rsync >/dev/null || die "rsync missing on laptop"
-command -v genisoimage >/dev/null 2>&1 || true  # iso is built on deb, not here
 
 host_prereqs
 ensure_networks
@@ -55,7 +54,9 @@ if [ -n "$PF0_KERNEL" ]; then
       rsync -a -e "ssh ${SSH_OPTS[*]}" "$PF0_INITRD" "$DEB_USER@$DEB:$BOOT_DIR/initrd"
       IPATH="$BOOT_DIR/initrd"
     fi
-    PF0_KB="    <kernel>$KPATH</kernel>"$'\n'"    <initrd>$IPATH</initrd>"$'\n'"    <cmdline>root=/dev/vda2 ro console=ttyS0,115200n8</cmdline>"
+    # with an initrd, Alpine's initramfs needs its module list on the cmdline;
+    # the no-initrd (built-in drivers, T6) case keeps the plain contract cmdline
+    PF0_KB="    <kernel>$KPATH</kernel>"$'\n'"    <initrd>$IPATH</initrd>"$'\n'"    <cmdline>root=/dev/vda2 ro console=ttyS0,115200n8 modules=sd-mod,usb-storage,ext4,ena,gve</cmdline>"
   fi
   log "pf0 direct kernel boot override: $KPATH"
 fi
@@ -72,6 +73,6 @@ deb_ssh_config
 laptop_ssh_config
 
 log "validate: ssh pf0 'ip -br a'"
-ssh "${SSH_OPTS[@]}" pf0 'ip -br a' || warn "ssh pf0 failed — check $LAPTOP_SSH_FRAG"
+ssh "${SSH_OPTS[@]}" pf0 'ip -br a' || die "ssh pf0 failed — check $LAPTOP_SSH_FRAG"
 log "LAB UP: aliases on laptop: ssh pf0|cli|srv|gw2  (ProxyJump $DEB_USER@$DEB)"
 deb "virsh list" || true

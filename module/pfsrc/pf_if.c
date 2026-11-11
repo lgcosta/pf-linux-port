@@ -1,9 +1,51 @@
 /* PFLINUX port of OpenBSD 8.0 net/pf_if.c — see docs/porting-notes.md */
 #include <pfk.h>
+#include <net/pfvar.h>
+#include <net/pfvar_priv.h>
 
-#define isupper(c)	((c) >= 'A' && (c) <= 'Z')
-#define islower(c)	((c) >= 'a' && (c) <= 'z')
-#define isalpha(c)	(isupper(c)||islower(c))
+/*	$OpenBSD: pf_if.c,v 1.114 2026/09/08 18:42:14 bluhm Exp $ */
+
+/*
+ * Copyright 2005 Henning Brauer <henning@openbsd.org>
+ * Copyright 2005 Ryan McBride <mcbride@openbsd.org>
+ * Copyright (c) 2001 Daniel Hartmeier
+ * Copyright (c) 2003 Cedric Berger
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ *    - Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *    - Redistributions in binary form must reproduce the above
+ *      copyright notice, this list of conditions and the following
+ *      disclaimer in the documentation and/or other materials provided
+ *      with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+
+
+
+
+
+#ifdef INET6
+#endif /* INET6 */
+
+
 
 struct pfi_kif		 *pfi_all = NULL;
 struct pool		  pfi_addr_pl;
@@ -18,7 +60,7 @@ void		 pfi_dynaddr_update(struct pfi_dynaddr *dyn);
 void		 pfi_table_update(struct pfr_ktable *, struct pfi_kif *,
 		    u_int8_t, int);
 void		 pfi_kifaddr_update(void *);
-void		 pfi_instance_add(struct ifnet *, u_int8_t, int);
+void		 pfi_instance_add(struct pfk_ifnet *, u_int8_t, int);
 void		 pfi_address_add(struct sockaddr *, sa_family_t, u_int8_t);
 int		 pfi_if_compare(struct pfi_kif *, struct pfi_kif *);
 int		 pfi_skip_if(const char *, struct pfi_kif *);
@@ -243,7 +285,7 @@ pfi_kif_match(struct pfi_kif *rule_kif, struct pfi_kif *packet_kif)
 }
 
 void
-pfi_attach_ifnet(struct ifnet *ifp)
+pfi_attach_ifnet(struct pfk_ifnet *ifp)
 {
 	struct pfi_kif		*kif;
 	struct task		*t;
@@ -267,7 +309,7 @@ pfi_attach_ifnet(struct ifnet *ifp)
 }
 
 void
-pfi_detach_ifnet(struct ifnet *ifp)
+pfi_detach_ifnet(struct pfk_ifnet *ifp)
 {
 	struct pfi_kif		*kif;
 	struct task		*t;
@@ -513,7 +555,7 @@ pfi_table_update(struct pfr_ktable *kt, struct pfi_kif *kif, u_int8_t net, int f
 }
 
 void
-pfi_instance_add(struct ifnet *ifp, u_int8_t net, int flags)
+pfi_instance_add(struct pfk_ifnet *ifp, u_int8_t net, int flags)
 {
 	struct ifaddr	*ifa;
 	int		 got4 = 0, got6 = 0;
@@ -862,7 +904,7 @@ pfi_xcommit(void)
 {
 	struct pfi_kif	*p, *gkif;
 	struct ifg_list	*g;
-	struct ifnet	*ifp;
+	struct pfk_ifnet	*ifp;
 	size_t n;
 
 	PF_ASSERT_LOCKED();

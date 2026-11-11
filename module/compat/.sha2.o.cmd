@@ -1,4 +1,4 @@
-savedcmd_compat/sha2.o := gcc -Wp,-MMD,compat/.sha2.o.d -nostdinc -I/home/lgcosta/lab/linux_kernel/linux-7.3.4/arch/x86/include -I/home/lgcosta/lab/linux_kernel/linux-7.3.4/arch/x86/include/generated -I/home/lgcosta/lab/linux_kernel/linux-7.3.4/include -I/home/lgcosta/lab/linux_kernel/linux-7.3.4/include -I/home/lgcosta/lab/linux_kernel/linux-7.3.4/arch/x86/include/uapi -I/home/lgcosta/lab/linux_kernel/linux-7.3.4/arch/x86/include/generated/uapi -I/home/lgcosta/lab/linux_kernel/linux-7.3.4/include/uapi -I/home/lgcosta/lab/linux_kernel/linux-7.3.4/include/generated/uapi -include /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/linux/compiler-version.h -include /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/linux/kconfig.h -include /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/linux/compiler_types.h -D__KERNEL__ -Werror -fshort-wchar -funsigned-char -fno-common -fno-PIE -fno-strict-aliasing -std=gnu11 -fms-extensions -mno-sse -mno-mmx -mno-sse2 -mno-3dnow -mno-avx -mno-sse4a -fcf-protection=branch -fno-jump-tables -m64 -falign-jumps=1 -falign-loops=1 -mno-80387 -mno-fp-ret-in-387 -mpreferred-stack-boundary=3 -mskip-rax-setup -march=x86-64 -mtune=generic -mno-red-zone -mcmodel=kernel -mstack-protector-guard-reg=gs -mstack-protector-guard-symbol=__ref_stack_chk_guard -Wno-sign-compare -fno-asynchronous-unwind-tables -mindirect-branch=thunk-extern -mindirect-branch-register -mindirect-branch-cs-prefix -mfunction-return=thunk-extern -fno-jump-tables -fpatchable-function-entry=16,16 -fno-delete-null-pointer-checks -O2 -fno-allow-store-data-races -fstack-protector-strong -fomit-frame-pointer -ftrivial-auto-var-init=zero -fzero-init-padding-bits=all -fno-stack-clash-protection -fdiagnostics-show-context=2 -fmin-function-alignment=16 -fstrict-flex-arrays=3 -fno-strict-overflow -fno-stack-check -fconserve-stack -fno-builtin-wcslen -Wall -Wextra -Wundef -Werror=implicit-function-declaration -Werror=implicit-int -Werror=return-type -Werror=strict-prototypes -Wno-format-security -Wno-trigraphs -Wno-frame-address -Wno-address-of-packed-member -Wmissing-declarations -Wmissing-prototypes -Wframe-larger-than=2048 -Wno-main -Wno-type-limits -Wno-dangling-pointer -Wvla-larger-than=1 -Wno-pointer-sign -Wcast-function-type -Wno-unterminated-string-initialization -Wno-array-bounds -Wno-stringop-overflow -Wno-alloc-size-larger-than -Wimplicit-fallthrough=5 -Werror=date-time -Werror=incompatible-pointer-types -Werror=designated-init -Wenum-conversion -Wunused -Wno-unused-but-set-variable -Wno-unused-const-variable -Wno-packed-not-aligned -Wno-format-overflow -Wno-format-truncation -Wno-stringop-truncation -Wno-override-init -Wno-missing-field-initializers -Wno-shift-negative-value -Wno-maybe-uninitialized -Wno-sign-compare -Wno-unused-parameter -I././include -I././include/compat -DPFLINUX=1 -Wno-declaration-after-statement  -DMODULE  -DKBUILD_BASENAME='"sha2"' -DKBUILD_MODNAME='"pf"' -D__KBUILD_MODNAME=pf -c -o compat/sha2.o compat/sha2.c  
+savedcmd_compat/sha2.o := gcc -Wp,-MMD,compat/.sha2.o.d -nostdinc -I/home/lgcosta/lab/linux_kernel/linux-7.3.4/arch/x86/include -I/home/lgcosta/lab/linux_kernel/linux-7.3.4/arch/x86/include/generated -I/home/lgcosta/lab/linux_kernel/linux-7.3.4/include -I/home/lgcosta/lab/linux_kernel/linux-7.3.4/include -I/home/lgcosta/lab/linux_kernel/linux-7.3.4/arch/x86/include/uapi -I/home/lgcosta/lab/linux_kernel/linux-7.3.4/arch/x86/include/generated/uapi -I/home/lgcosta/lab/linux_kernel/linux-7.3.4/include/uapi -I/home/lgcosta/lab/linux_kernel/linux-7.3.4/include/generated/uapi -include /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/linux/compiler-version.h -include /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/linux/kconfig.h -include /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/linux/compiler_types.h -D__KERNEL__ -Werror -fshort-wchar -funsigned-char -fno-common -fno-PIE -fno-strict-aliasing -std=gnu11 -fms-extensions -mno-sse -mno-mmx -mno-sse2 -mno-3dnow -mno-avx -mno-sse4a -fcf-protection=branch -fno-jump-tables -m64 -falign-jumps=1 -falign-loops=1 -mno-80387 -mno-fp-ret-in-387 -mpreferred-stack-boundary=3 -mskip-rax-setup -march=x86-64 -mtune=generic -mno-red-zone -mcmodel=kernel -mstack-protector-guard-reg=gs -mstack-protector-guard-symbol=__ref_stack_chk_guard -Wno-sign-compare -fno-asynchronous-unwind-tables -mindirect-branch=thunk-extern -mindirect-branch-register -mindirect-branch-cs-prefix -mfunction-return=thunk-extern -fno-jump-tables -fpatchable-function-entry=16,16 -fno-delete-null-pointer-checks -O2 -fno-allow-store-data-races -fstack-protector-strong -fomit-frame-pointer -ftrivial-auto-var-init=zero -fzero-init-padding-bits=all -fno-stack-clash-protection -fdiagnostics-show-context=2 -fmin-function-alignment=16 -fstrict-flex-arrays=3 -fno-strict-overflow -fno-stack-check -fconserve-stack -fno-builtin-wcslen -Wall -Wextra -Wundef -Werror=implicit-function-declaration -Werror=implicit-int -Werror=return-type -Werror=strict-prototypes -Wno-format-security -Wno-trigraphs -Wno-frame-address -Wno-address-of-packed-member -Wmissing-declarations -Wmissing-prototypes -Wframe-larger-than=2048 -Wno-main -Wno-type-limits -Wno-dangling-pointer -Wvla-larger-than=1 -Wno-pointer-sign -Wcast-function-type -Wno-unterminated-string-initialization -Wno-array-bounds -Wno-stringop-overflow -Wno-alloc-size-larger-than -Wimplicit-fallthrough=5 -Werror=date-time -Werror=incompatible-pointer-types -Werror=designated-init -Wenum-conversion -Wunused -Wno-unused-but-set-variable -Wno-unused-const-variable -Wno-packed-not-aligned -Wno-format-overflow -Wno-format-truncation -Wno-stringop-truncation -Wno-override-init -Wno-missing-field-initializers -Wno-shift-negative-value -Wno-maybe-uninitialized -Wno-sign-compare -Wno-unused-parameter -I././include -I././include/compat -DPFLINUX=1 -D_KERNEL=1 -Wno-declaration-after-statement -Wno-implicit-fallthrough -Wno-frame-larger-than  -DMODULE  -DKBUILD_BASENAME='"sha2"' -DKBUILD_MODNAME='"pf"' -D__KBUILD_MODNAME=pf -c -o compat/sha2.o compat/sha2.c  
 
 source_compat/sha2.o := compat/sha2.c
 
@@ -1108,6 +1108,11 @@ deps_compat/sha2.o := \
     $(wildcard include/config/UNWINDER_ORC) \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/asm-generic/module.h \
     $(wildcard include/config/HAVE_MOD_ARCH_SPECIFIC) \
+  /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/linux/vmalloc.h \
+    $(wildcard include/config/HAVE_ARCH_HUGE_VMALLOC) \
+  /home/lgcosta/lab/linux_kernel/linux-7.3.4/arch/x86/include/asm/vmalloc.h \
+    $(wildcard include/config/HAVE_ARCH_HUGE_VMAP) \
+  /home/lgcosta/lab/linux_kernel/linux-7.3.4/arch/x86/include/asm/pgtable_areas.h \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/linux/prandom.h \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/linux/once.h \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/linux/net.h \
@@ -1153,7 +1158,6 @@ deps_compat/sha2.o := \
     $(wildcard include/config/ARCH_HAS_HW_PTE_YOUNG) \
     $(wildcard include/config/GUP_GET_PXX_LOW_HIGH) \
     $(wildcard include/config/ARCH_WANT_PMD_MKWRITE) \
-    $(wildcard include/config/HAVE_ARCH_HUGE_VMAP) \
     $(wildcard include/config/X86_ESPFIX64) \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/linux/memremap.h \
     $(wildcard include/config/DEVICE_PRIVATE) \
@@ -1754,10 +1758,6 @@ deps_compat/sha2.o := \
     $(wildcard include/config/HAVE_ARCH_BITREVERSE) \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/asm-generic/bitops/__bitrev.h \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/uapi/linux/if_vlan.h \
-  /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/linux/vmalloc.h \
-    $(wildcard include/config/HAVE_ARCH_HUGE_VMALLOC) \
-  /home/lgcosta/lab/linux_kernel/linux-7.3.4/arch/x86/include/asm/vmalloc.h \
-  /home/lgcosta/lab/linux_kernel/linux-7.3.4/arch/x86/include/asm/pgtable_areas.h \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/net/sch_generic.h \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/net/gen_stats.h \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/uapi/linux/gen_stats.h \
@@ -1810,6 +1810,7 @@ deps_compat/sha2.o := \
   include/compat/sys/socket.h \
   include/compat/net/if_types.h \
   include/compat/net/if_var.h \
+  include/compat/net/ifq.h \
   include/pfk_mbuf.h \
   include/pfk_net.h \
   include/pfk_if.h \
@@ -1817,6 +1818,15 @@ deps_compat/sha2.o := \
   include/compat/crypto/md5.h \
   include/compat/crypto/siphash.h \
   include/compat/net/toeplitz.h \
+  include/net/pfvar.h \
+  include/compat/sys/syslimits.h \
+  include/compat/netinet/in.h \
+  include/compat/net/radix.h \
+  include/net/pfvar_priv.h \
+  include/compat/sys/rwlock.h \
+  include/compat/sys/mutex.h \
+  include/compat/sys/pclock.h \
+  include/compat/sys/percpu.h \
 
 compat/sha2.o: $(deps_compat/sha2.o)
 

@@ -43,6 +43,60 @@ pfk_printk_compat(const char *fmt, ...)
 	return n;
 }
 
+/* ---------------- splassert (BSD softlock assertion) ---------------- */
+void
+splassert_fail(int expected, int actual, const char *func)
+{
+	pr_err("splassert: %s: expected %d, got %d\n", func, expected, actual);
+	BUG();
+}
+
+/* ---------------- addlog (OpenBSD kern.log) ---------------- */
+void
+addlog(const char *fmt, ...)
+{
+	char buf[512];
+	va_list ap;
+
+	va_start(ap, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, ap);
+	va_end(ap);
+	pr_info("%s", buf);
+}
+
+/* ---------------- mutex ---------------- */
+void
+pfk_mutex_setup(struct pfk_mutex *m, const char *name)
+{
+	sema_init(&m->s, 1);
+	m->name = name;
+}
+
+/* OpenBSD's curproc (the port has no per-process state) */
+struct proc *curproc = NULL;
+
+/* OpenBSD's tcp_mssdflt (the kernel's own is not exported to modules) */
+u_int pfk_tcp_mssdflt = 536;
+u_int nmbclust = NMBCLUSTERS;
+void *systqmp;
+
+void
+task_add(void *q, struct task *t)
+{
+	(void)q;
+	if (t && t->ta_func)
+		t->ta_func(t->ta_data);
+}
+
+void *
+taskq_create(const char *name, unsigned int nthreads, int ipl,
+	    unsigned int maxdepth, int mflags, int arg)
+{
+	(void)name; (void)nthreads; (void)ipl; (void)maxdepth; (void)mflags;
+	(void)arg;
+	return systqmp;
+}
+
 /* ---------------- NET_LOCK ---------------- */
 static DECLARE_RWSEM(pfk_net_sem);
 static atomic_t pfk_net_readers = ATOMIC_INIT(0);
@@ -64,7 +118,7 @@ rw_init(struct rwlock *l, const char *name)
 	atomic_set(&l->readers, 0);
 }
 
-void
+int
 rw_enter(struct rwlock *l, int mode)
 {
 	if (mode == RW_WRITER) {
@@ -74,6 +128,7 @@ rw_enter(struct rwlock *l, int mode)
 		down_read(&l->sem);
 		atomic_inc(&l->readers);
 	}
+	return 0;
 }
 
 void
@@ -106,6 +161,16 @@ pfk_malloc(size_t sz, int flags)
 	return kmalloc(sz, g);
 }
 
+void *
+pfk_mallocarray(size_t nmemb, size_t size, int flags)
+{
+	gfp_t g = (flags & M_WAITOK) ? GFP_KERNEL : GFP_ATOMIC;
+
+	if (flags & M_ZERO)
+		return kcalloc(nmemb, size, g);
+	return kmalloc_array(nmemb, size, g);
+}
+
 void
 pfk_free(void *p)
 {
@@ -116,9 +181,8 @@ pfk_free(void *p)
 static atomic64_t pfk_pool_id = ATOMIC64_INIT(0);
 
 int
-pool_init(struct pool *pl, size_t size, int align, int ipl, const char *use,
-	  void *p, int flags, void (*ih)(void *, void *), void *arg,
-	  struct srcptr_static *sp)
+pool_init(struct pool *pl, size_t size, u_int align, int ipl, int use,
+    const char *name, struct pool_allocator *alloc)
 {
 	memset(pl, 0, sizeof(*pl));
 	pl->p_size = size;
@@ -177,10 +241,21 @@ pool_put(struct pool *pl, void *v)
 	}
 }
 
-void
-pool_sethardlimit(struct pool *pl, unsigned long lim, const char *msg, int lvl)
+int
+pool_sethardlimit(struct pool *pl, unsigned long lim)
 {
 	pl->p_hardlimit = lim;
+	return 0;
+}
+
+void
+pool_setlowat(struct pool *pl, int n)
+{
+}
+
+void
+pool_sethiwat(struct pool *pl, int n)
+{
 }
 
 /* ---------------- timeout ---------------- */

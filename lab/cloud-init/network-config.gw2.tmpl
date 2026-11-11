@@ -9,5 +9,6 @@ ethernets:
   wan:
     match: {macaddress: "@GW2_MAC_WAN@"}
     addresses: [@GW2_WAN@]
+    nameservers: {addresses: ["192.168.122.1"]}
     routes:
-      - {to: default, via: @PF0_WAN_IP@}
+      - {to: 0.0.0.0/0, via: @PF0_WAN_IP@}

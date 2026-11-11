@@ -139,16 +139,22 @@ priority bits). `DIOCADDQUEUE/DIOCGETQUEUES/DIOCGETQUEUE/DIOCGETQSTATS` (the rea
 fq_codel** with rate gates (§7); class visibility via `tc -s qdisc show` is a
 stretch goal, counters via `pfctl` are the gate.
 
-### 4.4 divert
-- In-pf action `divert-to host:port` / tag `divert port`: packet copied to
-  userspace divert channel; **channel = kernel netlink** (`NETLINK_USERSOCK` proto)
-  because Linux has no `AF_DIVERT` (in-tree reference logic ported from
-  `sys/netinet/ip_divert.c`; userland `pdivert` tool implements `divert(8)`-style
-  rewrite-loop over the netlink channel; wire format documented; `DIOCBUSYSTATS`
-  etc. unchanged). Diverted flow re-enters via the channel write →
-  `__dev_queue_xmit`/`netif_receive_skb` following ip_divert `divert_output`
-  semantics (re-route via gw neighbor for `divert-to`).
-- Test parity anchored by upstream `regress/sys/net/pf_divert` semantics.
+### 4.4 divert — real AF_DIVERT in the kernel (no netlink substitute)
+OpenBSD's `divert(4)` socket family is ported as a **runtime-registered
+socket family inside pf.ko**: Linux 7.3 registers protocol families with
+`sock_register()` and `NPROTO = AF_MAX = 45`, so BSD's `PF_DIVERT = 32`
+(the unused legacy PF_IUCV slot) fits with **zero core changes**. Implemented
+in `module/pfsrc/divert_sock.c`: `socket(PF_DIVERT, SOCK_RAW, IPPROTO_DIVERT)`
++ `bind(port)` + `recvmsg/sendmsg`, packet metadata via cmsg (ifindex, dir,
+divert type, original dst). `divert_packet()/divert6_packet()` (called by the
+ported pf.c) queue to the bound socket; `sendmsg` re-injects with OpenBSD
+semantics: `PF_DIVERT_TO` → local delivery (`netif_rx` on the recorded
+interface), plain `divert` tag → re-route (`dst->output`), mirroring
+`ip_divert.c:divert_output()`. The BSD `divert(8)` workflow (upstream
+`regress/sys/net/pf_divert`) drives this socket unchanged; our shipped
+`pdivert` is a thin Linux port. Wire format documented in
+`docs/en/divert-wireformat.md`. pflog keeps its netlink multicast channel
+(slot PFLOG_PROTO=1 on `NETLINK_USERSOCK`).
 
 ### 4.5 route-to / dup-to / fail-to
 `pf_route6`/`pf_route` port: pool selection via `pf_lb.c` (as-is), next-hop

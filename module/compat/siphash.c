@@ -92,8 +92,10 @@ SipHash24_Update(SIPHASH_CTX *ctx, const void *in, __u64 inlen)
 }
 
 void
-SipHash24_Final(SIPHASH_CTX *ctx, unsigned char *out)
+SipHash24_Final(void *out, SIPHASH_CTX *ctx)
 {
+	unsigned char *o = out;
+
 	u64 b = ((u64)ctx->total_len) << 56;
 	u64 v0 = ctx->v[0], v1 = ctx->v[1], v2 = ctx->v[2], v3 = ctx->v[3];
 	unsigned char t[8];
@@ -108,7 +110,7 @@ SipHash24_Final(SIPHASH_CTX *ctx, unsigned char *out)
 	v0 ^= b;
 	v2 ^= 0xff;
 	SIPROUND; SIPROUND; SIPROUND; SIPROUND;
-	U64TO8_LE(out, v0 ^ v1 ^ v2 ^ v3);
+	U64TO8_LE(o, v0 ^ v1 ^ v2 ^ v3);
 	/* wipe */
 	ctx->v[0] = ctx->v[1] = ctx->v[2] = ctx->v[3] = 0;
 }
@@ -154,4 +156,16 @@ SipHash24_Generate(const SIPHASH_KEY *key, const void *in, __u64 inlen,
 		SIPROUND; SIPROUND; SIPROUND; SIPROUND;
 		U64TO8_LE(out, v0 ^ v1 ^ v2 ^ v3);
 	}
+}
+
+/* OpenBSD: SipHash24() returns the hash value directly. */
+__u64
+SipHash24(const SIPHASH_KEY *key, const void *in, __u64 inlen)
+{
+	unsigned char out[8];
+	__u64 v;
+
+	SipHash24_Generate(key, in, inlen, out);
+	memcpy(&v, out, sizeof(v));
+	return v;
 }

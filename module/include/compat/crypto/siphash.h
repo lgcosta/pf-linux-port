@@ -20,8 +20,10 @@ typedef struct {
 
 void SipHash24_Init(SIPHASH_CTX *ctx, const SIPHASH_KEY *key);
 void SipHash24_Update(SIPHASH_CTX *ctx, const void *in, __u64 inlen);
-void SipHash24_Final(SIPHASH_CTX *ctx, unsigned char *out);
+void SipHash24_Final(void *out, SIPHASH_CTX *ctx);
 void SipHash24_Generate(const SIPHASH_KEY *key, const void *in, __u64 inlen,
 	unsigned char *out);
+/* OpenBSD's one-shot helper: returns the 64-bit hash value */
+__u64 SipHash24(const SIPHASH_KEY *key, const void *in, __u64 inlen);
 
 #endif

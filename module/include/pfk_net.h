@@ -177,7 +177,40 @@ static inline __u8 PF6_CLASS(const struct pf_ip6_hdr *h)
  * icmp6hdr + its member macros; staging seds `struct icmp6_hdr` →
  * `struct icmp6hdr` (see stage-port.sh). No private definition needed. */
 
-/* BSD IPPROTO_ / IP levels (identical numerics to Linux; aliases kept) */
+/* ---- ICMPv6 (BSD <netinet6/icmp6.h> layout for pfvar_priv's hdr union) ---- */
+struct pf_icmp6 {
+	__u8		icmp6_type;
+	__u8		icmp6_code;
+	__be16		icmp6_cksum;
+	union {
+		__be32	un_data32[4];
+		struct {
+			__be16	icmp6_id;
+			__be16	icmp6_seq;
+		} un_h;
+	} icmp6_dataun;
+};
+#define icmp6_id	icmp6_dataun.un_h.icmp6_id
+#define icmp6_seq	icmp6_dataun.un_h.icmp6_seq
+#undef icmp6_mtu
+#define icmp6_mtu	icmp6_dataun.un_data32[1]
+
+/* ---- IPv6 multicast / neighbour discovery headers (BSD names) ---- */
+struct pf_mld_hdr {
+	__u8		mld_type;
+	__u8		mld_pad[2];
+	__be16		mld_cksum;
+	__be32		mld_reserved;
+	struct in6_addr	mld_addr;
+};
+
+struct pf_nd_neighbor_solicit {
+	struct in6_addr	nd_ns_target;
+	__be32		nd_ns_reserved;
+	__be32		nd_ns_flags;
+};
+
+/* ---- BSD IPPROTO_ / IP levels (identical numerics to Linux; aliases kept) */
 #define IPPROTO_MAX_	IPPROTO_MAX
 
 /* ---- checksum helpers (ported in_cksum etc.) ---- */

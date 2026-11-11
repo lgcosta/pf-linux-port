@@ -1,5 +1,53 @@
 /* PFLINUX port of OpenBSD 8.0 net/if_pflog.c — see docs/porting-notes.md */
 #include <pfk.h>
+#include <net/pfvar.h>
+#include <net/pfvar_priv.h>
+
+/*	$OpenBSD: if_pflog.c,v 1.99 2025/07/07 02:28:50 jsg Exp $	*/
+/*
+ * The authors of this code are John Ioannidis (ji@tla.org),
+ * Angelos D. Keromytis (kermit@csd.uch.gr) and
+ * Niels Provos (provos@physnet.uni-hamburg.de).
+ *
+ * This code was written by John Ioannidis for BSD/OS in Athens, Greece,
+ * in November 1995.
+ *
+ * Ported to OpenBSD and NetBSD, with additional transforms, in December 1996,
+ * by Angelos D. Keromytis.
+ *
+ * Additional transforms and features in 1997 and 1998 by Angelos D. Keromytis
+ * and Niels Provos.
+ *
+ * Copyright (C) 1995, 1996, 1997, 1998 by John Ioannidis, Angelos D. Keromytis
+ * and Niels Provos.
+ * Copyright (c) 2001, Angelos D. Keromytis, Niels Provos.
+ * Copyright (c) 2002 - 2010 Henning Brauer
+ *
+ * Permission to use, copy, and modify this software with or without fee
+ * is hereby granted, provided that this entire notice is included in
+ * all copies of any software which is or includes a copy or
+ * modification of this software.
+ * You may use this code under the GNU public license if you so wish. Please
+ * contribute changes back to the authors under this freer than GPL license
+ * so that we may further the use of strong encryption without limitations to
+ * all.
+ *
+ * THIS SOFTWARE IS BEING PROVIDED "AS IS", WITHOUT ANY EXPRESS OR
+ * IMPLIED WARRANTY. IN PARTICULAR, NONE OF THE AUTHORS MAKES ANY
+ * REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE
+ * MERCHANTABILITY OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR
+ * PURPOSE.
+ */
+
+
+
+#if NBPFILTER > 0
+#endif
+
+
+#ifdef INET6
+#endif /* INET6 */
+
 
 #define PFLOGMTU	(32768 + MHLEN + MLEN)
 
@@ -10,11 +58,11 @@
 #endif
 
 void	pflogattach(int);
-int	pflogoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
-		       struct rtentry *);
-int	pflogioctl(struct ifnet *, u_long, caddr_t);
+int	pflogoutput(struct pfk_ifnet *, struct mbuf *, struct sockaddr *,
+		       struct pf_rtentry *);
+int	pflogioctl(struct pfk_ifnet *, u_long, caddr_t);
 int	pflog_clone_create(struct if_clone *, int);
-int	pflog_clone_destroy(struct ifnet *);
+int	pflog_clone_destroy(struct pfk_ifnet *);
 struct	pflog_softc	*pflog_getif(int);
 
 struct if_clone			pflog_cloner =
@@ -31,7 +79,7 @@ pflogattach(int npflog)
 int
 pflog_clone_create(struct if_clone *ifc, int unit)
 {
-	struct ifnet *ifp;
+	struct pfk_ifnet *ifp;
 	struct pflog_softc *pflogif;
 
 	pflogif = malloc(sizeof(*pflogif), M_DEVBUF, M_WAITOK|M_ZERO);
@@ -60,7 +108,7 @@ pflog_clone_create(struct if_clone *ifc, int unit)
 }
 
 int
-pflog_clone_destroy(struct ifnet *ifp)
+pflog_clone_destroy(struct pfk_ifnet *ifp)
 {
 	struct pflog_softc	*pflogif = ifp->if_softc;
 
@@ -75,15 +123,15 @@ pflog_clone_destroy(struct ifnet *ifp)
 }
 
 int
-pflogoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
-	struct rtentry *rt)
+pflogoutput(struct pfk_ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
+	struct pf_rtentry *rt)
 {
 	m_freem(m);	/* drop packet */
 	return (EAFNOSUPPORT);
 }
 
 int
-pflogioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+pflogioctl(struct pfk_ifnet *ifp, u_long cmd, caddr_t data)
 {
 	switch (cmd) {
 	case SIOCSIFFLAGS:
@@ -120,7 +168,7 @@ pflog_packet(struct pf_pdesc *pd, u_int8_t reason, struct pf_rule *rm,
 {
 #if NBPFILTER > 0
 	struct pflog_softc *pflogif;
-	struct ifnet *ifn;
+	struct pfk_ifnet *ifn;
 	caddr_t if_bpf;
 	struct pfloghdr hdr;
 

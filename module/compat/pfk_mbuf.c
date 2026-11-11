@@ -46,7 +46,7 @@ pfk_m_setpkthdr(struct mbuf *m)
 {
 	m->m_flags |= M_PKTHDR;
 	m->m_pkthdr.len = m->m_len;
-	m->m_pkthdr.pf.tag = NULL;
+	m->m_pkthdr.pf.tag = 0;
 	m->m_pkthdr.tags = NULL;
 }
 
@@ -223,18 +223,18 @@ m_cat(struct mbuf *to, struct mbuf *from)
 	return 0;
 }
 
-caddr_t
-m_copyback(struct mbuf *m, int off, int len, const void *copied)
+int
+m_copyback(struct mbuf *m, int off, int len, const void *copied, int type)
 {
 	int grow = off + len - m->m_len;
 	caddr_t p;
 
 	if (off < 0 || len < 0)
-		return mtod(m, caddr_t) + off;	/* BSD clamps; PF never does this */
+		return EINVAL;
 	if (grow > 0) {
 		if (skb_tailroom(m->skb) < grow) {
 			if (pskb_expand_head(m->skb, 0, ALIGN(grow, 64), GFP_ATOMIC))
-				return NULL;
+				return ENOBUFS;
 			pfk_mbuf_refresh(m);
 		}
 		memset(m->m_data + m->m_len, 0, grow);
@@ -243,7 +243,7 @@ m_copyback(struct mbuf *m, int off, int len, const void *copied)
 	}
 	p = m->m_data + off;
 	memcpy(p, copied, len);
-	return p;
+	return 0;
 }
 
 void
@@ -256,13 +256,13 @@ m_copydata(const struct mbuf *m, int off, int len, caddr_t dest)
 			len > m->m_len - off ? m->m_len - off : len);
 }
 
-caddr_t
+struct mbuf *
 m_getptr(struct mbuf *m, int loc, int *offp)
 {
 	*offp = 0;
 	if (loc < 0 || loc >= m->m_len)
 		return NULL;
-	return m->m_data + loc;
+	return m;
 }
 
 int
@@ -305,6 +305,55 @@ void
 m_free_ext(struct mbuf *m)
 {
 	/* PF never attaches external mbuf refs; no-op like upstream ext free */
+}
+
+/* BSD m_removehdr: drop the packet header (length in m_pkthdr.hdr_len) */
+int
+m_removehdr(struct mbuf *m)
+{
+	int len = m->m_pkthdr.hdr_len;
+
+	if (len <= 0)
+		return 0;
+	if (len > m->m_len)
+		return -1;
+	m_adj(m, len);
+	m->m_pkthdr.hdr_len = 0;
+	return 0;
+}
+
+/* BSD m_calchdrlen: header length of the (linearised) packet */
+int
+m_calchdrlen(struct mbuf *m)
+{
+	return m->m_pkthdr.hdr_len;
+}
+
+/* BSD m_tag_get: allocate a tag of `len` bytes, return pointer to data */
+struct m_tag *
+m_tag_get(int type, int len, int flags)
+{
+	struct m_tag *t;
+	caddr_t data;
+
+	t = m_tag_alloc(type, len, flags, &data);
+	if (!t)
+		return NULL;
+	return (struct m_tag *)data;
+}
+
+/* BSD frag6_deletefraghdr: remove the IPv6 fragment header at `off` */
+int
+frag6_deletefraghdr(struct mbuf *m, int off)
+{
+	int hdrlen = sizeof(struct ip6_frag);
+
+	if (off < 0 || off + hdrlen > m->m_len)
+		return -1;
+	memmove(m->m_data + off, m->m_data + off + hdrlen,
+		m->m_len - off - hdrlen);
+	pfk_mbuf_refresh(m);
+	return 0;
 }
 
 /* ---------------- m_tag ---------------- */

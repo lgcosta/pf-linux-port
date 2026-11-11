@@ -15,6 +15,7 @@
 #include <linux/skbuff.h>
 
 struct pfk_ifnet;             /* forward (pfk_if.h) */
+struct mbuf_list;             /* BSD mbuf list (pfk_if.h defines it) */
 struct pf_state_key;
 struct inpcb;
 struct pf_tag;
@@ -61,7 +62,7 @@ struct pkthdr_pf {
 	u_int8_t		 dir;
 	u_int8_t		 reason;
 	u_int16_t		 ruleset;
-	struct pfk_tag		*tag;
+	u_int			 tag;	/* OpenBSD: bitmask */
 };
 
 struct pkthdr {
@@ -130,9 +131,9 @@ struct mbuf *m_dup(struct mbuf *m, int wait);	/* full dup + headroom */
 void  m_adj(struct mbuf *m, int dlen);
 void  m_trim(struct mbuf *m, int dlen);
 int   m_cat(struct mbuf *to, struct mbuf *from);	/* copies+consumes from */
-caddr_t m_copyback(struct mbuf *m, int off, int len, const void *copied);
+int m_copyback(struct mbuf *m, int off, int len, const void *copied, int type);
 void  m_copydata(const struct mbuf *m, int off, int len, caddr_t dest);
-caddr_t m_getptr(struct mbuf *m, int loc, int *off);
+struct mbuf *m_getptr(struct mbuf *m, int loc, int *off);
 int   m_clump(struct mbuf **m0p, int len, int *mp_off, int *mp_len, caddr_t *doff);
 void  m_free_ext(struct mbuf *m);
 struct mbuf *m_free(struct mbuf *m);		/* returns next */

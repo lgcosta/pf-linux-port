@@ -559,13 +559,13 @@ struct pf_pdesc {
 	u_int8_t	 destchg;	/* flag set when destination changed */
 	u_int8_t	 pflog;		/* flags for packet logging */
 	union {
-		struct tcphdr			tcp;
-		struct udphdr			udp;
-		struct icmp			icmp;
+		struct pf_tcphdr			tcp;
+		struct pf_udphdr			udp;
+		struct pf_icmp			icmp;
 #ifdef INET6
-		struct icmp6_hdr		icmp6;
-		struct mld_hdr			mld;
-		struct nd_neighbor_solicit	nd_ns;
+		struct pf_icmp6		icmp6;
+		struct pf_mld_hdr			mld;
+		struct pf_nd_neighbor_solicit	nd_ns;
 #endif /* INET6 */
 	} hdr;
 };

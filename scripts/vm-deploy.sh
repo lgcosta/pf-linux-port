@@ -13,16 +13,17 @@ lab_env
 
 cd "$REPO"
 FILES=()
-add() { # add <path...> — files only; dirs expanded
+add() { # add <path...> — files only; dirs expanded; warns on explicit misses
   local p
   for p in "$@"; do
     if [ -d "$p" ]; then add "$p"/*
     elif [ -f "$p" ]; then FILES+=("$p")
+    elif [ "$EXPLICIT" = 1 ]; then warn "skip missing: $p"
     fi
   done
 }
-if [ $# -gt 0 ]; then
-  add "$@"
+EXPLICIT=0
+if [ $# -gt 0 ]; then EXPLICIT=1; add "$@"
 else
   shopt -s nullglob
   add out/linux-*-bzImage out/bzImage out/*.ko module/*.ko tools/out/*

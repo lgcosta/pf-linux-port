@@ -206,3 +206,20 @@ pfk_send_icmp_error(int family, struct sk_buff *skb_in, int type, int code,
 /* NOTE: TCP RST generation is done by PF itself (pf.c builds the segment
  * and calls if_output_tso), so no kernel tcp_v4_send_reset export is
  * needed — matches OpenBSD's pf_send_rst() design. */
+
+/*
+ * pfk_if_output(ifp, m, dst, rt): BSD if_output() equivalent used by the
+ * ported PF code (route-to / refragment / divert paths).
+ */
+int
+pfk_if_output(struct pfk_ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
+    void *rt)
+{
+	struct mbuf *mp = m;
+	int err;
+
+	err = if_output_tso(ifp, &mp, dst, rt, ifp->if_mtu);
+	if (mp)
+		m_freem(mp);
+	return err;
+}

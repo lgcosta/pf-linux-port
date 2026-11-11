@@ -5,22 +5,7 @@
 #ifndef _PFK_IF_H
 #define _PFK_IF_H
 
-struct pfk_ifaddr {
-	struct pfk_ifaddr	*ifa_next;
-	struct pfk_ifnet	*ifa_ifp;
-	int			ifa_refcnt;
-	int			ifa_flags;	/* BSD IFA_* */
-	struct sockaddr_storage	ifa_addr_storage;	/* BSD-ish sockaddr */
-	struct sockaddr		*ifa_addr;	/* -> storage */
-	struct sockaddr		*ifa_mask;
-	struct net_device	*dev;
-	__be32			addr4;
-	struct in6_addr		addr6;
-	int			family;		/* AF_INET/AF_INET6 */
-	int			scope;		/* link/site for v6 */
-};
-
-struct pfk_ifqueue;	/* M5 */
+struct ifg_list;
 
 struct pfk_ifnet {
 	char			if_xname[IFNAMSIZ];
@@ -31,9 +16,10 @@ struct pfk_ifnet {
 	int			if_type;	/* IFT_* */
 	int			if_mtu;
 	void			*if_softc;
-	struct pfk_ifaddr	*if_addrlist;	/* refreshed snapshot */
-	struct pf_kif		*if_pf_kif;	/* pf_if glue */
-	struct pfk_ifqueue	*if_snd;	/* M5 */
+	TAILQ_HEAD(ifa_list, ifaddr) if_addrlist;	/* BSD interface addresses */
+	TAILQ_HEAD(, ifg_list)	 if_groups;	/* BSD interface groups */
+	void			*if_pf_kif;	/* pf_if glue (BSD: caddr_t) */
+	struct ifqueue		 if_snd;	/* transmit queue (ifq) */
 	void			*if_pf_rtable;	/* unused (rt tables NG) */
 	int			if_rdomain;	/* always 0 (NG), kept for ABI */
 	struct rcu_head		rcu;
@@ -71,6 +57,23 @@ void	 pfk_if_free(struct pfk_ifnet *ifp);
 
 struct mbuf_list { struct mbuf *ml_first, *ml_last; int ml_len; };
 
+/* BSD mbuf_list helper */
+static inline struct mbuf *
+ml_dequeue(struct mbuf_list *ml)
+{
+	struct mbuf *m;
+
+	if (!ml || !ml->ml_first)
+		return NULL;
+	m = ml->ml_first;
+	ml->ml_first = m->m_next;
+	if (!ml->ml_first)
+		ml->ml_last = NULL;
+	ml->ml_len--;
+	m->m_next = NULL;
+	return m;
+}
+
 /* egress interface (default-route dev), maintained on fib/net events */
 struct pfk_ifnet *pfk_egress_if(void);
 void pfk_egress_refresh(void);
@@ -89,10 +92,11 @@ int if_output_tso(struct pfk_ifnet *ifp, struct mbuf **mp,
 int if_output_ml(struct pfk_ifnet *ifp, struct mbuf_list *ml,
 	struct sockaddr *dst, void *rt);
 int if_enqueue(struct pfk_ifnet *ifp, struct mbuf *m);
+int pfk_if_output(struct pfk_ifnet *ifp, struct mbuf *m, struct sockaddr *dst, void *rt);
 
 /* addr lookups (ifa_ifwithaddr, in_ifwithaddr etc.) */
-struct pfk_ifaddr *pfk_ifwithaddr(const struct sockaddr *sa);
-struct pfk_ifaddr *pfk_ifwithroute(int family, const struct sockaddr *dst,
+struct ifaddr *pfk_ifwithaddr(const struct sockaddr *sa);
+struct ifaddr *pfk_ifwithroute(int family, const struct sockaddr *dst,
 	const struct sockaddr *gate, struct pfk_ifnet **ifp_out);
 
 /* mib-ish status for pfctl DIOCGIFSTATS */
