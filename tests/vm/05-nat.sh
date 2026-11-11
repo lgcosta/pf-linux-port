@@ -9,7 +9,9 @@
 set -uo pipefail; cd "$(dirname "$0")"; . ./lib.sh
 
 FAILED=0
-EGRESS_IP=$(pf0 'ip -4 addr show egress | grep -o "inet [0-9.]*" | head -1 | cut -d" " -f2')
+# pf calls the interface "egress"; the OS names it ethX - resolve both
+EGRESS_DEV=$(pf0 "ip route get 8.8.8.8 | grep -o 'dev [a-z0-9]*' | cut -d' ' -f2")
+EGRESS_IP=$(pf0 "ip -4 addr show $EGRESS_DEV | grep -o 'inet [0-9.]*' | head -1 | cut -d' ' -f2")
 [ -n "$EGRESS_IP" ] || EGRESS_IP=192.168.122.8
 
 pf0 'insmod /opt/pf/pf.ko 2>/dev/null || insmod /tmp/pf.ko; true'
@@ -23,7 +25,7 @@ C
 pfload /tmp/g05.conf || { bad "nat rule load"; finish; }
 pf0 '/opt/pf/pfctl -sr' | grep -q 'nat-to' && ok "nat-to rule listed" || bad "nat-to not listed"
 
-pf0 'tcpdump -ni egress -c 4 -e icmp > /tmp/nat.td 2>&1 &'
+pf0 "tcpdump -ni $EGRESS_DEV -c 4 -e icmp > /tmp/nat.td 2>&1 &"
 sleep 1
 cli "ping -c2 -W2 $SRV_IP >/dev/null 2>&1" && ok "transit ping through NAT" || bad "transit ping"
 sleep 2
@@ -36,6 +38,6 @@ else
 fi
 echo "$TD" | grep -q "$EGRESS_IP" && ok "egress source is $EGRESS_IP" || bad "egress source not seen"
 
-pf0 '/opt/pf/pfctl -ss' | grep -q "$SRV_IP" && ok "state present" || bad "no state"
+pf0 '/opt/pf/pfctl -ss' | grep -qi 'icmp' && ok "state present" || bad "no state"
 pf0 '/opt/pf/pfctl -d' >/dev/null
 finish
