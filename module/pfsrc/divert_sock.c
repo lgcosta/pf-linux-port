@@ -95,6 +95,18 @@ pfk_divert_pkt_free(struct pfk_divert_pkt *dp)
 }
 
 /* PF engine entry points (called from the ported pf.c) */
+static struct pfk_divert_sock *
+pfk_divert_lookup(u_int16_t port)
+{
+	struct pfk_divert_sock *ds;
+
+	list_for_each_entry(ds, &pfk_divert_list, link) {
+		if (ds->port == port)
+			return ds;
+	}
+	return NULL;
+}
+
 static int
 pfk_divert_queue(struct sk_buff *skb, int dir, int type, u16 port)
 {
@@ -114,12 +126,8 @@ pfk_divert_queue(struct sk_buff *skb, int dir, int type, u16 port)
 	dp->ifindex = skb->dev ? skb->dev->ifindex : 0;
 
 	spin_lock_irqsave(&pfk_divert_lock, flags);
-	ds = NULL;
-	list_for_each_entry(ds, &pfk_divert_list, link) {
-		if (ds->port == port)
-			break;
-	}
-	if (&ds->link == &pfk_divert_list) {
+	ds = pfk_divert_lookup(port);
+	if (ds == NULL) {
 		pfk_divert_global.divs_noport++;
 		spin_unlock_irqrestore(&pfk_divert_lock, flags);
 		pr_info_ratelimited("pfk: divert port %u: no socket bound\n",

@@ -42,7 +42,9 @@ pf_disable_pf0() {
 		>/dev/null 2>&1 || true
 }
 trap pf_disable_pf0 EXIT INT TERM
+ONLY="${1:-}"
 for t in "$REPO"/tests/vm/[0-9]*.sh; do
+	[ -n "$ONLY" ] && case "$t" in *"$ONLY"*) ;; *) continue ;; esac
 	[ -e "$t" ] || continue
 	name="$(basename "$t")"
 	echo "=== $name ==="

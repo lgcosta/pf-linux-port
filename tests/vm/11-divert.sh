@@ -16,7 +16,7 @@ FAILED=0
 
 pf0 "insmod /tmp/pf.ko 2>/dev/null || insmod /opt/pf/pf.ko; true"
 pf0 '/opt/pf/pfctl -e; /opt/pf/pfctl -f /dev/null' >/dev/null
-pfput tools/out/pdivert /opt/pf/pdivert || bad "pdivert deploy"
+pfput ../../tools/out/pdivert /opt/pf/pdivert || bad "pdivert deploy"
 pf0 'chmod +x /opt/pf/pdivert' >/dev/null
 
 cat > /tmp/g11.conf <<C
