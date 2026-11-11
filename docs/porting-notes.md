@@ -882,3 +882,25 @@ Decisions taken (all verified in the libvirt lab):
 
 `pdivert` (userspace relay, `tools/pdivert/`) is the reference client; it
 demonstrates the BSD "receive -> rewrite -> reinject" cycle.
+
+## Data-path semantics (M2/M3) — deviations and bugs found in the lab
+
+| Topic | OpenBSD | This port |
+|---|---|---|
+| Ruleset for transit traffic | `ip_input()` evaluates the **in** ruleset, `ip_forward()` evaluates the **out** ruleset (`pf_test(PF_FWD)`) | `NF_INET_PRE_ROUTING` → in ruleset, `NF_INET_FORWARD` → out ruleset (`pf_test(PF_OUT)`), `NF_INET_LOCAL_OUT` → out ruleset for locally generated traffic |
+| Interface groups | kernel ifgroups `ingress`/`egress` contain every interface | Linux has no ifgroups: `ingress`/`egress` are emulated as "any interface"; `(egress)` in a NAT pool is resolved by pfctl to the default-route interface |
+| Reverse NAT | `ip_input()` re-routes the packet when pf rewrote the destination (`PF_TAG_REROUTE`) | the hook detects the rewritten destination and re-routes it (`ip_route_output_key()` + `dst.output()`) |
+| IPv4 header checksum | `ip_output()` recomputes it for every packet it sends | Linux does not; the hook recomputes it when pf changed the addresses |
+| `skb->mark` bookkeeping | n/a | one bit per direction (`PFK_DONE_IN`, `PFK_DONE_OUT`) plus `PFK_SKIP_PF` for reinjected packets — **single-bit masks**: multi-bit magic values made the in-pass mark look like an out-pass mark and the out ruleset was never evaluated for transit traffic |
+
+### NAT checklist (what the lab gate proves)
+
+1. `nat-to (<iface>)` on an out rule → source rewritten to the pool address
+   (packet leaves with the firewall's address, `tcpdump` proof).
+2. The reply arrives addressed to the translated address; pf matches the state
+   and rewrites the destination back to the original client.
+3. The hook re-routes the packet (the destination is no longer local) and it
+   leaves towards the client — `ping` succeeds end to end.
+
+Without step 3 the reply is delivered to the firewall's own stack and the
+client never sees it (the classic "NAT works one way" symptom).
