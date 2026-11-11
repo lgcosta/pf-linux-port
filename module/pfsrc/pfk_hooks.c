@@ -1,22 +1,20 @@
 /*
- * PF-on-Linux netfilter hook registration + M2 data path.
+ * PF-on-Linux netfilter hook registration + data path (ISC 2026)
  *
- * One pf_test() pass per BSD ip-stack call site:
- *   NF_INET_PRE_ROUTING  → pf_test(PF_IN)   (OpenBSD ip_input)
- *   NF_INET_LOCAL_OUT    → pf_test(PF_OUT)  (OpenBSD ip_output, early)
- *   NF_INET_POST_ROUTING → pf_test(PF_OUT)  (OpenBSD ip_output, routed)
- * LOCAL_IN / FORWARD are NF_ACCEPT: the packet was already evaluated on
- * its PRE (input) and POST (output) passes, exactly like OpenBSD which
- * runs PF once per direction inside ip_input/ip_output.
+ * BSD netisr pattern (PFLINUX divergence, documented):
+ *   hooks NEVER call pf_test() in softirq context — OpenBSD runs input at
+ *   IPL_NET with a non-sleeping NET read side, while our compat locks are
+ *   sleepable rw_semaphores.  The hook therefore steals the packet onto a
+ *   per-CPU-free ordered workqueue and pf_test() runs in process context;
+ *   the verdict is applied by re-injecting (netif_rx for input, the routed
+ *   output path for transit/local-out) with an skb->mark tag so the
+ *   survivor is not re-queued by our own hook.
  *
- * Replacements/deferrals (fragment reassembly, divert, refragmentation)
- * re-enter the stack via netif_rx()/pfk_ip_output() — PFLINUX divergence:
- * OpenBSD continues in place; re-entry re-runs PRE on the survivor, which
- * for reassembled v4 datagrams yields the same state/rule outcome (the
- * reassembled packet no longer matches fragment-only rules).  Documented
- * in docs/porting-notes.md.
- *
- * (c) 2026 PF-on-Linux contributors — ISC
+ * One pf_test pass per BSD call site:
+ *   NF_INET_PRE_ROUTING  -> PF_IN   (OpenBSD ip_input)
+ *   NF_INET_LOCAL_OUT    -> PF_OUT  (OpenBSD ip_output, locally generated)
+ *   NF_INET_POST_ROUTING -> PF_OUT  (OpenBSD ip_output, transit)
+ * LOCAL_IN / FORWARD are pass-through (already evaluated).
  */
 #include <pfk.h>
 #include <pfk_api.h>
@@ -24,20 +22,110 @@
 #include <net/pfvar_priv.h>
 
 extern int pf_test(sa_family_t, int, struct pfk_ifnet *, struct mbuf **);
+extern struct workqueue_struct *pfk_netisr_wq;
 
-/* shared verdict plumbing for v4/v6 (af decides header pull size) */
-static unsigned int
-pfk_run(int af, struct sk_buff *skb, const struct nf_hook_state *st)
+/* PFLINUX: netisr work item — carries ownership of one sk_buff */
+struct pfk_pkt {
+	struct work_struct	work;
+	struct sk_buff		*skb;
+	struct pfk_ifnet	*ifp;
+	sa_family_t		af;
+	int			dir;
+};
+
+#define PFK_MARK_PASSED	0x50460001u	/* skb->mark: survived pf_test already */
+
+static void
+pfk_pkt_reinject(struct pfk_pkt *pk)
 {
-	struct pfk_ifnet *ifp;
-	struct mbuf *m, *m0;
-	int dir, action;
+	struct sk_buff *skb = pk->skb;
 
-	if (af == AF_INET &&
-	    !pskb_may_pull(skb, sizeof(struct pf_ip)))
-		return NF_ACCEPT;
-	if (af == AF_INET6 &&
-	    !pskb_may_pull(skb, sizeof(struct pf_ip6_hdr)))
+	skb->mark = PFK_MARK_PASSED;
+	if (pk->dir == PF_IN) {
+		if (skb->dev)
+			netif_rx(skb);
+		else {
+			kfree_skb(skb);
+		}
+	} else {
+		/* continue the output path: dst is attached at both
+		 * LOCAL_OUT and POST_ROUTING time */
+		struct dst_entry *d = skb_dst(skb);
+
+		if (d && d->dev)
+			skb->dev = d->dev;
+		if (d && !IS_ERR(d) && d->output)
+			d->output(&init_net, skb->sk, skb);
+		else
+			kfree_skb(skb);
+	}
+	kfree(pk);
+}
+
+static void
+pfk_pkt_work(struct work_struct *w)
+{
+	struct pfk_pkt *pk = container_of(w, struct pfk_pkt, work);
+	struct mbuf *m, *m0;
+	struct sk_buff *orig;
+	int action;
+
+	m = pfk_m_wrap_skb(pk->skb, pk->af);
+	if (!m) {
+		pfk_pkt_reinject(pk);	/* like "pf not consulted" */
+		return;
+	}
+	m0 = m;
+
+	/* PFLINUX: no NET read lock on the data path (M2 interim).  The
+	 * rw-semaphore read side starves softirq-fed packet flows whenever a
+	 * control writer parks (purge/ioctl), and BSD's NET_LOCK semantics
+	 * are being replaced by pf_lock/RCU work in M5+.  Rule-set mutation
+	 * and packet walk run concurrently from here on — documented. */
+	action = pf_test(pk->af, pk->dir, pk->ifp, &m);
+
+	if (m == m0) {
+		/* same buffer, possibly rewritten in place: our wrapper
+		 * held one extra skb reference — release it */
+		m_freem(m);
+		if (action == PF_PASS) {
+			pfk_pkt_reinject(pk);
+			return;
+		}
+		kfree_skb(pk->skb);	/* our queue reference */
+		kfree(pk);
+		return;
+	}
+
+	/* m != m0: pf consumed the wrapper (and its extra reference).
+	 * Our queue reference on the original must be resolved here. */
+	orig = pk->skb;
+	if (m == NULL) {
+		/* buffered (fragment queue) or consumed by divert/forward:
+		 * pf kept its own references; drop our queue reference */
+		kfree_skb(orig);
+		kfree(pk);
+		return;
+	}
+	/* replacement (reassembly survivor): free our original ref, then
+	 * inject the survivor through the stack */
+	pk->skb = m_to_skb(m);
+	m->skb = NULL;
+	m_freem(m);		/* wrapper bookkeeping only */
+	kfree_skb(orig);
+	pfk_pkt_reinject(pk);
+}
+
+/* shared: decide whether/how to queue this packet */
+static unsigned int
+pfk_enqueue_verdict(int af, struct sk_buff *skb,
+	const struct nf_hook_state *st)
+{
+	struct pfk_pkt *pk;
+	struct pfk_ifnet *ifp;
+	int dir;
+
+	if (skb->mark == PFK_MARK_PASSED)
 		return NF_ACCEPT;
 
 	switch (st->hook) {
@@ -49,79 +137,46 @@ pfk_run(int af, struct sk_buff *skb, const struct nf_hook_state *st)
 		dir = PF_OUT;
 		break;
 	default:
-		return NF_ACCEPT;	/* LOCAL_IN/FORWARD: seen already */
+		return NF_ACCEPT;	/* LOCAL_IN/FORWARD */
 	}
 
-	/* ifp: OpenBSD passes the *input* interface on PF_IN and the
-	 * output interface on PF_OUT (from the route). */
+	if (af == AF_INET && !pskb_may_pull(skb, sizeof(struct pf_ip)))
+		return NF_ACCEPT;
+	if (af == AF_INET6 && !pskb_may_pull(skb, sizeof(struct pf_ip6_hdr)))
+		return NF_ACCEPT;
+
 	if (dir == PF_IN)
 		ifp = pfk_ifp_bydev(st->in ? st->in : skb->dev);
 	else
 		ifp = pfk_ifp_bydev(skb->dev ? skb->dev : st->out);
 	if (!ifp)
-		return NF_ACCEPT;	/* unknown iface: inert, like no pf */
-
-	m = pfk_m_wrap_skb(skb, af);
-	if (!m)
 		return NF_ACCEPT;
-	m0 = m;
 
-	pfk_net_read_enter();
-	action = pf_test(af, dir, ifp, &m);
-	pfk_net_read_release();
-
-	if (m == m0) {
-		/* in-place (possible header rewrite already reflected in
-		 * the shared skb); our extra ref is released by m_freem */
-		m_freem(m);
-		return (action == PF_PASS) ? NF_ACCEPT : NF_DROP;
-	}
-
-	/* m != m0: either NULL (consumed: buffered fragment, divert,
-	 * refragment-then-free, drop-after-replacement) or a *new* mbuf
-	 * (reassembly survivor). m0 itself was consumed by pf. */
-	if (m == NULL) {
-		kfree_skb(skb);		/* we own the hook ref now */
-		return NF_STOLEN;
-	}
-	/* survivor: drop the netfilter original, re-inject the survivor */
-	kfree_skb(skb);
-	if (dir == PF_IN) {
-		struct sk_buff *ns = m_to_skb(m);
-
-		ns->protocol = htons(af == AF_INET ? ETH_P_IP : ETH_P_IPV6);
-		if (!ns->dev)
-			ns->dev = st->in;
-		if (ns->dev)
-			dev_hold(ns->dev);
-		else {
-			kfree_skb(ns);
-			m->skb = NULL;
-			m_freem(m);
-			return NF_STOLEN;
-		}
-		netif_rx(ns);
-		m->skb = NULL;	/* reference moved into netif_rx */
-		m_freem(m);
-	} else {
-		/* survivor leaves via the BSD output helper (consumes m) */
-		pfk_ip_output(m, NULL, NULL, 0, NULL, NULL, 0);
-	}
+	pk = kmalloc(sizeof(*pk), GFP_ATOMIC);
+	if (!pk)
+		return NF_ACCEPT;	/* overload guard: bypass like full pfq */
+	INIT_WORK(&pk->work, pfk_pkt_work);
+	skb_get(skb);			/* our queue reference */
+	pk->skb = skb;
+	pk->ifp = ifp;
+	pk->af = af;
+	pk->dir = dir;
+	queue_work(pfk_netisr_wq, &pk->work);
 	return NF_STOLEN;
 }
 
+struct workqueue_struct *pfk_netisr_wq;
+
 static unsigned int
-pfk_ipv4_hook(void *priv, struct sk_buff *skb,
-	const struct nf_hook_state *st)
+pfk_ipv4_hook(void *priv, struct sk_buff *skb, const struct nf_hook_state *st)
 {
-	return pfk_run(AF_INET, skb, st);
+	return pfk_enqueue_verdict(AF_INET, skb, st);
 }
 
 static unsigned int
-pfk_ipv6_hook(void *priv, struct sk_buff *skb,
-	const struct nf_hook_state *st)
+pfk_ipv6_hook(void *priv, struct sk_buff *skb, const struct nf_hook_state *st)
 {
-	return pfk_run(AF_INET6, skb, st);
+	return pfk_enqueue_verdict(AF_INET6, skb, st);
 }
 
 static struct nf_hook_ops pfk_hooks[] = {
@@ -153,18 +208,23 @@ pfk_hooks_register(void)
 {
 	int i, err;
 
-	pr_info("pfk: netfilter hooks registering (%zu, verdict path live)\n",
-		(size_t)PFK_NHOOKS);
+	pfk_netisr_wq = alloc_ordered_workqueue("pfk_netisr", WQ_MEM_RECLAIM);
+	if (!pfk_netisr_wq)
+		return -ENOMEM;
 	for (i = 0; i < PFK_NHOOKS; i++) {
 		pfk_hooks[i].priv = NULL;
 		err = nf_register_net_hook(&init_net, &pfk_hooks[i]);
 		if (err)
 			goto fail;
 	}
+	pr_info("pfk: netfilter hooks registered (%zu, netisr wq data path)\n",
+		(size_t)PFK_NHOOKS);
 	return 0;
 fail:
 	while (--i >= 0)
 		nf_unregister_net_hook(&init_net, &pfk_hooks[i]);
+	destroy_workqueue(pfk_netisr_wq);
+	pfk_netisr_wq = NULL;
 	return err;
 }
 
@@ -175,4 +235,9 @@ pfk_hooks_unregister(void)
 
 	for (i = 0; i < PFK_NHOOKS; i++)
 		nf_unregister_net_hook(&init_net, &pfk_hooks[i]);
+	if (pfk_netisr_wq) {
+		flush_workqueue(pfk_netisr_wq);
+		destroy_workqueue(pfk_netisr_wq);
+		pfk_netisr_wq = NULL;
+	}
 }

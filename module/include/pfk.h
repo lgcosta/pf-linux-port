@@ -294,6 +294,11 @@ struct pfk_rwlock {
 	const char		*name;
 	int			 is_writer;
 	atomic_t		 readers;
+	/* PFLINUX: OpenBSD rw_enter(WRITER) recursion must not self-deadlock
+	 * (pfioctl holds PF_LOCK and re-enters via helpers); rw_semaphores are
+	 * non-recursive, so track writer identity + depth. */
+	struct task_struct	*owner;
+	int			 wdepth;
 };
 #define rwlock pfk_rwlock
 #define rwlock_s pfk_rwlock

@@ -331,15 +331,44 @@ static struct notifier_block pfk_netdev_nb = {
 
 static void (*pfk_if_event_cb)(int added, struct pfk_ifnet *ifp);
 
+/*
+ * PFLINUX: netdev notifiers run with rtnl held; taking NET_LOCK there
+ * deadlocks (AB-BA) against control paths that hold NET_LOCK and touch
+ * rtnl (dev_get_by_name etc.).  Interface attach/detach is therefore
+ * deferred to an ordered workqueue (rtnl-free context) preserving order.
+ */
+struct pfk_if_event {
+	struct work_struct	work;
+	int			added;
+	struct pfk_ifnet	*ifp;
+};
+
+static struct workqueue_struct *pfk_if_wq;
+
+static void
+pfk_if_event_work(struct work_struct *w)
+{
+	struct pfk_if_event *ev = container_of(w, struct pfk_if_event, work);
+
+	if (pfk_if_event_cb)
+		pfk_if_event_cb(ev->added, ev->ifp);
+	kfree(ev);
+}
+
 static void
 pfk_if_event_call(int added, struct pfk_ifnet *ifp)
 {
-	if (!pfk_if_event_cb)
+	struct pfk_if_event *ev;
+
+	if (!pfk_if_event_cb || !pfk_if_wq)
 		return;
-	/* netdev notifiers run in process context; NET lock is sleepable */
-	pfk_net_lock();
-	pfk_if_event_cb(added, ifp);
-	pfk_net_unlock();
+	ev = kmalloc(sizeof(*ev), GFP_ATOMIC);
+	if (!ev)
+		return;
+	INIT_WORK(&ev->work, pfk_if_event_work);
+	ev->added = added;
+	ev->ifp = ifp;
+	queue_work(pfk_if_wq, &ev->work);
 }
 
 void
@@ -352,7 +381,7 @@ void
 pfk_if_iterate(void (*cb)(struct pfk_ifnet *ifp))
 {
 	struct pfk_ifnet *ifp;
-	int id = -1;
+	int id = 0;
 
 	while ((ifp = pfk_if_next_from(&id)) != NULL)
 		cb(ifp);
@@ -385,7 +414,7 @@ pfk_egress_if(void)
 struct pfk_ifnet *
 pfk_if_first(void)
 {
-	int id = -1;
+	int id = 0;
 
 	return pfk_if_next_from(&id);
 }
@@ -407,7 +436,7 @@ pfk_if_next_from(int *idp)
 struct pfk_ifnet *
 pfk_if_next(struct pfk_ifnet *ifp)
 {
-	int id = ifp ? ifp->if_index : -1;
+	int id = ifp ? ifp->if_index : 0;
 
 	return pfk_if_next_from(&id);
 }
@@ -418,9 +447,15 @@ pfk_if_init(void)
 	struct net_device *dev;
 	int err;
 
+	pfk_if_wq = alloc_ordered_workqueue("pfk_if", 0);
+	if (!pfk_if_wq)
+		return -ENOMEM;
 	err = register_netdevice_notifier(&pfk_netdev_nb);
-	if (err)
+	if (err) {
+		destroy_workqueue(pfk_if_wq);
+		pfk_if_wq = NULL;
 		return err;
+	}
 	/* populate existing devices */
 	rtnl_lock();
 	for_each_netdev(&init_net, dev) {
@@ -449,8 +484,13 @@ pfk_if_init(void)
 void
 pfk_if_exit(void)
 {
+	if (pfk_if_wq) {
+		flush_workqueue(pfk_if_wq);
+		destroy_workqueue(pfk_if_wq);
+		pfk_if_wq = NULL;
+	}
 	struct pfk_ifnet *ifp;
-	int id = -1;
+	int id = 0;
 	unsigned long flags;
 
 	unregister_netdevice_notifier(&pfk_netdev_nb);
@@ -459,7 +499,7 @@ pfk_if_exit(void)
 		ifp->alive = 0;
 		idr_remove(&pfk_ifnet_idr, id);
 		kfree(ifp);
-		id = -1;
+		id = 0;
 	}
 	spin_unlock_irqrestore(&pfk_ifnet_lock, flags);
 }

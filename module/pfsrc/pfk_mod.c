@@ -123,13 +123,13 @@ static int __init pfk_init(void)
 	err = pfk_if_init();
 	if (err)
 		goto err_pcb;
-	/* OpenBSD bring-up order: status/pools/rulesets, then kifs */
-	pfk_net_lock();
+	/* OpenBSD bring-up order: status/pools/rulesets, then kifs.
+	 * No NET_LOCK here: pfattach/pfi take what locks they need (PF_LOCK),
+	 * and control ioctls serialize with NET_LOCK themselves. */
 	pf_status_init();
 	pfattach(0);
 	pfk_if_set_event_cb(pfk_pfi_event);
 	pfk_if_iterate(pfk_pfi_attach_one);
-	pfk_net_unlock();
 	err = pfk_hooks_register();
 	if (err)
 		goto err_if;
