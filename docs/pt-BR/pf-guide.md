@@ -85,7 +85,7 @@ primária, exatamente como os gates fazem.
 ```
 pfk: PF-on-Linux engine loaded (OpenBSD 8.0 base)     ← insmod ok
 pfk: netfilter hooks registered (10, netisr wq data path)
-pfk: divert v4 port N: no divert socket layer (M6 pending), dropping
+pfk: divert port N: no socket bound      # pdivert não ouvido a porta N
 pfk: … packet not logged                              ← stub do pflog
 ```
 

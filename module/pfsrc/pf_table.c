@@ -1983,9 +1983,9 @@ _skip:
 			senderr(EFAULT);
 		if (pfr_validate_addr(&ad))
 			senderr(EINVAL);
-		pr_info("pfkD: ina_define addr[%d] af=%d net=%d flags=%llx ifindex=%d\n",
-		    i, ad.pfra_af, ad.pfra_net, (unsigned long long)ad.pfra_flags,
-		    ad.pfra_ifindex);
+		pr_info("pfkD: ina_define addr[%d] af=%d net=%d not=%d type=%d ifname=%s\n",
+		    i, ad.pfra_af, ad.pfra_net, ad.pfra_not, ad.pfra_type,
+		    ad.pfra_ifname);
 		if (pfr_lookup_addr(shadow, &ad, 1) != NULL)
 			continue;
 		p = pfr_create_kentry(&ad);

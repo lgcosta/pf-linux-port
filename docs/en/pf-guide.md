@@ -81,7 +81,7 @@ results, `tcpdump`) as the primary evidence, as the gates do.
 ```
 pfk: PF-on-Linux engine loaded (OpenBSD 8.0 base)     ← insmod ok
 pfk: netfilter hooks registered (10, netisr wq data path)
-pfk: divert v4 port N: no divert socket layer (M6 pending), dropping
+pfk: divert port N: no socket bound      # pdivert not listening on N
 pfk: … packet not logged                              ← pflog stub
 ```
 

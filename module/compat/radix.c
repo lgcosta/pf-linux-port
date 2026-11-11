@@ -46,7 +46,34 @@
 #endif
 
 
-#define SALEN(sa)	(*(u_char *)(sa))
+/*
+ * PFLINUX: OpenBSD's SALEN() reads the BSD sockaddr's sa_len byte.  Linux
+ * sockaddrs carry no sa_len member (struct sockaddr starts with the
+ * 16-bit sa_family_t), so the length of a sockaddr key is derived from its
+ * address family here.  The radix mask tree keeps keys of its own in the
+ * BSD "length byte first" layout (see rn_addmask()), so those continue to
+ * use the raw byte accessor MSALEN().
+ */
+#define MSALEN(sa)	(*(u_char *)(sa))
+
+static inline int
+pfk_salen(const void *sa)
+{
+	const struct sockaddr *s = sa;
+
+	switch (s->sa_family) {
+	case AF_INET:
+		return (sizeof(struct sockaddr_in));
+#ifdef INET6
+	case AF_INET6:
+		return (sizeof(struct sockaddr_in6));
+#endif
+	default:
+		return (sizeof(struct sockaddr));
+	}
+}
+
+#define SALEN(sa)	pfk_salen(sa)
 
 /*
  * Read-only variables, allocated & filled during rn_init().
@@ -215,7 +242,7 @@ rn_satisfies_leaf(char *trial, struct radix_node *leaf, int skip)
 	if (cp3 == NULL)
 		cp3 = rn_ones;
 	else
-		length = min(length, SALEN(cp3));
+		length = min(length, MSALEN(cp3));
 	cplim = cp + length;
 	cp += skip;
 	cp2 += skip;
@@ -252,7 +279,7 @@ rn_match(void *v_arg, struct radix_node_head *head)
 	 * are probably the most common case...
 	 */
 	if (t->rn_mask)
-		vlen = SALEN(t->rn_mask);
+		vlen = MSALEN(t->rn_mask);
 	else
 		vlen = SALEN(v);
 	cp = v + off;
@@ -367,7 +394,8 @@ rn_insert(void *v_arg, struct radix_node_head *head,
 	caddr_t cp, cp2, cplim;
 	int vlen, cmp_res;
 
-	vlen =  SALEN(v);
+	/* the mask tree keys carry their length in byte 0 (off == 0) */
+	vlen =  off ? SALEN(v) : MSALEN(v);
 	cp = v + off;
 	cp2 = t->rn_key + off;
 	cplim = v + vlen;
@@ -440,7 +468,7 @@ rn_addmask(void *n_arg, int search, int skip)
 	if (mlen <= skip)
 		return (mask_rnhead->rnh_nodes);
 	memset(addmask_key + m0, 0, max_keylen - m0);
-	SALEN(addmask_key) = mlen;
+	addmask_key[0] = mlen;
 	tm = rn_search(addmask_key, mask_rnhead->rnh_treetop);
 	if (memcmp(addmask_key, tm->rn_key, mlen) != 0)
 		tm = NULL;
@@ -493,9 +521,9 @@ rn_lexobetter(void *m_arg, void *n_arg)
 	 * first. The netmasks were normalized before calling this function and
 	 * don't have unneeded trailing zeros.
 	 */
-	if (SALEN(mp) > SALEN(np))
+	if (MSALEN(mp) > MSALEN(np))
 		return 1;
-	if (SALEN(mp) < SALEN(np))
+	if (MSALEN(mp) < MSALEN(np))
 		return 0;
 	/*
 	 * Must return the first difference between the masks

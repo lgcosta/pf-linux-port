@@ -54,9 +54,6 @@ pfk_ioctl_io(struct file *filp, unsigned int cmd, unsigned long arg)
 	p.p_ucred = &cred;
 	p.p_p = &pp;
 
-	if (cmd == DIOCADDRULE)
-		pr_info("pfkE: ioctl sz=%d kern_size=%d rule=%d\n", (int)sz,
-		    (int)sizeof(struct pfioc_rule), (int)sizeof(struct pf_rule));
 	kdata = kzalloc(sz ? sz : sizeof(long), GFP_KERNEL);
 	if (!kdata)
 		return -ENOMEM;

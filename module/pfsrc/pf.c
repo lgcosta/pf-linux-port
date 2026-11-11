@@ -5020,9 +5020,6 @@ pf_test_rule(struct pf_pdesc *pd, struct pf_rule **rm, struct pf_state **sm,
 
 	if (pd->virtual_proto != PF_VPROTO_FRAGMENT
 	    && !ctx.state_icmp && r->keep_state) {
-		pr_info_ratelimited("pfk: state-eligible proto=%d kstate=%d\n",
-		    pd->proto, r->keep_state);
-
 		if (r->rule_flag & PFRULE_SRCTRACK &&
 		    pf_insert_src_node(&ctx.sns[PF_SN_NONE], r, PF_SN_NONE,
 		    pd->af, pd->src, NULL, NULL) != 0) {
