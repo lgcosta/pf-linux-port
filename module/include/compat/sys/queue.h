@@ -164,13 +164,34 @@ struct {								\
 /*
  * List definitions.
  */
-#define LIST_HEAD(name, type)						\
+/*
+ * PFLINUX: LIST_HEAD has two spellings in this tree.  The ported OpenBSD
+ * engine uses the BSD form LIST_HEAD(name, type) (a struct with lh_first),
+ * while the port's own glue (pfsrc/divert_sock.c, compat/pfk_kern.c,
+ * compat/pfk_if.c) uses Linux's list.h form LIST_HEAD(name) (an initialised
+ * struct list_head).  compat/sys/queue.h is included after Linux's list.h,
+ * so the BSD definition used to shadow the Linux one and broke the glue
+ * translation units.  Dispatch on the argument count so both spellings
+ * work; LIST_HEAD_INIT is provided with Linux's exact text so that a later
+ * include of <linux/list.h> redefinition stays identical.
+ */
+#define LIST_HEAD_INITIALIZER(head)					\
+	{ NULL }
+
+#define LIST_HEAD_INIT(name) { &(name), &(name) }
+
+#define LIST_HEAD_BSD(name, type)					\
 struct name {								\
 	struct type *lh_first;	/* first element */			\
 }
 
-#define LIST_HEAD_INITIALIZER(head)					\
-	{ NULL }
+#define LIST_HEAD_LINUX(name)						\
+	struct list_head name = LIST_HEAD_INIT(name)
+
+#define LIST_HEAD_SELECT(_1, _2, NAME, ...) NAME
+#define LIST_HEAD(...)							\
+	LIST_HEAD_SELECT(__VA_ARGS__, LIST_HEAD_BSD, LIST_HEAD_LINUX)	\
+	(__VA_ARGS__)
 
 #define LIST_ENTRY(type)						\
 struct {								\
