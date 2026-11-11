@@ -1,0 +1,14 @@
+# cloud-init network config v2 — pftest-cli. mgmt dhcp gives DNS only
+# (use-routes:false); default route goes through pf0 so LAN->WAN traffic
+# exercises pf forwarding. Rendered by scripts/vm-create.sh.
+version: 2
+ethernets:
+  mgmt:
+    match: {macaddress: "@CLI_MAC_MGMT@"}
+    dhcp4: true
+    dhcp4-overrides: {use-routes: false}
+  lan:
+    match: {macaddress: "@CLI_MAC_LAN@"}
+    addresses: [@CLI@]
+    routes:
+      - {to: default, via: @CLI_GW@}

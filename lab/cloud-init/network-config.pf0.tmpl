@@ -1,0 +1,16 @@
+# cloud-init network config v2 — pftest-pf0. mgmt=dhcp on default net,
+# data ifaces static (lab/ips.env). Rendered by scripts/vm-create.sh.
+version: 2
+ethernets:
+  mgmt:
+    match: {macaddress: "@PF0_MAC_MGMT@"}
+    dhcp4: true
+  lan:
+    match: {macaddress: "@PF0_MAC_LAN@"}
+    addresses: [@PF0_LAN@]
+  wan:
+    match: {macaddress: "@PF0_MAC_WAN@"}
+    addresses: [@PF0_WAN@]
+  wan2:
+    match: {macaddress: "@PF0_MAC_WAN2@"}
+    addresses: [@PF0_WAN2@]

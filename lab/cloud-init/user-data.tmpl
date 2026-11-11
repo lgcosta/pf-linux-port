@@ -1,0 +1,23 @@
+#cloud-config
+# Rendered per VM by scripts/vm-create.sh (tokens: @...@).
+hostname: @VM@
+manage_etc_hosts: true
+ssh_pwauth: true
+users:
+  - name: root
+    lock_passwd: false
+    ssh_authorized_keys:
+      - @SSH_PUBKEY@
+chpasswd:
+  expire: false
+  users:
+    - name: root
+      password: "@ROOT_PASS@"
+      type: text
+packages: @LAB_PACKAGES@
+runcmd:
+  - echo 'net.ipv4.ip_forward=1' > /etc/sysctl.d/00-pflab.conf
+  - sysctl -q -p /etc/sysctl.d/00-pflab.conf
+  - "printf '@ROOT_PASS@\\n@ROOT_PASS@\\n' | passwd root >/dev/null 2>&1 || true"
+@RUNCMD_EXTRA@
+  - touch /run/pf-lab-ready

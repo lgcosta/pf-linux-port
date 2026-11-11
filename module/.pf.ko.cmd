@@ -1,0 +1,1 @@
+savedcmd_pf.ko := ld -r -m elf_x86_64 --fatal-warnings -z noexecstack --no-warn-rwx-segments --build-id=sha1 --force-group-allocation  -T /home/lgcosta/lab/linux_kernel/linux-7.3.4/scripts/module.lds -o pf.ko pf.o pf.mod.o .module-common.o

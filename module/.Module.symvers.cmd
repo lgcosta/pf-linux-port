@@ -1,0 +1,1 @@
+savedcmd_Module.symvers :=  /home/lgcosta/lab/linux_kernel/linux-7.3.4/scripts/mod/modpost -M          -o Module.symvers -n -T modules.order -i /home/lgcosta/lab/linux_kernel/linux-7.3.4/Module.symvers -e 

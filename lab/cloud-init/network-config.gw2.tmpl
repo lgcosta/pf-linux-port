@@ -1,0 +1,13 @@
+# cloud-init network config v2 — pftest-gw2. No mgmt NIC (contract):
+# pf-wan2 + pf-wan only, forwards between them (ip_forward set in user-data);
+# default via pf0 so the guest itself has egress for package installs.
+version: 2
+ethernets:
+  wan2:
+    match: {macaddress: "@GW2_MAC_WAN2@"}
+    addresses: [@GW2_WAN2@]
+  wan:
+    match: {macaddress: "@GW2_MAC_WAN@"}
+    addresses: [@GW2_WAN@]
+    routes:
+      - {to: default, via: @PF0_WAN_IP@}

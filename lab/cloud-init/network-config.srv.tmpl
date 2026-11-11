@@ -1,0 +1,15 @@
+# cloud-init network config v2 — pftest-srv. mgmt dhcp gives DNS only;
+# default via pf0 (SRV_GW); 10.0.3.0/24 pinned via gw2 so the srv->gw2
+# path is exercised through gw forwarding instead of pf0's own link.
+version: 2
+ethernets:
+  mgmt:
+    match: {macaddress: "@SRV_MAC_MGMT@"}
+    dhcp4: true
+    dhcp4-overrides: {use-routes: false}
+  wan:
+    match: {macaddress: "@SRV_MAC_WAN@"}
+    addresses: [@SRV@]
+    routes:
+      - {to: default, via: @SRV_GW@}
+      - {to: 10.0.3.0/24, via: @GW2_WAN_IP@}

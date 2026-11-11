@@ -6,7 +6,11 @@ K="${KERNELDIR:-$(cd "$REPO/../linux-7.3.4" && pwd)}"
 cd "$K"
 "$REPO/scripts/kernel-config.sh" "${1:-}"
 JOBS="${JOBS:-$(($(nproc)-2))}"
-make -j"$JOBS" -s bzImage modules
+make -j"$JOBS" -s bzImage modules_prepare
+# External module builds need Module.symvers (kbuild only writes
+# vmlinux.symvers) and scripts/module.lds (from modules_prepare above).
+[ -f Module.symvers ] || cp vmlinux.symvers Module.symvers
+[ -f scripts/module.lds ] || { echo "FATAL: scripts/module.lds missing" >&2; exit 1; }
 mkdir -p "$REPO/out"
 KVER="$(make -s kernelversion)"
 cp -f arch/x86/boot/bzImage "$REPO/out/linux-${KVER}-bzImage"
