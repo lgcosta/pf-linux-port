@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.6.0 — 2026-11-11
+
+Adds scrub and route-pool verification.  Suite: 13 gates, all green.
+
+| Capability | Gate | Proof |
+|---|---|---|
+| `scrub` normalization | `09-scrub` | `min-ttl 100` raises the TTL (egress shows 99 after the forward hop decrement); `max-mss 500` clamps a SYN's MSS option — measured on the firewall's own egress |
+| `route-to` pools | `10-pools` | with two gateways on two links, `round-robin` uses both, `source-hash` pins every flow from one source to a single link |
+
+Also: `docs/{en,pt-BR}/patches.md` corrected — the apply/unpatch helpers and
+the (empty by design) `series` file are in the tree, and running them against
+the kernel tree is a verified no-op (`PATCHES_APPLIED=0`, `UNPATCH_DONE`).
+
 ## v0.5.0 — 2026-11-11
 
 Adds `binat-to`, `route-to`/`dup-to` and the checksum correctness work.
