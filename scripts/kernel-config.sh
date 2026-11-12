@@ -3,7 +3,10 @@
 # defconfig baseline + direct-kernel-boot deps. Idempotent.
 # `kernel-config.sh test` additionally enables DEBUG_KMEMLEAK (soak builds).
 set -euo pipefail
-K="${KERNELDIR:-$(cd "$(dirname "$0")/../../linux_kernel/linux-7.3.4" && pwd)}"
+REPO="$(cd "$(dirname "$0")/.." && pwd)"
+# Default: the kernel tree next to the repository (pf_port/../linux-7.3.4),
+# same rule as build-kernel.sh / build-module.sh.
+K="${KERNELDIR:-$REPO/../linux-7.3.4}"
 cd "$K"
 [ -f .config ] || make defconfig
 scripts/config --file .config \

@@ -4,7 +4,8 @@ set -euo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 K="${KERNELDIR:-$(cd "$REPO/../linux-7.3.4" && pwd)}"
 cd "$K"
-"$REPO/scripts/kernel-config.sh" "${1:-}"
+# kernel-config.sh must configure the *same* tree we are about to build.
+KERNELDIR="$K" "$REPO/scripts/kernel-config.sh" "${1:-}"
 JOBS="${JOBS:-$(($(nproc)-2))}"
 make -j"$JOBS" -s bzImage modules_prepare
 # External module builds need Module.symvers (kbuild only writes
