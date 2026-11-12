@@ -144,9 +144,10 @@ pass in quick log proto icmp from $CLI_IP keep state
 pass out quick
 EOF"
 p0 "/opt/pf/pfctl -f /tmp/demo-log.conf && echo 'log rule loaded'"
-p0 "chmod +x /tmp/pflogd; (setsid /tmp/pflogd -c 3 /tmp/pflog.pcap >/tmp/pflogd.log 2>&1 </dev/null &); sleep 1; pgrep pflogd"
+p0 "chmod +x /tmp/pflogd; rm -f /tmp/pflog.pcap; (setsid /tmp/pflogd -c 2 /tmp/pflog.pcap >/tmp/pflogd.log 2>&1 </dev/null &); sleep 1; echo 'pflogd collecting 2 records'"
 vmc "ping -c2 -W2 $SRV_IP | tail -2"
-p0 "ls -l /tmp/pflog.pcap; echo 'pcap header (magic d4c3b2a1, linktype 75=DLT_PFLOG):'; od -An -tx1 -N24 /tmp/pflog.pcap"
+sleep 2
+p0 "cat /tmp/pflogd.log; ls -l /tmp/pflog.pcap; echo 'pcap header (magic d4c3b2a1, linktype 0x75=DLT_PFLOG):'; od -An -tx1 -N24 /tmp/pflog.pcap"
 p0 "pkill pflogd 2>/dev/null; /opt/pf/pfctl -f /tmp/demo-pf.conf >/dev/null"
 echo
 
