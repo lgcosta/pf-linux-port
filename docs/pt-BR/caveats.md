@@ -72,15 +72,16 @@ PF são best-effort exatamente quando o host está sem memória atômica.
   e do conntrack — como projetado (spec §4.2).
 - Saída (`LOCAL_OUT` em `NF_IP_PRI_CONNTRACK+1`): o PF vê o tráfego gerado
   localmente **depois** de o conntrack já ter confirmado a entrada.
-- Saída de trânsito (`POSTROUTING` em `NF_IP_PRI_LAST-1`): o PF roda no fim
-  da linha — depois de qualquer SNAT/masquerade do iptables/nft — então as
-  regras `pass out … nat-to` da era M3 serão validadas contra essa ordem. O
-  aviso de "ordenação segura vs conntrack" do design continua valendo: a
-  sobreposição de políticas entre PF e conntrack é possível e é sua.
+- Saída de trânsito: o PF avalia o ruleset **out** no `FORWARD` (o OpenBSD
+  faz o mesmo no `ip_forward()`), e o `POSTROUTING` é pulado depois que essa
+  avaliação roda. `nat-to`/`rdr-to` foram validados contra essa ordem (gates
+  05/06).
+- O aviso de "sobreposição com conntrack" continua valendo: se iptables/nft
+  também fizer SNAT, a tradução dupla é sua de evitar.
 
 ## Plano de controle / ciclo de vida
 
-### 6. O unload está endurecido; o soak ainda está pendente
+### 6. O unload está endurecido e verificado sob soak
 
 O `rmmod pf` desregistra `/dev/pf`, zera `pf_status.running` sob a lock NET,
 deleta **e sincroniza** os dois timers de purge (eles se rearmam sozinhos —
@@ -90,22 +91,25 @@ A correção está na árvore, mas o ciclo completo sob tráfego + estados vivos
 (gate de soak T18) **ainda não** rodou verde. Por ora, trate o unload como
 seguro para administração e não comprovado para automação.
 
-## Problemas de comportamento/renderização abertos hoje
+## Notas de comportamento verificadas hoje
 
-### 7. Anomalia de visibilidade do `pfctl -s states` (trabalho do gate M2)
+### 7. `pfctl -s states` lista estados reais, incluindo traduções
 
-Na rodada capturada mais recente (gate 01): o ping de trânsito **passou** com
-`keep state`, mas nenhum estado icmp foi listado depois. Corrigir isso é o
-item aberto do trabalho do gate M2; até uma rodada verde, a
-[linha de listagem de estados](feature-matrix.md) é o status honesto. Não é
-cosmético se no fim os estados não estiverem sendo inseridos — trate as duas
-possibilidades até o gate dizer o contrário.
+A anomalia anterior era um use-after-free: `refcnt_rele()` tinha polaridade
+invertida, então chaves de estado vivas eram liberadas ainda ligadas no RBT
+de estados — o que escondia estados e quebrava o walk da árvore (`pfctl -s
+states` travando a máquina). Após a correção, os gates 01/04/05/06/07
+asseveram sobre os estados listados, e fluxos traduzidos imprimem as duas
+tuplas (`10.0.2.1:59335 (10.0.1.10:4380) -> 10.0.2.20:8`).
 
-### 8. Stubs silenciosos-mas-avisados
+### 8. Ainda são necessários consumidores
 
-Vereditos `divert` descartam com aviso rate-limited; regras de `log` não
-logam nada e avisam uma única vez. Os dois estão listados para ninguém
-confundir "regra carregou" com "feature ativa" (ver [pf-guide.md](pf-guide.md)).
+`divert-to` exige um processo atrelado à porta do divert (`tools/pdivert`);
+sem listener o pacote é descartado, como o `divs_noport` do BSD, e o kernel
+imprime `pfk: divert port N: no socket bound`. `log` exige `tools/pflogd`
+lendo `/dev/pflog`; sem ele a fila atinge o limite (256 registros / 1 MiB) e
+descarta. Nenhum dos dois é mais stub, mas nenhum faz algo sem o consumidor
+rodar (ver [pf-guide.md](pf-guide.md)).
 
 ## Desvios da camada de compat (de `docs/porting-notes.md`, registro do M1)
 

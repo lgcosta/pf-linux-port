@@ -70,40 +70,46 @@ exactly when the host is out of atomic memory.
   conntrack — as designed (spec §4.2).
 - Output (`LOCAL_OUT` at `NF_IP_PRI_CONNTRACK+1`): PF sees locally generated
   traffic **after** conntrack has already committed the entry.
-- Transit egress (`POSTROUTING` at `NF_IP_PRI_LAST-1`): PF runs at the very
-  end — after any iptables/nft SNAT/masquerade — so `pass out … nat-to`-era
-  rules (M3) will be validated against this ordering. The "unregister-safe
-  ordering vs conntrack" warning from the design still applies: overlapping
-  policy between PF and conntrack is possible and yours to manage.
+- Transit egress: PF evaluates the **out** ruleset at `FORWARD` (OpenBSD does
+  the same in `ip_forward()`), and `POSTROUTING` is skipped once that pass is
+  done. `nat-to`/`rdr-to` were validated against this ordering (gates 05/06).
+- The "overlapping policy with conntrack" warning from the design still
+  applies: if iptables/nft SNAT also runs, PF's translation happens at the
+  layer it is hooked into, and double translation is yours to avoid.
 
 ## Control plane / lifecycle
 
-### 6. Unload is hardened; the soak is still pending
+### 6. Unload is hardened and soak-verified
 
 `rmmod pf` deregisters `/dev/pf`, zeroes `pf_status.running` under the NET
 lock, deletes **and syncs** both purge timers (they self-rearm — a real rmmod
 hang was observed and fixed by stopping sources before flushing the
-workqueue), unregisters hooks and flushes `pfk_netisr`. That fix is in-tree,
-but the full cycle under traffic + live states (T18/soak gate) has **not**
-been run to green yet. For now treat unload as admin-safe, automation-
-unproven.
+workqueue), unregisters hooks and flushes `pfk_netisr`. Gate `14-soak.sh`
+drives ICMP+TCP traffic, checks `dmesg` for faults, then runs
+`rmmod` → `insmod` → `rmmod` and compares the slab footprint before and
+after: clean unload, successful reload, no growth. Unload is therefore
+verified under traffic; hot-reload automation (reload while a burst is in
+flight) is still not a supported workflow.
 
-## Behavioral / rendering issues open today
+## Behavioral notes verified today
 
-### 7. `pfctl -s states` visibility anomaly (M2 gate work)
+### 7. `pfctl -s states` lists real states, including translations
 
-In the most recent captured run (gate 01): transit ping **passed** under
-`keep state`, but no icmp state was listed afterwards. Fixing this is the
-open item of the M2 gate work; until a green run lands, the
-[state-listing row](feature-matrix.md) is the honest status. Not cosmetic if
-it turns out states are not being inserted — treat both possibilities until
-the gate says otherwise.
+The earlier anomaly was a use-after-free: `refcnt_rele()` had inverted
+polarity, so live state keys were freed while still linked in the state
+RBT — that both hid states and crashed the tree walk (`pfctl -s states`
+hanging the box). After the fix, gates 01/04/05/06/07 assert on the listed
+states, and translated flows print both tuples (`10.0.2.1:59335
+(10.0.1.10:4380) -> 10.0.2.20:8`).
 
-### 8. Silent-but-warned stubs
+### 8. Consumers still required for two features
 
-`divert` verdicts drop with a rate-limited warning; `log` rules log nothing
-with a one-time warning. Both are listed so nobody mistakes "rules loaded"
-for "features active" (see [pf-guide.md](pf-guide.md)).
+`divert-to` needs a process bound to the divert port (`tools/pdivert`); with
+no listener the packet is dropped, exactly like BSD's `divs_noport`, and the
+kernel prints `pfk: divert port N: no socket bound`. `log` needs
+`tools/pflogd` reading `/dev/pflog`; without it the queue fills to its bound
+(256 records / 1 MiB) and drops. Neither is a stub any more, but neither does
+anything until its consumer runs (see [pf-guide.md](pf-guide.md)).
 
 ## Compat-layer deviations (from `docs/porting-notes.md`, M1 record)
 
