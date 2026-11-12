@@ -40,5 +40,24 @@ pf0 '/opt/pf/pfctl -ss' | grep -E "$SRV_IP:80 .*$CLI_IP" >/dev/null && ok "state
 pf0 '/opt/pf/pfctl -s info' | grep -qiE 'match' && ok "counters readable" || bad "counters"
 
 srv '[ -f /tmp/loop.pid ] && kill $(cat /tmp/loop.pid) 2>/dev/null; pkill nc 2>/dev/null; true' >/dev/null
+
+# bulk (GSO/TSO) through the redirect: 2 MB must arrive byte-identical.
+# This is the regression that "materialize the checksum in software" introduced:
+# computing the transport checksum once for a GSO skb corrupts every segment
+# after the first, and the peer silently stalls (sshd mute, transfers hang).
+B64=$(printf 'head -c 2000000 /dev/zero | tr "\0" A > /tmp/big.txt\n' | base64 | tr -d '\n')
+srv "echo $B64 | base64 -d > /tmp/mkbig.sh; sh /tmp/mkbig.sh; pkill nc 2>/dev/null; sleep 1; nohup setsid nc -l -p 9091 < /tmp/big.txt >/dev/null 2>&1 & sleep 1; netstat -lnt | grep -q 9091 && echo BULK_UP" | grep -q BULK_UP || bad "bulk listener"
+pf0 "printf 'pass in quick proto tcp from 10.0.1.0/24 to 10.0.1.1 port 9091 rdr-to $SRV_IP port 9091 keep state\npass out quick proto tcp keep state\n' > /tmp/g06b.conf; /opt/pf/pfctl -f /tmp/g06b.conf && echo BULK_RULE" >/dev/null
+GOT=$(cli 'nc -w10 10.0.1.1 9091 | wc -c' | tr -d '[:space:]')
+EXP=$(srv 'wc -c < /tmp/big.txt' | tr -d '[:space:]')
+if [ "$GOT" = "$EXP" ] && [ "${GOT:-0}" -ge 2000000 ]; then
+	ok "2 MB through the redirect intact ($GOT bytes)"
+else
+	bad "bulk through redirect: got $GOT want $EXP"
+fi
+# the firewall must still answer ssh (the GSO path must not wedge the box)
+pf0 'echo SSH_ALIVE' | grep -q SSH_ALIVE && ok "pf0 sshd still responsive" || bad "pf0 unreachable after bulk"
+srv 'pkill nc 2>/dev/null; true' >/dev/null
+
 pf0 '/opt/pf/pfctl -d' >/dev/null
 finish

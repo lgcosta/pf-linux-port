@@ -112,18 +112,60 @@ pfk_reroute(struct sk_buff *skb)
  * ip_output() recomputes the IP header checksum on every packet it sends;
  * Linux does not, so fix it up here after pf touched the header.
  */
+/*
+ * pf rewrote the addresses of this packet.  OpenBSD recomputes the IP header
+ * checksum in ip_output() and the transport checksum is patched incrementally
+ * by pf - but that only works on a *materialized* checksum, and VM-to-VM
+ * traffic routinely arrives with the transport checksum still uncomputed
+ * (the sender's offload never completed on the tap).  So recompute from
+ * scratch here:
+ *
+ *   - GSO segments: hand the job back to the NIC (CHECKSUM_PARTIAL with the
+ *     transport offset); computing in software would only cover the first
+ *     segment and silently corrupt the rest (this is what kills bulk TCP).
+ *   - everything else: compute the transport checksum over the new
+ *     pseudo-header in software, then the IP header checksum.
+ */
 static void
-pfk_fix_ip_csum(struct sk_buff *skb)
+pfk_fix_csum_after_translate(struct sk_buff *skb)
 {
 	struct iphdr *iph;
+	unsigned int hlen, len;
+	__sum16 *csum;
+	__u8 proto;
 
 	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
 		return;
 	iph = ip_hdr(skb);
+	hlen = iph->ihl * 4;
+	proto = iph->protocol;
+	len = skb->len - hlen;
+
+	if (proto == IPPROTO_TCP || proto == IPPROTO_UDP) {
+		if (!pskb_may_pull(skb, hlen + (proto == IPPROTO_TCP ?
+		    sizeof(struct tcphdr) : sizeof(struct udphdr))))
+			return;
+		csum = (__sum16 *)(skb->data + hlen +
+		    (proto == IPPROTO_TCP ? offsetof(struct tcphdr, check)
+					 : offsetof(struct udphdr, check)));
+		if (skb_is_gso(skb)) {
+			skb->csum_start = (unsigned short)
+			    (((unsigned char *)skb->data + hlen) - skb->head);
+			skb->csum_offset = proto == IPPROTO_TCP ?
+			    offsetof(struct tcphdr, check) :
+			    offsetof(struct udphdr, check);
+			skb->ip_summed = CHECKSUM_PARTIAL;
+		} else {
+			*csum = 0;
+			*csum = csum_tcpudp_magic(iph->saddr, iph->daddr, len,
+			    proto, skb_checksum(skb, hlen, len, 0));
+			skb->ip_summed = CHECKSUM_NONE;
+		}
+	}
+
+	iph = ip_hdr(skb);	/* pskb_may_pull may have moved the data */
 	iph->check = 0;
-	iph->check = csum_fold(csum_partial(skb->data, iph->ihl * 4, 0));
-	/* the transport checksum was already fixed by pf */
-	skb->ip_summed = CHECKSUM_NONE;
+	iph->check = csum_fold(csum_partial((__u8 *)iph, iph->ihl * 4, 0));
 }
 
 static void
@@ -138,20 +180,6 @@ pfk_pkt_work(struct work_struct *w)
 	if (pk->af == AF_INET && pskb_may_pull(pk->skb, sizeof(struct iphdr))) {
 		orig_dst = ip_hdr(pk->skb)->daddr;
 		orig_src = ip_hdr(pk->skb)->saddr;
-	}
-
-	/*
-	 * pf patches transport checksums incrementally when it rewrites an
-	 * address.  VM-to-VM traffic commonly arrives with an unmaterialized
-	 * checksum (CHECKSUM_PARTIAL carried over from the sender's offload),
-	 * so compute it in software first - otherwise pf's fixup adjusts a
-	 * placeholder and the peer drops the packet.
-	 */
-	if (pk->skb->ip_summed == CHECKSUM_PARTIAL &&
-	    skb_checksum_help(pk->skb)) {
-		kfree_skb(pk->skb);
-		kfree(pk);
-		return;
 	}
 
 	m = pfk_m_wrap_skb(pk->skb, pk->af);
@@ -172,7 +200,7 @@ pfk_pkt_work(struct work_struct *w)
 	    pskb_may_pull(pk->skb, sizeof(struct iphdr)) &&
 	    (ip_hdr(pk->skb)->saddr != orig_src ||
 	    ip_hdr(pk->skb)->daddr != orig_dst))
-		pfk_fix_ip_csum(pk->skb);
+		pfk_fix_csum_after_translate(pk->skb);
 
 
 	if (m == m0) {
