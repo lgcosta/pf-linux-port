@@ -270,3 +270,40 @@ pfk_if_output(struct pfk_ifnet *ifp, struct mbuf *m, void *dst,
 		m_freem(mp);
 	return err;
 }
+
+/*
+ * Transmit one queued packet.  Called from ifq_start() - i.e. from the pf
+ * work queue or from a scheduler's deferred timeout - and always consumes the
+ * mbuf.  Returns 0 (keep draining); a scheduler that wants to defer does so by
+ * simply not returning a packet from ifqop_deq_begin().
+ */
+int
+pfk_ifq_transmit(struct ifqueue *ifq, struct mbuf *m)
+{
+	struct sk_buff *skb = m_to_skb(m);
+	struct dst_entry *d;
+
+	(void)ifq;
+	if (skb == NULL) {
+		m_freem(m);
+		return 0;
+	}
+	d = skb_dst(skb);
+	if (d == NULL || IS_ERR(d) || d->dev == NULL || !netif_running(d->dev)) {
+		m_freem(m);
+		return 0;
+	}
+	skb->dev = d->dev;
+	skb_reset_network_header(skb);
+	if (skb->protocol == 0)
+		skb->protocol = htons(ip_hdr(skb)->protocol == IPPROTO_IPV6 ?
+		    ETH_P_IPV6 : ETH_P_IP);
+	/* the stack owns skb->cb (IPCB) from here; pf already tested it */
+	memset(skb->cb, 0, sizeof(skb->cb));
+	skb->mark |= PFK_DONE_OUT;
+	skb_get(skb);		/* the output path consumes one reference */
+	m->skb = NULL;		/* the mbuf's reference moves to the stack */
+	m_freem(m);
+	d->output(&init_net, NULL, skb);
+	return 0;
+}

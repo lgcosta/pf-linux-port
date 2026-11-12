@@ -1237,6 +1237,8 @@ struct fqcodel_stats {
  * queue when it owns the interface queue, NULL otherwise. */
 void	*ifq_q_enter(struct ifqueue *, const struct ifq_ops *);
 void	 ifq_q_leave(struct ifqueue *, void *);
+int	 pfk_ifq_transmit(struct ifqueue *, struct mbuf *);
+int	 pf_kifq_input(struct pfk_ifnet *, struct mbuf *);
 
 
 /*

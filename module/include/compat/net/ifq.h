@@ -27,6 +27,7 @@ struct ifqueue {
 	struct mbuf_list	*ifq_free;	/* free list (unused in the port) */
 	unsigned int		 ifq_len;
 	unsigned int		 ifq_oactive;
+	void			*ifq_dequeue;	/* cookie between deq_begin/commit */
 
 	/* statistics */
 	u_int64_t		 ifq_packets;

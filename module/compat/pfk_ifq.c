@@ -360,14 +360,16 @@ ifq_deq_begin(struct ifqueue *ifq)
 	if (!ifq->ifq_ops || !ifq->ifq_ops->ifqop_deq_begin)
 		return NULL;
 	m = ifq->ifq_ops->ifqop_deq_begin(ifq, &cookie);
+	ifq->ifq_dequeue = cookie;
 	return m;
 }
 
 void
 ifq_deq_commit(struct ifqueue *ifq, struct mbuf *m)
 {
-	void *cookie = NULL;
+	void *cookie = ifq->ifq_dequeue;
 
+	ifq->ifq_dequeue = NULL;
 	if (ifq->ifq_ops && ifq->ifq_ops->ifqop_deq_commit)
 		ifq->ifq_ops->ifqop_deq_commit(ifq, m, cookie);
 }
@@ -389,10 +391,45 @@ ifq_dequeue(struct ifqueue *ifq)
 	return m;
 }
 
+/*
+ * Drain the queue as far as the scheduler allows and hand each packet to the
+ * stack's output path.  OpenBSD calls if_start from softint context; here it
+ * runs either from the pf work queue (enqueue side) or from the scheduler's
+ * deferred timeout (pacing side), which is what makes hfsc's bandwidth
+ * limits take effect.
+ */
 void
 ifq_start(struct ifqueue *ifq)
 {
+	struct mbuf *m;
+
+	ifq->ifq_oactive = 1;
+	while ((m = ifq_dequeue(ifq)) != NULL) {
+		if (pfk_ifq_transmit(ifq, m))
+			break;			/* device busy: packet kept */
+	}
 	ifq->ifq_oactive = 0;
+}
+
+/*
+ * pf data-path entry: hand a packet to the interface's scheduler when one is
+ * attached (a pf `queue' rule is configured).  Returns 1 when the queue took
+ * ownership of m, 0 when the caller must keep going (priq/no scheduler).
+ */
+int
+pf_kifq_input(struct pfk_ifnet *ifp, struct mbuf *m)
+{
+	struct ifqueue *ifq;
+
+	if (ifp == NULL || m == NULL)
+		return 0;
+	ifq = &ifp->if_snd;
+	if (ifq->ifq_ops == NULL || ifq->ifq_ops == ifq_priq_ops)
+		return 0;			/* no scheduler: fast path */
+	if (ifq_enqueue(ifq, m) != 0)
+		return 1;			/* dropped by the queue: owned */
+	ifq_start(ifq);
+	return 1;
 }
 
 unsigned int

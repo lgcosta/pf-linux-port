@@ -204,6 +204,22 @@ pfk_pkt_work(struct work_struct *w)
 
 
 	if (m == m0) {
+		/*
+		 * Queueing: when a pf `queue' rule attached a scheduler to the
+		 * egress interface, hand the packet to it instead of sending it
+		 * straight out - this is what makes bandwidth limits real.
+		 */
+		if (action == PF_PASS && pk->dir == PF_OUT &&
+		    pskb_may_pull(pk->skb, sizeof(struct iphdr)) &&
+		    skb_dst(pk->skb) && !IS_ERR(skb_dst(pk->skb)) &&
+		    pf_kifq_input(skb_dst(pk->skb)->dev ?
+			pfk_ifp_bydev(skb_dst(pk->skb)->dev) : NULL, m)) {
+			orig = pk->skb;
+			pk->skb = NULL;		/* the queue owns the packet */
+			kfree_skb(orig);
+			kfree(pk);
+			return;
+		}
 		/* same buffer, possibly rewritten in place: our wrapper
 		 * held one extra skb reference — release it */
 		m_freem(m);
