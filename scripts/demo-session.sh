@@ -76,7 +76,7 @@ EGRESS_IF=$(onvm "$PF0_MGMT" "ip route get $SRV_IP | grep -o 'dev [a-z0-9]*' | c
 [ -n "$EGRESS_IF" ] || EGRESS_IF=eth2
 
 scp -q -o ProxyJump=root@192.168.1.242 -i "$KEY" "$CONF" "$DIV" \
-    tools/out/pdivert "root@$PF0_MGMT:/tmp/" 2>/dev/null
+    tools/out/pdivert tools/out/pflogd "root@$PF0_MGMT:/tmp/" 2>/dev/null
 
 bold "==============================================================="
 bold " PF on Linux - the OpenBSD PF 8.0 engine inside the Linux kernel"
@@ -138,7 +138,19 @@ p0 "/opt/pf/pfctl -ss | grep -E 'icmp' | head -4"
 p0 "/opt/pf/pfctl -f /tmp/demo-pf.conf && echo 'back to the stateful ruleset'"
 echo
 
-bold "--- 8. divert-to: the packet goes to userspace and comes back ---"
+bold "--- 8. pflog: logged packets reach userspace (/dev/pflog) ---"
+p0 "cat > /tmp/demo-log.conf <<EOF
+pass in quick log proto icmp from $CLI_IP keep state
+pass out quick
+EOF"
+p0 "/opt/pf/pfctl -f /tmp/demo-log.conf && echo 'log rule loaded'"
+p0 "chmod +x /tmp/pflogd; (setsid /tmp/pflogd -c 3 /tmp/pflog.pcap >/tmp/pflogd.log 2>&1 </dev/null &); sleep 1; pgrep pflogd"
+vmc "ping -c2 -W2 $SRV_IP | tail -2"
+p0 "ls -l /tmp/pflog.pcap; echo 'pcap header (magic d4c3b2a1, linktype 75=DLT_PFLOG):'; od -An -tx1 -N24 /tmp/pflog.pcap"
+p0 "pkill pflogd 2>/dev/null; /opt/pf/pfctl -f /tmp/demo-pf.conf >/dev/null"
+echo
+
+bold "--- 9. divert-to: the packet goes to userspace and comes back ---"
 p0 "cat /tmp/demo-divert.conf"
 p0 "/opt/pf/pfctl -f /tmp/demo-divert.conf && echo 'divert rule loaded'"
 p0 "chmod +x /tmp/pdivert; (setsid /tmp/pdivert -p 10000 -f >/tmp/pdivert.log 2>&1 </dev/null &); sleep 1; pgrep pdivert"
@@ -147,7 +159,7 @@ p0 "head -3 /tmp/pdivert.log"
 echo "  (pdivert flipped the last payload byte and fixed the ICMP checksum)"
 echo
 
-bold "--- 9. shutdown ---"
+bold "--- 10. shutdown ---"
 p0 "pkill pdivert; /opt/pf/pfctl -f /dev/null; /opt/pf/pfctl -d; echo 'pf disabled'"
 p0 "lsmod | grep '^pf '"
 echo

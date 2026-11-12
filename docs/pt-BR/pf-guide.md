@@ -63,12 +63,12 @@ matriz mudar.
 
 | Sintaxe | Até | O que acontece hoje |
 |---|---|---|
-| `nat-to`, `rdr-to`, `binat-to` | M3 | As regras carregam (código do engine compilado), mas a tradução não está fiada/verificada — **não conte com NAT**; no laboratório o masquerade de saída ainda vem do iptables/nft. |
+| `nat-to`, `rdr-to` | — | **Verificado em lab** (gates `05-nat`, `06-rdr`; este último baixa 2 MB por um redirect e compara byte a byte). `nat-to (egress)` expande o *grupo* de interfaces do OpenBSD; num host multi-NIC prefira a forma explícita `nat-to (<iface>)`. `binat-to` ainda sem gate. |
 | `scrub (…)`, `set reassemble` | M3 | O `pf_norm.c` roda dentro do `pf_test` (compilado) — o comportamento com fragmentos forjados não foi testado; trate o resultado como não validado. |
-| `divert-to`, tag `divert` | M4 (+ família de sockets conforme comentário no código) | Os pacotes casados são **descartados** com um aviso de kernel rate-limited. Nunca coloque isso num host em produção. |
+| `divert-to`, tag `divert` | — | **Verificado em lab** (gate `11-divert`): o pacote é entregue a um socket `AF_DIVERT` (`PF_DIVERT=32`) atendido pelo `tools/pdivert`; sem listener é descartado, exatamente como o `divs_noport` do BSD. |
 | `route-to`, `dup-to`, `fail-to`, `reply-to` | M4 | Ainda não implementados como glue de roteamento Linux; as regras podem carregar, mas o comportamento é indefinido — evite. |
 | `queue` / `queue on` / `pfctl -s queue` | M5 | Faz parse e carrega. A fila cai no fallback priq da camada `ifq` de compat; **nenhuma limitação de banda acontece até o qdisc `pfq` chegar**. |
-| `log`, `log all`, `block log`, `pflogd` | M4 | Nada é logado (o stub avisa uma vez no load: `pfk: … packet not logged`). |
+| `log`, `log all`, `block log`, `pflogd` | — | **Verificado em lab** (gate `12-pflog`): rode `pflogd /tmp/x.pcap` (lê `/dev/pflog`); o arquivo é um pcap `DLT_PFLOG` (117) legível por tcpdump/wireshark. |
 | `route-label …` | nunca (não-objetivo) | Rejeitado na camada de ioctl. |
 | política por container (netns) | fora de escopo | O PF é uma instância global em `init_net`; network namespaces **não** enxergam o PF. |
 
@@ -85,8 +85,7 @@ primária, exatamente como os gates fazem.
 ```
 pfk: PF-on-Linux engine loaded (OpenBSD 8.0 base)     ← insmod ok
 pfk: netfilter hooks registered (10, netisr wq data path)
-pfk: divert port N: no socket bound      # pdivert não ouvido a porta N
-pfk: … packet not logged                              ← stub do pflog
+pfk: divert port N: no socket bound      # nenhum consumidor em pdivert/pflogd
 ```
 
 Descarregar o módulo primeiro para os timers de purge e drena a workqueue

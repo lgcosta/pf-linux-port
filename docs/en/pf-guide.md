@@ -60,34 +60,42 @@ treat them as load-and-pray until the matrix moves them.
 
 | Syntax | Until | What happens today |
 |---|---|---|
-| `nat-to`, `rdr-to`, `binat-to` | M3 | Rules load (engine code compiled) but translation is unwired/ungated — **do not rely on NAT**; outbound masquerade still comes from iptables/nft during the lab. |
+| `nat-to`, `rdr-to` (`binat-to` pending) | — | **Verified in the lab** (gates `05-nat`, `06-rdr`, the latter pulls 2 MB through a redirect and compares it byte for byte). `nat-to (egress)` expands the OpenBSD interface *group*; on a multi-NIC host prefer the explicit `nat-to (<iface>)` form. |
 | `scrub (…)`, `set reassemble` | M3 | `pf_norm.c` runs inside `pf_test` (compiled) — crafted-fragment behavior is untested; treat results as unvalidated. |
-| `divert-to`, `divert` tag | M4 (+ family per code comments) | Matching packets are **dropped** with a rate-limited kernel warning. Never ship this on a live host. |
+| `divert-to`, `divert` tag | — | **Verified in the lab** (gate `11-divert`): the packet is delivered to an `AF_DIVERT` socket (`PF_DIVERT=32`) served by `tools/pdivert`; with no listener it is dropped, exactly like BSD's `divs_noport`. |
 | `route-to`, `dup-to`, `fail-to`, `reply-to` | M4 | Not implemented as Linux routing glue yet; rules may load but the behavior is undefined — avoid. |
 | `queue` / `queue on` / `pfctl -s queue` | M5 | Parse and load. Queuing falls back to the priq-shaped compat `ifq` layer; **no bandwidth enforcement happens until the `pfq` qdisc lands**. |
-| `log`, `log all`, `block log`, `pflogd` | M4 | Nothing is logged (stub warns once at load: `pfk: … packet not logged`). |
+| `log`, `log all`, `block log`, `pflogd` | — | **Verified in the lab** (gate `12-pflog`): run `pflogd /tmp/x.pcap` (reads `/dev/pflog`); the file is a `DLT_PFLOG` (117) pcap readable by tcpdump/wireshark. |
 | `route-label …` | never (non-goal) | Rejected at the ioctl layer. |
 | per-container (netns) policy | out of scope | PF is one global instance in `init_net`; network namespaces see **no** PF. |
 
 ## Reading state correctly
 
-`pfctl -s states` currently has a listing/visibility anomaly being fixed in
-the M2 gate work (transit flows can pass while no state is displayed). Until
-then, use counters (`pfctl -s info`) and external observation (ping/nc
-results, `tcpdump`) as the primary evidence, as the gates do.
+`pfctl -s states` shows the real table, including translations, in OpenBSD's
+own format: a NAT/redirect state prints both tuples, e.g.
+
+```
+all icmp 10.0.2.1:59335 (10.0.1.10:4380) -> 10.0.2.20:8   0:0
+all tcp  10.0.2.20:80 (10.0.1.1:8080) <- 10.0.1.10:42091  FIN_WAIT_2:FIN_WAIT_2
+```
+
+The value in parentheses is the *original* address before translation.  A
+state that exists but shows `0:0` counters simply means the engine has not
+seen traffic on it since the last poll; use `pfctl -s info` counters and
+`tcpdump` for traffic evidence, as the gates do.
 
 ## Kernel log signals you should know
 
 ```
 pfk: PF-on-Linux engine loaded (OpenBSD 8.0 base)     ← insmod ok
 pfk: netfilter hooks registered (10, netisr wq data path)
-pfk: divert port N: no socket bound      # pdivert not listening on N
-pfk: … packet not logged                              ← pflog stub
+pfk: divert port N: no socket bound      # pdivert/pflogd consumer not listening
 ```
 
 Unloading stops the purge timers and drains the work queue first (an rmmod
-hang observed in the lab was fixed that way) — but the *soak* run
-(rmmod/insmod cycle under traffic) is still an open gate, so expect unload to
-be correct for admin use and unproven for hot-reload automation.
+hang observed in the lab was fixed that way).  The soak gate (`14-soak.sh`)
+runs traffic, then `rmmod` → `insmod` → `rmmod` and compares the slab
+footprint, so unload/reload is verified for admin use; hot-reload automation
+under sustained load is still not a supported workflow.
 
 Full list of behavioral divergences: [caveats.md](caveats.md).
