@@ -10,6 +10,12 @@ set -uo pipefail; cd "$(dirname "$0")"; . ./lib.sh
 pf0 'insmod /opt/pf/pf.ko 2>/dev/null || insmod /tmp/pf.ko; true'
 pf0 '/opt/pf/pfctl -e; /opt/pf/pfctl -f /dev/null' >/dev/null
 
+# the runner only resets pf0 between gates - clear any responder a previous
+# run (or a manual session) left on the server, or it answers first and this
+# gate sees the wrong payload.
+srv 'pkill -f '[l]oop.sh' 2>/dev/null; pkill -f '[b]ig.sh' 2>/dev/null; pkill nc 2>/dev/null; true' >/dev/null
+sleep 1
+
 # a tiny responder on srv:80 (base64-encoded so it survives the two ssh hops
 # without nested quoting problems; detached so ssh returns)
 LOOP=$(printf 'while :; do nc -l -p 80 < /tmp/resp.txt >/dev/null 2>&1; done\n' | base64 | tr -d '\n')
