@@ -20,7 +20,6 @@ userland forem usados.
 Portanto, `patches/kernel/` não contém nenhum `000N-*.patch` hoje, e aplicar
 o conjunto (vazio) é um no-op.
 
-> Nota honesta: o install.md e o design mencionam `scripts/apply-patches.sh`,
 > Nota honesta: `scripts/apply-patches.sh`, `scripts/unpatch.sh` e
 > `patches/kernel/series` **estão na árvore**. O `series` é vazio por projeto,
 > então aplicá-lo é um no-op verificado (`PATCHES_APPLIED=0`). Quando um patch
