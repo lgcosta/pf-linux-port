@@ -89,11 +89,11 @@ rebuilt.
 |---|---|---|
 | M0 | repo, scripts, kernel build, VM boots custom kernel | done |
 | M1 | compat layer, `pf.ko` loads, `/dev/pf`, `pfctl -f`/`-s info` | done |
-| M2 | filter core: rules/states/tables/anchors VM gates | **in progress** — data path implemented, gates 01–04 not all green yet |
-| M3 | NAT (nat/rdr/binat), scrub e2e, pflog | pending |
-| M4 | route-to/dup-to, divert e2e | pending |
-| M5 | queues: ifq back ends (hfsc/fq_codel) + `pfq` qdisc | pending |
-| M6 | docs complete, patchset tidy, full suite green, tagged releases | in progress (this doc set) |
+| M2 | filter core: rules/states/tables/anchors VM gates | **done** — gates 01–04 green |
+| M3 | NAT (`nat-to`/`rdr-to`/`binat-to`), scrub, pflog | **done** — gates 05/06/07/09 (incl. 2 MB integrity through a redirect) and pflog gate 12 |
+| M4 | route-to/dup-to/reply-to, pools, divert e2e | **done** — gates 08/10/13 and divert gate 11 |
+| M5 | queues: ifq back ends (hfsc/fq_codel) + `pfq` qdisc | pending (scheduler code ported, qdisc missing) |
+| M6 | docs complete, patchset tidy, full suite green, tagged releases | in progress — docs EN+PT-BR complete, 14/14 suite green, tagged |
 
 ## Next reads
 
