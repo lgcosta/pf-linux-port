@@ -93,7 +93,7 @@ tamanho embutido na codificação `_IOR/_IOW` OpenBSD e despacha para o
 | M1 | camada de compat, `pf.ko` carrega, `/dev/pf`, `pfctl -f`/`-s info` | concluído |
 | M2 | núcleo de filtragem: gates VM de regras/estados/tabelas/anchors | **em andamento** — caminho de dados implementado, gates 01–04 ainda não todos verdes |
 | M3 | NAT (nat/rdr/binat), scrub e2e, pflog | pendente |
-| M4 | route-to/dup-to/fail-to, divert e2e | pendente |
+| M4 | route-to/dup-to, divert e2e | pendente |
 | M5 | filas: back ends ifq (hfsc/fq_codel) + qdisc `pfq` | pendente |
 | M6 | docs bilíngues completas, patchset arrumado, suíte inteira verde, tags de release | em andamento (este conjunto de docs) |
 

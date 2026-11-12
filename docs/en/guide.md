@@ -91,7 +91,7 @@ rebuilt.
 | M1 | compat layer, `pf.ko` loads, `/dev/pf`, `pfctl -f`/`-s info` | done |
 | M2 | filter core: rules/states/tables/anchors VM gates | **in progress** — data path implemented, gates 01–04 not all green yet |
 | M3 | NAT (nat/rdr/binat), scrub e2e, pflog | pending |
-| M4 | route-to/dup-to/fail-to, divert e2e | pending |
+| M4 | route-to/dup-to, divert e2e | pending |
 | M5 | queues: ifq back ends (hfsc/fq_codel) + `pfq` qdisc | pending |
 | M6 | docs complete, patchset tidy, full suite green, tagged releases | in progress (this doc set) |
 

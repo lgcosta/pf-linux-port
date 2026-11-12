@@ -65,7 +65,7 @@ matriz mudar.
 |---|---|---|
 | `nat-to`, `rdr-to` | — | **Verificado em lab** (gates `05-nat`, `06-rdr`; este último baixa 2 MB por um redirect e compara byte a byte). `nat-to (egress)` expande o *grupo* de interfaces do OpenBSD; num host multi-NIC prefira a forma explícita `nat-to (<iface>)`. O `binat-to` é expandido pelo pfctl num par `nat-to … static-port` + `rdr-to` (gate `07-binat`). |
 | `scrub (min-ttl, max-mss, df, random-id)`, `set reassemble` | — | **Verificado em lab** (gate `09-scrub.sh`): `min-ttl` e `max-mss` reescrevem de fato pacotes em trânsito. || `divert-to`, tag `divert` | — | **Verificado em lab** (gate `11-divert`): o pacote é entregue a um socket `AF_DIVERT` (`PF_DIVERT=32`) atendido pelo `tools/pdivert`; sem listener é descartado, exatamente como o `divs_noport` do BSD. |
-| `route-to`, `dup-to` | — | **Verificado em lab** (gate `08-routeto.sh`): o gateway forçado é usado em vez do egress normal, e `dup-to` copia mantendo o fluxo. `fail-to`/`reply-to` carregam mas ainda sem gate. |
+| `route-to`, `dup-to` | — | **Verificado em lab** (gate `08-routeto.sh`): o gateway forçado é usado em vez do egress normal, e `dup-to` copia mantendo o fluxo. `reply-to` carrega mas ainda sem gate. `fail-to` não é palavra-chave no OpenBSD 8.0 (removido upstream). |
 | `queue` / `queue on` / `pfctl -s queue` | M5 | Faz parse e carrega. A fila cai no fallback priq da camada `ifq` de compat; **nenhuma limitação de banda acontece até o qdisc `pfq` chegar**. |
 | `log`, `log all`, `block log`, `pflogd` | — | **Verificado em lab** (gate `12-pflog`): rode `pflogd /tmp/x.pcap` (lê `/dev/pflog`); o arquivo é um pcap `DLT_PFLOG` (117) legível por tcpdump/wireshark. |
 | `route-label …` | nunca (não-objetivo) | Rejeitado na camada de ioctl. |
