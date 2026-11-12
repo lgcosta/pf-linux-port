@@ -8,7 +8,7 @@ real OpenBSD `pfctl` over the `/dev/pf` ioctl ABI. (A second module for the
 
 **Status:** the filter core, stateful filtering, tables, anchors, NAT
 (`nat-to`/`rdr-to`), `divert` and `pflog` are **verified in a real libvirt
-lab** (9/9 gates green).  The remaining features (binat-to, route-to/dup-to,
+lab** (10/10 gates green).  The remaining features (route-to/dup-to,
 scrub e2e, ALTQ/pfq, af-to) are still pending — honest per-feature status:
 [`docs/en/feature-matrix.md`](docs/en/feature-matrix.md).
 Demo (asciinema): [`docs/en/demo.md`](docs/en/demo.md).
@@ -22,7 +22,7 @@ Design: [`docs/superpowers/specs/2026-11-11-pf-linux-port-design.md`](docs/super
 | M0 | repo, scripts, kernel build, VM boots the custom kernel | done |
 | M1 | compat layer, `pf.ko` loads, `/dev/pf`, `pfctl -f` / `-s info` | done |
 | M2 | filter core: rules/states/tables/anchors, VM gates 01–04 | **done** — gates 01/02/03/04 green |
-| M3 | NAT (`nat-to`/`rdr-to`/`binat-to`), scrub e2e | **partial** — `nat-to` (gate 05) and `rdr-to` incl. 2 MB integrity (gate 06) verified; `binat-to` and scrub e2e pending |
+| M3 | NAT (`nat-to`/`rdr-to`/`binat-to`), scrub e2e | **partial** — NAT verified (gate 05), redirect incl. 2 MB integrity (gate 06), `binat-to` (gate 07); scrub e2e pending |
 | M4 | route-to/dup-to/fail-to, divert e2e, pflog | **partial** — divert e2e (gate 11) and pflog (gate 12) verified; route-to/dup-to pending |
 | M5 | queues: HFSC/FQ-CoDel back ends + `pfq` qdisc | pending |
 | M6 | docs complete, patchset tidy, full suite green, tagged release | in progress (docs done, suite 7/7 green) |

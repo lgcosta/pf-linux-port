@@ -63,7 +63,7 @@ matriz mudar.
 
 | Sintaxe | Até | O que acontece hoje |
 |---|---|---|
-| `nat-to`, `rdr-to` | — | **Verificado em lab** (gates `05-nat`, `06-rdr`; este último baixa 2 MB por um redirect e compara byte a byte). `nat-to (egress)` expande o *grupo* de interfaces do OpenBSD; num host multi-NIC prefira a forma explícita `nat-to (<iface>)`. `binat-to` ainda sem gate. |
+| `nat-to`, `rdr-to` | — | **Verificado em lab** (gates `05-nat`, `06-rdr`; este último baixa 2 MB por um redirect e compara byte a byte). `nat-to (egress)` expande o *grupo* de interfaces do OpenBSD; num host multi-NIC prefira a forma explícita `nat-to (<iface>)`. O `binat-to` é expandido pelo pfctl num par `nat-to … static-port` + `rdr-to` (gate `07-binat`). |
 | `scrub (…)`, `set reassemble` | M3 | O `pf_norm.c` roda dentro do `pf_test` (compilado) — o comportamento com fragmentos forjados não foi testado; trate o resultado como não validado. |
 | `divert-to`, tag `divert` | — | **Verificado em lab** (gate `11-divert`): o pacote é entregue a um socket `AF_DIVERT` (`PF_DIVERT=32`) atendido pelo `tools/pdivert`; sem listener é descartado, exatamente como o `divs_noport` do BSD. |
 | `route-to`, `dup-to`, `fail-to`, `reply-to` | M4 | Ainda não implementados como glue de roteamento Linux; as regras podem carregar, mas o comportamento é indefinido — evite. |

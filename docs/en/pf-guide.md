@@ -60,7 +60,7 @@ treat them as load-and-pray until the matrix moves them.
 
 | Syntax | Until | What happens today |
 |---|---|---|
-| `nat-to`, `rdr-to` (`binat-to` pending) | — | **Verified in the lab** (gates `05-nat`, `06-rdr`, the latter pulls 2 MB through a redirect and compares it byte for byte). `nat-to (egress)` expands the OpenBSD interface *group*; on a multi-NIC host prefer the explicit `nat-to (<iface>)` form. |
+| `nat-to`, `rdr-to`, `binat-to` | — | **Verified in the lab** (gates `05-nat`, `06-rdr`, the latter pulls 2 MB through a redirect and compares it byte for byte). `nat-to (egress)` expands the OpenBSD interface *group*; on a multi-NIC host prefer the explicit `nat-to (<iface>)` form. `binat-to` is expanded by pfctl into a `nat-to … static-port` + `rdr-to` pair (gate `07-binat`). |
 | `scrub (…)`, `set reassemble` | M3 | `pf_norm.c` runs inside `pf_test` (compiled) — crafted-fragment behavior is untested; treat results as unvalidated. |
 | `divert-to`, `divert` tag | — | **Verified in the lab** (gate `11-divert`): the packet is delivered to an `AF_DIVERT` socket (`PF_DIVERT=32`) served by `tools/pdivert`; with no listener it is dropped, exactly like BSD's `divs_noport`. |
 | `route-to`, `dup-to`, `fail-to`, `reply-to` | M4 | Not implemented as Linux routing glue yet; rules may load but the behavior is undefined — avoid. |
