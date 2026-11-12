@@ -1277,8 +1277,15 @@ struct hfsc_class_stats {
 #define tick_nsec		(1000000000LL / HZ)
 #endif
 
-#define HFSC_ROOT_CLASS		0x1		/* root class of the tree */
-#define HFSC_DEFAULTCLASS	0x8		/* auto-created default class */
+/*
+ * Class-handle namespace.  pf queue ids are u_int16_t, so the root class gets
+ * a high bit that can never collide with a queue handle (a collision made
+ * hfsc_pf_addqueue() see the root class as a duplicate and refuse the queue
+ * with EBUSY).  HFSC_DEFAULTCLASS must equal PFQS_DEFAULT because hfsc.c
+ * receives the pf queue flags verbatim.
+ */
+#define HFSC_ROOT_CLASS		0x80000000u
+#define HFSC_DEFAULTCLASS	0x1000
 #define HFSC_MAX_CLASSES	64
 #define HFSC_DEFAULT_CLASSES	8
 #define HFSC_DEFAULT_QLIMIT	1000

@@ -662,6 +662,11 @@ pf_create_queues(void)
 		}
 
 		qif->disc = qif->pfqops->pfq_alloc(ifp);
+		if (qif->disc == NULL) {
+			error = ENOBUFS;
+			free(qif, M_PF, sizeof(*qif));
+			goto error;
+		}
 
 		qif->next = list;
 		list = qif;
