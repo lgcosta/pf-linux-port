@@ -72,13 +72,14 @@ ficam de fora do staging automático de propósito (portados à mão).
 
 ## 5. Módulo — `scripts/build-module.sh`
 
-`make -C "$KERNELDIR" M=module` → `module/pf.ko` (um único módulo hoje; o
-qdisc `pfq` chega com o M5). O script prepara sozinho `Module.symvers` /
-`modules_prepare`. Lista de objetos (`module/Makefile`): engine portado
-(`pf.c`, `pf_ioctl.c`, `pf_norm.c`, `pf_if.c`, `pf_lb.c`, `pf_ruleset.c`,
-`pf_table.c`, `pf_osfp.c`, `pf_syncookies.c`, `divert_sock.c`) + camada de
-compat (shim mbuf, glue de kernel, if/ip4/ip6/pcb/xmit/ifq, crypto, radix,
-subr_tree) + `pfk_mod.c`/`pfk_hooks.c`. As flags de compilação definem
+`make -C "$KERNELDIR" M=module` → `module/pf.ko` (um único módulo: a
+interface BSD `ifq`/`pfq` mora dentro dele, não é um qdisc `tc` separado). O
+script prepara sozinho `Module.symvers` / `modules_prepare`. Lista de objetos
+(`module/Makefile`): engine portado (`pf.c`, `pf_ioctl.c`, `pf_norm.c`,
+`pf_if.c`, `pf_lb.c`, `pf_ruleset.c`, `pf_table.c`, `pf_osfp.c`,
+`pf_syncookies.c`, `divert_sock.c`, `pfk_pflog.c`, `hfsc.c`, `fq_codel.c`) +
+camada de compat (shim mbuf, glue de kernel, if/ip4/ip6/pcb/xmit/ifq, crypto,
+radix, subr_tree) + `pfk_mod.c`/`pfk_hooks.c`. As flags de compilação definem
 `PFLINUX=1` e `_KERNEL=1`. Termina com `MODULE_BUILD_OK`.
 
 `insmod module/pf.ko` cria `/dev/pf` (0600) e registra os hooks netfilter; o
@@ -87,7 +88,8 @@ caminho de dados faz).
 
 ## 6. Userland — `make -C tools`
 
-Alvos (de `tools/Makefile`): `pfctl`, `abitest`, `abi`, `test`, `clean`.
+Alvos (de `tools/Makefile`): `pfctl`, `pdivert`, `pflogd`, `abitest`, `abi`,
+`test`, `clean`.
 
 - `pfctl` — as fontes do OpenBSD 8.0 compiladas contra os headers de ABI
   copiados; o resultado é um **binário estático** em `tools/out/pfctl`.
@@ -100,20 +102,44 @@ Alvos (de `tools/Makefile`): `pfctl`, `abitest`, `abi`, `test`, `clean`.
 - `test` — checagens de parse offline: roda `pfctl -n -f` sobre
   `tools/tests/*.conf` (básico / traduções / filas+scrub / anchor / negativa
   `broken.conf`). É userland puro; não precisa de `/dev/pf`.
-- `pdivert` — o fonte do relay de divert fica em `tools/pdivert/`; o lado
-  kernel (pendente) está na [matriz de features](feature-matrix.md).
+- `pdivert` — o relay de divert, compilado a partir de `tools/pdivert/`. Ele
+  fala com a família de sockets `AF_DIVERT` que o módulo registra em runtime
+  (`socket(PF_DIVERT=32, SOCK_RAW, IPPROTO_DIVERT=254)`); o gate
+  `11-divert.sh` prova a ida e a volta.
+- `pflogd` — lê `/dev/pflog` e escreve um pcap DLT_PFLOG cujo layout de
+  registro é byte a byte compatível com o `pflog(4)` do OpenBSD; gate
+  `12-pflog.sh`.
 
-## 7. `Makefile` raiz
+## 7. Screencasts — `scripts/screencast/build-all.sh`
 
-`make module | tools | kernel | vm | vm-destroy | test | docs | clean` —
+Não faz parte do build do kernel, mas faz parte da entrega. O pipeline:
+
+| Etapa | Script | O que faz |
+|---|---|---|
+| texto da narração | `make_narration.py` | escreve `scripts/screencast/narration/<fase>.{en,pt}.json` (um segmento por batida da sessão) |
+| voz | `make_audio.py` | TTS do MiniMax, um MP3 por segmento, voz feminina por idioma |
+| sessão | `record.py` | sessão SSH real no lab: comandos digitados tecla a tecla, capturada como asciicast v2 |
+| vídeo | `render_video.py` | reproduz a captura por um emulador de terminal, desenha o diagrama do lab, queima as legendas |
+| montagem | `assemble.py` | mixa a narração na linha do tempo |
+| filme completo | `join.py` | emenda as fases com crossfade sobre cartões de capítulo |
+
+`make screencast` (ou o script) roda tudo; precisa de `MINIMAX_API_KEY` e do
+lab no ar. Detalhes: [screencast.md](screencast.md).
+
+## 8. `Makefile` raiz
+
+`make module | tools | kernel | vm | vm-destroy | test | screencast | docs | clean` —
 wrappers finos sobre os scripts acima. `make test` roda a suíte em VM
-([vm-lab.md](vm-lab.md)); `make docs` apenas lista o conjunto bilíngue.
+([vm-lab.md](vm-lab.md)); `make screencast` renderiza os vídeos;
+`make docs` apenas lista o conjunto bilíngue.
 
 ## O que já foi exercitado vs. não
 
-- As etapas 1–6 foram rodadas ao longo do desenvolvimento M0–M2 no host de
-  build (há artefatos na árvore: `out/`, `module/pf.ko`, `tools/out/pfctl`),
-  e os scripts acima foram verificados linha a linha para este documento.
+- As etapas 1–6 foram rodadas repetidamente no host de build (há artefatos
+  na árvore: `out/`, `module/pf.ko`, `tools/out/{pfctl,pdivert,pflogd}`), e os
+  scripts acima foram verificados linha a linha para este documento.
+- A etapa 7 (os screencasts) foi rodada de ponta a ponta para as sete fases
+  nos dois idiomas; os vídeos estão em `out/screencast/{en,pt}/`.
 - Uma execução **de ponta a ponta a partir de clone limpo**
   (`quickstart-check.sh`, tarefa T19 do plano) **ainda não** foi feita;
   trate a sequência exata do install.md como "conforme projetada e conforme

@@ -65,6 +65,21 @@ O `vm-create.sh` termina validando `ssh pf0 'ip -br a'` e deixa todas as VMs
 ligadas. Os aliases de ssh do laptop (`pf0|cli|srv|gw2`, ProxyJump via deb)
 são gerados em `~/.ssh/config.d/pflab`.
 
+**Do pf0 para as outras VMs.** O firewall tem seu próprio par de chaves e os
+pares confiam nele, então uma sessão no pf0 pode pilotar o cliente e o
+servidor diretamente — é isso que os screencasts fazem
+(`ssh cli 'ping …'`):
+
+```sh
+# uma vez por lab, a partir do hypervisor
+ssh pf0 'ssh-keygen -t ed25519 -N "" -C pf0 -f /root/.ssh/id_ed25519'
+# depois autorizar essa chave pública no cli, no srv e no gw2
+```
+
+O `/root/.ssh/config` do pf0 mapeia os nomes curtos `cli`, `srv` e `gw2`
+para 10.0.1.10, 10.0.2.20 e 10.0.3.2, e o `/etc/hosts` traz o mesmo
+mapeamento.
+
 ## 4. Rodando a suíte
 
 ```sh
@@ -82,30 +97,55 @@ e sai com código diferente de zero se algo falhou.
 
 ## 5. O que cada gate prova hoje
 
-| Gate | Cenário (verificado com tráfego real, não com código de saída) |
+Cada gate afirma **tráfego real e estado observável**, nunca apenas um código
+de saída: o pacote chega, é descartado ou é traduzido, e a prova é lida de
+volta nos contadores do próprio firewall, na tabela de estados, em capturas de
+pacote ou no par.
+
+A lista completa está na §6 (15 gates, todos verdes). Cada gate é um script
+shell em `tests/vm/` que fala com as VMs através do deb com ssh aninhado,
+usando os helpers de `tests/vm/lib.sh` (`pf0`, `cli`, `srv`, `gw2`, `pfput`,
+`pfload`, `ok`, `bad`). O `scripts/vm-run-tests.sh` roda tudo em ordem e
+guarda `out/test-logs/<gate>.sh.log`.
+
+O que **não** tem gate (lacunas honestas): o caminho IPv6, o fingerprint de
+OS, as opções `set` (`state-policy`, `allow-opts`) e os syncookies — o código
+compila dentro do `pf.ko`, mas nenhum gate os exercita. O FQ-CoDel compila e
+compartilha o header de estatísticas com o `pfctl`, mas só a disciplina
+**hfsc** é exercitada.
+
+**Não existe gate numérico de performance**: o `bench-basic.sh` não está na
+árvore e nenhuma meta de vazão é reivindicada.
+
+## 6. Status atual da suíte (2026-11-12)
+
+**15/15 gates verdes.** Uma rodada completa e limpa
+(`./scripts/vm-run-tests.sh`, ~9 min) recria e reinicia o `pftest-pf0` antes
+de cada gate, reimplanta o módulo e as ferramentas, e termina com
+`PASS=15 FAIL=0`. Os logs capturados ficam em
+`out/test-logs/<gate>.sh.log`.
+
+| Gate | O que prova hoje |
 |---|---|
-| `01-state.sh` | `pass in/out quick proto icmp keep state` → cli pinga srv **através** do pf0 (trânsito); depois o pf0 lista um estado icmp via `pfctl -s states` |
-| `02-block.sh` | `block drop in quick proto icmp` → o ping do cli falha; `block return-rst in quick proto tcp … port 8080` → o `nc` do cli para srv:8080 é recusado (RST), checado pelo código de saída do nc |
-| `03-tables.sh` | `table <blk> { 10.0.1.10 }` + `block in quick from <blk>` → `pfctl -t blk -T show` lista; o ping do cli é bloqueado; `-T delete` ao vivo libera o fluxo |
-| `04-anchors.sh` | regra de anchor (`-a restricted -f`) liberando icmp é avaliada **antes** do `block` do ruleset principal (posicionamento top/quick); `pfctl -s Anchors` lista o anchor |
+| `01-state.sh` | `keep state` em um ping de trânsito; o estado aparece no `pfctl -ss` |
+| `02-block.sh` | `block drop` mata o ping; `block return-rst` devolve RST ao cliente |
+| `03-tables.sh` | uma tabela `pfr` bloqueia um host; um `-T delete` ao vivo libera o mesmo fluxo |
+| `04-anchors.sh` | a regra de um anchor é avaliada antes de um `block` posterior do ruleset principal |
+| `05-nat.sh` | NAT de origem: o pacote sai com o endereço do pool e a resposta é des-NATeada |
+| `06-rdr.sh` | redirect de porta de ponta a ponta, mais 2 MB passando com integridade byte a byte |
+| `07-binat.sh` | `binat-to`: o par vê o endereço mapeado e o original nunca vaza |
+| `08-routeto.sh` | `route-to` sai pelo link do gateway; `dup-to` copia e mantém o fluxo |
+| `09-scrub.sh` | `min-ttl` e `max-mss` medidos no egresso do próprio firewall |
+| `10-pools.sh` | seleção do pool de NAT (`round-robin`, `source-hash`) |
+| `11-divert.sh` | `divert-to` para o relay `pdivert`: o pacote vai para o userspace e volta |
+| `12-pflog.sh` | os pacotes logados chegam a `/dev/pflog` e viram um pcap DLT_PFLOG |
+| `13-replyto.sh` | `reply-to` força a resposta para o link do gateway |
+| `14-soak.sh` | reload de ruleset sob tráfego, ciclo de `rmmod`, checagem de vazamento |
+| `15-queue.sh` | filas hfsc: anexação, estatísticas da classe, um fluxo de 2 MB contado pela classe |
 
-Gates planejados (documento de plano, T11–T18): 05-nat, 06-rdr, 07-binat,
-08-scrub (scapy), 09-routeto, 10-dup-fail, 11-divert, 12-queues (tolerância
-de ±15% no rate do iperf), 13-pflog, 14-soak (reload sob tráfego + ciclo de
-rmmod + kmemleak). IPv6 é smoke test para state/block/nat66/scrub. O
-`bench-basic.sh` (planejado, ainda não está na árvore) é informativo; não
-existe gate numérico de performance.
-
-## 6. Status atual da suíte (2026-11-11, com honestidade)
-
-Os gates 01–04 do M2 existem e rodam, mas **ainda não estão todos verdes** —
-o caminho de dados (modelo netisr/workqueue) e a visibilidade de estados
-estão sendo corrigidos no trabalho do gate M2. A última rodada capturada
-(`out/test-logs/`) mostra o estado misto: ping de trânsito OK / listagem de
-estado falhando no 01, icmp bloqueado OK no 02, resultados parciais no 03, 04
-abortado. Trate "VERIFIED-in-VM" na
-[matriz de features](feature-matrix.md) como reservado a gates que passam
-numa rodada completa e limpa; nada além do M1 é declarado VERIFIED até lá.
+Os screencasts ([screencast.md](screencast.md)) mostram boa parte desses
+gates sendo executados, com o diagrama de rede do lab desenhado sobre o
+terminal.
 
 ## 7. Inspeção manual
 

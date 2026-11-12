@@ -1030,3 +1030,28 @@ The port now vendors OpenBSD's `net/hfsc.h` and `net/fq_codel.h` into
 compile against one definition.  Rule for anything else in this area: if a
 struct crosses the ioctl boundary, take the header from OpenBSD's tree - do not
 reconstruct it.
+
+## Screencast pipeline: what the recording taught us (2026-11-12)
+
+Not a compat-layer deviation, but the same kind of note - the things that
+only show up when you watch the thing run:
+
+1. **The tty echo is the terminal, and readline fights it.** With bash's
+   default line editing, the remote tty echoes every keystroke *and*
+   readline redraws the line when you press enter, so the command appeared
+   twice on screen. `bash --noediting` leaves the tty echo alone and the
+   command shows exactly once.
+2. **`pfctl -e` prints "pf enabled" and so does the `echo` after it.** What
+   looked like a duplicated output line was two different programs saying the
+   same thing; the capture was right.
+3. **MiniMax returns the audio as a hex string**, not base64 - the payload
+   starts with the ASCII of the ID3 header (`49443304`). Decoding it as
+   base64 produced files that ffmpeg called "Header missing".
+4. **Pacing has to be driven by the narration.** If the voice for a beat is
+   longer than the beat, the audio runs over the next action. The recorder now
+   holds each beat for as long as the longest segment (EN or PT) needs, so one
+   capture serves both languages.
+5. **A phase that runs `rmmod` can break another recording.** The activation
+   phase unloads the module on purpose; running two captures at once left the
+   routing phase without `/dev/pf` mid-session. `record.py --ensure-pf` now
+   makes sure the module is in place before the capture starts.

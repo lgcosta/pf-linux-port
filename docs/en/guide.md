@@ -24,8 +24,8 @@ between kernel and userland (ioctl encoding per `module/include/pfk.h`).
 | `module/compat/` | Linux plumbing under the BSD-shaped sources: mbuf-over-`sk_buff` shim (`pfk_mbuf`), kernel glue (malloc/pools/timeouts/locks, `pfk_kern`), interface+address views (`pfk_if`), BSD-semantics IP output/forward (`pfk_ip4`, `pfk_ip6`), socket lookups (`pfk_pcb`), ifq API with priq semantics (`pfk_ifq`), radix/route-table/crypto ports |
 | `module/include/` | `pfk.h` (master compat header + OpenBSD-style `_IO*` encoding), staged `net/pfvar.h`, `pfk_mbuf.h`, `pfk_net.h`, `pfk_if.h` |
 | `tools/` | Linux build of OpenBSD 8.0 `pfctl` (single binary), `pdivert` relay, ABI parity harness (`abitest` + `make abi`), offline parse tests (`make test`). Deltas vs upstream: `tools/UPSTREAM.md` |
-| `scripts/` | `fetch-sources.sh`, `vendorize.sh`, `stage-port.sh` (deterministic staging), `build-kernel.sh`, `build-module.sh`, `vm-*.sh` lab automation |
-| `tests/vm/` | VM suite gates `01-state.sh … 04-anchors.sh` + `lib.sh`; `tests/confs/` rulesets deployed to the lab |
+| `scripts/` | `fetch-sources.sh`, `vendorize.sh`, `stage-port.sh` (deterministic staging), `build-kernel.sh`, `build-module.sh`, `vm-*.sh` lab automation, `screencast/` (video pipeline) |
+| `tests/vm/` | VM suite: 15 gates `01-state.sh … 15-queue.sh` + `lib.sh`; `tests/confs/` rulesets deployed to the lab |
 | `patches/kernel/` | Core patch set — currently **empty** (`p1-needs.txt` records why no exports were needed); see [patches.md](patches.md) |
 
 ## Data path (M2, as implemented today)
@@ -69,33 +69,41 @@ rebuilt.
 
 ## Queues, divert, pflog — today's observable behavior
 
-- **Queues**: `pfctl` parses `queue`/`queue on` (8.0 syntax); kernel-side the
-  ifq API is implemented by `compat/pfk_ifq.c` with **priq semantics only**;
-  the `pfq` classful qdisc and the HFSC/FQ-CoDel back ends land in **M5**.
-  `ifq.c`/`hfsc.c`/`fq_codel.c` are staged and compile-ready but are not in
-  the module object list yet.
-- **Divert**: `divert-to`/`divert` tag evaluate to PF's `PF_DIVERT` verdict;
-  `divert_packet()` (`pfsrc/divert_sock.c`) currently **drops the packet with
-  a rate-limited kernel log** because the AF_DIVERT socket family is not yet
-  instantiated. The `pdivert` relay (userspace) exists and expects
-  `socket(PF_DIVERT=32, SOCK_RAW, IPPROTO_DIVERT=254)`.
-- **pflog**: `pflog_packet()` returns success but **logs nothing** (one-time
-  `pr_warn "packet not logged"`); `if_pflog.c` is staged, netlink back end is
-  M4/M5.
+- **Queues**: `pfctl` parses the OpenBSD 8.0 `queue`/`queue on` syntax and the
+  kernel side implements it in the BSD shape: `compat/pfk_ifq.c` provides the
+  `ifq_ops`/`pfq_ops` interfaces and the OpenBSD back ends (`pfsrc/hfsc.c`,
+  `pfsrc/fq_codel.c`) plug into them; **priq** is the default discipline.
+  Gate `15-queue.sh` proves the **hfsc** discipline end to end: the queue
+  config loads, the discipline attaches to the interface, `pfctl -s queue -v`
+  lists both classes with statistics, a 2 MB queued flow completes and the
+  class's packet counter advances. The class handles and the stats structs
+  come from OpenBSD's own `net/hfsc.h`/`net/fq_codel.h`, vendored so the
+  kernel and `pfctl` cannot drift apart.
+- **Divert**: `divert-to`/`divert` tag evaluate to PF's `PF_DIVERT` verdict
+  and the module registers an `AF_DIVERT` socket family (`PF_DIVERT=32`) at
+  runtime — no kernel-tree patch. With no listener the packet is dropped
+  (`divs_noport`, BSD parity); with the `pdivert` relay running the packet is
+  delivered to userspace, rewritten and reinjected. Gate `11-divert.sh`.
+- **pflog**: the engine queues logged packets, `pfsrc/pfk_pflog.c` exposes
+  them through `/dev/pflog`, and `tools/pflogd` writes a DLT_PFLOG pcap whose
+  record layout is byte-compatible with OpenBSD `pflog(4)`. Gate
+  `12-pflog.sh`. The deviation from upstream is the transport (a chardev
+  instead of an `if_pflog`/bpf interface), not the format.
 
 ## Milestones (see feature-matrix.md for per-feature status)
 
-| Milestone | Scope | Status (2026-11-11) |
+| Milestone | Scope | Status |
 |---|---|---|
 | M0 | repo, scripts, kernel build, VM boots custom kernel | done |
 | M1 | compat layer, `pf.ko` loads, `/dev/pf`, `pfctl -f`/`-s info` | done |
 | M2 | filter core: rules/states/tables/anchors VM gates | **done** — gates 01–04 green |
 | M3 | NAT (`nat-to`/`rdr-to`/`binat-to`), scrub, pflog | **done** — gates 05/06/07/09 (incl. 2 MB integrity through a redirect) and pflog gate 12 |
 | M4 | route-to/dup-to/reply-to, pools, divert e2e | **done** — gates 08/10/13 and divert gate 11 |
-| M5 | queues: ifq back ends (hfsc/fq_codel) | **partial** — back ends compiled into `pf.ko`; queue attachment/pacing pending |
-| M6 | docs complete, patchset tidy, full suite green, tagged releases | in progress — docs EN+PT-BR complete, 14/14 suite green, tagged |
+| M5 | queues: ifq back ends (hfsc/fq_codel) | **done (mechanical)** — gate 15: hfsc attaches, `pfctl -s queue -v` reports class stats, a 2 MB queued flow is counted by the class. `bandwidth` = HFSC linkshare (a guarantee under contention, not a cap) |
+| M6 | docs complete, patchset tidy, full suite green, tagged releases | **done** — docs EN+PT-BR, 15/15 suite green, tagged (`v1.0.0`) |
 
 ## Next reads
 
 [build.md](build.md) → [vm-lab.md](vm-lab.md) → [pf-guide.md](pf-guide.md) →
-[feature-matrix.md](feature-matrix.md) → [caveats.md](caveats.md).
+[feature-matrix.md](feature-matrix.md) → [screencast.md](screencast.md) →
+[caveats.md](caveats.md).

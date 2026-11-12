@@ -3,8 +3,8 @@
 Português: [docs/pt-BR/vm-lab.md](../pt-BR/vm-lab.md).
 
 All commands below were read from the scripts in `scripts/` (they are the
-source of truth); the lab has been created and run during M0–M2 — a full-suite
-green run is the M2+ gate and is still in progress (see §6).
+source of truth). The lab has been created and run through M0–M6; the full
+suite is green (§6).
 
 ## 1. Where it lives
 
@@ -61,6 +61,20 @@ isolated bridges `pf-lan` 10.0.1.0/24, `pf-wan` 10.0.2.0/24, `pf-wan2`
 running. Laptop ssh aliases (`pf0|cli|srv|gw2`, ProxyJump via deb) are
 generated into `~/.ssh/config.d/pflab`.
 
+**From pf0 to the other VMs.** The firewall has its own keypair and the
+peers trust it, so a session on pf0 can drive the client and the server
+directly — this is what the screencasts do (`ssh cli 'ping …'`):
+
+```sh
+# once per lab, from the hypervisor
+ssh pf0 'ssh-keygen -t ed25519 -N "" -C pf0 -f /root/.ssh/id_ed25519'
+# then authorize that public key on cli, srv and gw2
+```
+
+`/root/.ssh/config` on pf0 maps the short names `cli`, `srv` and `gw2` to
+10.0.1.10, 10.0.2.20 and 10.0.3.2, and `/etc/hosts` carries the same
+mapping.
+
 ## 4. Running the suite
 
 ```sh
@@ -78,28 +92,52 @@ and exits non-zero if anything failed.
 
 ## 5. What each gate proves today
 
-| Gate | Scenario (asserted with real traffic, not exit codes) |
+Every gate asserts **real traffic and observable state**, never just an exit
+code: the packet either arrives, is dropped, or is translated, and the proof
+is read back from the firewall's own counters, state table, capture files or
+peer.
+
+The full list is in §6 (15 gates, all green). Each gate is a shell script in
+`tests/vm/` that talks to the VMs through deb with nested ssh, using the
+helpers in `tests/vm/lib.sh` (`pf0`, `cli`, `srv`, `gw2`, `pfput`, `pfload`,
+`ok`, `bad`). `scripts/vm-run-tests.sh` runs them in order and captures
+`out/test-logs/<gate>.sh.log`.
+
+Not gated (honest gaps): the IPv6 path, OS fingerprinting, `set` options
+(`state-policy`, `allow-opts`) and syncookies — the code is compiled into
+`pf.ko` but no gate drives it. FQ-CoDel compiles and shares its stats header
+with `pfctl`, but only the **hfsc** discipline is exercised.
+
+There is **no numeric performance gate**: `bench-basic.sh` does not exist in
+the tree and no throughput target is claimed.
+
+## 6. Current suite status (2026-11-12)
+
+**15/15 gates green.** A full clean run (`./scripts/vm-run-tests.sh`, ~9 min)
+recreates and reboots `pftest-pf0` before every gate, redeploys the module
+and the tools, and ends with `PASS=15 FAIL=0`. The captured logs live in
+`out/test-logs/<gate>.sh.log`.
+
+| Gate | What it proves now |
 |---|---|
-| `01-state.sh` | `pass in/out quick proto icmp keep state` → cli pings srv **through** pf0 (transit); pf0 then lists an icmp state via `pfctl -s states` |
-| `02-block.sh` | `block drop in quick proto icmp` → cli ping fails; `block return-rst in quick proto tcp … port 8080` → cli's `nc` to srv:8080 is refused (RST), checked via nc exit |
-| `03-tables.sh` | `table <blk> { 10.0.1.10 }` + `block in quick from <blk>` → `pfctl -t blk -T show` lists it; cli ping blocked; live `-T delete` unblocks the same flow |
-| `04-anchors.sh` | anchor rule (`-a restricted -f`) passing icmp is evaluated **before** a later main-ruleset `block` (quick/top-placement); `pfctl -s Anchors` lists the anchor |
+| `01-state.sh` | `keep state` across a transit ping; the state shows up in `pfctl -ss` |
+| `02-block.sh` | `block drop` kills the ping; `block return-rst` gets the client an RST |
+| `03-tables.sh` | a `pfr` table blocks a host; a live `-T delete` unblocks the same flow |
+| `04-anchors.sh` | an anchor rule is evaluated before a later main-ruleset `block` |
+| `05-nat.sh` | source NAT: the packet leaves with the pool address, the reply is de-NATed |
+| `06-rdr.sh` | port redirect end to end, plus 2 MB through it with byte-for-byte integrity |
+| `07-binat.sh` | `binat-to`: the peer sees the mapped address, the original never leaks |
+| `08-routeto.sh` | `route-to` leaves via the gateway's link; `dup-to` copies and keeps the flow |
+| `09-scrub.sh` | `min-ttl` and `max-mss` measured on the firewall's own egress |
+| `10-pools.sh` | NAT pool selection (`round-robin`, `source-hash`) |
+| `11-divert.sh` | `divert-to` to the `pdivert` relay: packet to userspace and back |
+| `12-pflog.sh` | logged packets reach `/dev/pflog` and land in a DLT_PFLOG pcap |
+| `13-replyto.sh` | `reply-to` forces the reply onto the gateway link |
+| `14-soak.sh` | ruleset reload under traffic, `rmmod` cycle, leak check |
+| `15-queue.sh` | hfsc queues: attach, class statistics, a 2 MB queued flow counted by the class |
 
-Planned gates per the plan document (T11–T18): 05-nat, 06-rdr, 07-binat,
-08-scrub (scapy), 09-routeto, 10-dup-fail, 11-divert, 12-queues (iperf rate
-tolerance ±15%), 13-pflog, 14-soak (reload under traffic + rmmod cycle +
-kmemleak). IPv6 is smoke-only for state/block/nat66/scrub. `bench-basic.sh`
-(planned, not in the tree yet) is informational; there is no numeric perf gate.
-
-## 6. Current suite status (2026-11-11, honestly)
-
-The M2 gates 01–04 exist and run, but **are not all green yet** — the data
-path (netisr workqueue model) and state visibility are being fixed in the M2
-gate work. The latest captured run (`out/test-logs/`) shows the mixed state:
-transit ping OK / state listing failing on 01, icmp-blocked OK on 02, partial
-results on 03, 04 aborted. Treat "VERIFIED-in-VM" in the
-[feature matrix](feature-matrix.md) as reserved for gates that pass in a
-full clean run; nothing beyond M1 is claimed VERIFIED until then.
+The screencasts ([screencast.md](screencast.md)) show most of these gates
+being run, with the lab's network diagram drawn over the terminal.
 
 ## 7. Manual poking
 

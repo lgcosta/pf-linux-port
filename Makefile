@@ -25,13 +25,10 @@ docs:
 	@for f in docs/en/*.md; do echo "EN  $$f"; done
 	@for f in docs/pt-BR/*.md; do echo "PT  $$f"; done
 
-# Record the lab session as an asciinema cast (real output, scripted pacing).
-demo:
-	@mkdir -p out
-	@command -v asciinema >/dev/null 2>&1 || { \
-		echo "asciinema not installed: pip install asciinema"; exit 1; }
-	asciinema rec out/demo-pf-linux.cast -c "bash scripts/demo-session.sh"
-	@echo "-> out/demo-pf-linux.cast (play: asciinema play out/demo-pf-linux.cast)"
+# Record the narrated screencasts (real shell sessions, MiniMax voice).
+# Needs MINIMAX_API_KEY and the VM lab up; see docs/*/screencast.md.
+screencast:
+	./scripts/screencast/build-all.sh
 
 clean:
 	$(MAKE) -C $(KERNELDIR) M=$(CURDIR)/module clean || true

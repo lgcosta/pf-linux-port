@@ -69,14 +69,15 @@ auto-staged (hand-ported).
 
 ## 5. Module — `scripts/build-module.sh`
 
-`make -C "$KERNELDIR" M=module` → `module/pf.ko` (single module today; the
-`pfq` qdisc arrives with M5). The script self-prepares `Module.symvers` /
-`modules_prepare` first. Object list (`module/Makefile`): ported engine
-(`pf.c`, `pf_ioctl.c`, `pf_norm.c`, `pf_if.c`, `pf_lb.c`, `pf_ruleset.c`,
-`pf_table.c`, `pf_osfp.c`, `pf_syncookies.c`, `divert_sock.c`) + compat layer
-(mbuf shim, kern glue, if/ip4/ip6/pcb/xmit/ifq, crypto, radix, subr_tree) +
-`pfk_mod.c`/`pfk_hooks.c`. Compile flags define `PFLINUX=1` and `_KERNEL=1`.
-Prints `MODULE_BUILD_OK`.
+`make -C "$KERNELDIR" M=module` → `module/pf.ko` (a single module: the BSD
+`ifq`/`pfq` interface lives inside it, it is not a separate `tc` qdisc). The
+script self-prepares `Module.symvers` / `modules_prepare` first. Object list
+(`module/Makefile`): ported engine (`pf.c`, `pf_ioctl.c`, `pf_norm.c`,
+`pf_if.c`, `pf_lb.c`, `pf_ruleset.c`, `pf_table.c`, `pf_osfp.c`,
+`pf_syncookies.c`, `divert_sock.c`, `pfk_pflog.c`, `hfsc.c`, `fq_codel.c`) +
+compat layer (mbuf shim, kern glue, if/ip4/ip6/pcb/xmit/ifq, crypto, radix,
+subr_tree) + `pfk_mod.c`/`pfk_hooks.c`. Compile flags define `PFLINUX=1` and
+`_KERNEL=1`. Prints `MODULE_BUILD_OK`.
 
 `insmod module/pf.ko` creates `/dev/pf` (0600) and registers the netfilter
 hooks; `dmesg` shows `pfk: …` lines (see [caveats.md](caveats.md) for what
@@ -84,7 +85,8 @@ the data path does).
 
 ## 6. Userland — `make -C tools`
 
-Targets (from `tools/Makefile`): `pfctl`, `abitest`, `abi`, `test`, `clean`.
+Targets (from `tools/Makefile`): `pfctl`, `pdivert`, `pflogd`, `abitest`,
+`abi`, `test`, `clean`.
 
 - `pfctl` — the OpenBSD 8.0 sources compiled against the copied ABI headers;
   result is a **static binary** at `tools/out/pfctl`. Every deviation from
@@ -97,20 +99,43 @@ Targets (from `tools/Makefile`): `pfctl`, `abitest`, `abi`, `test`, `clean`.
 - `test` — offline parse checks: runs `pfctl -n -f` over `tools/tests/*.conf`
   (basic / translations / queues+scrub / anchor / negative `broken.conf`).
   This is pure userland; it needs no `/dev/pf`.
-- `pdivert` — divert relay source under `tools/pdivert/`; see
-  [feature-matrix.md](feature-matrix.md) for its (pending) kernel side.
+- `pdivert` — the divert relay, built from `tools/pdivert/`. It talks to the
+  `AF_DIVERT` socket family the module registers at runtime
+  (`socket(PF_DIVERT=32, SOCK_RAW, IPPROTO_DIVERT=254)`); gate `11-divert.sh`
+  proves the round trip.
+- `pflogd` — reads `/dev/pflog` and writes a DLT_PFLOG pcap whose record
+  layout is byte-compatible with OpenBSD `pflog(4)`; gate `12-pflog.sh`.
 
-## 7. Root `Makefile`
+## 7. Screencasts — `scripts/screencast/build-all.sh`
 
-`make module | tools | kernel | vm | vm-destroy | test | docs | clean` — thin
+Not part of the kernel build, but part of the deliverable. The pipeline:
+
+| Stage | Script | What it does |
+|---|---|---|
+| narration text | `make_narration.py` | writes `scripts/screencast/narration/<phase>.{en,pt}.json` (one segment per beat of the session) |
+| voice | `make_audio.py` | MiniMax TTS, one MP3 per segment, female voice per language |
+| session | `record.py` | real SSH session on the lab: commands typed key by key, captured as asciicast v2 |
+| video | `render_video.py` | replays the capture through a terminal emulator, draws the lab diagram, burns the subtitles |
+| assembly | `assemble.py` | mixes the narration onto the timeline |
+| full film | `join.py` | crossfades the phases through chapter cards |
+
+`make screencast` (or the script) runs all of it; it needs
+`MINIMAX_API_KEY` and the lab up. Details: [screencast.md](screencast.md).
+
+## 8. Root `Makefile`
+
+`make module | tools | kernel | vm | vm-destroy | test | screencast | docs | clean` — thin
 wrappers over the scripts above. `make test` runs the VM suite
-([vm-lab.md](vm-lab.md)); `make docs` just lists the bilingual doc set.
+([vm-lab.md](vm-lab.md)); `make screencast` renders the videos;
+`make docs` just lists the bilingual doc set.
 
 ## What has been exercised vs. not
 
-- Stages 1–6 have each been run during M0–M2 development on the build host
-  (artifacts exist in-tree: `out/`, `module/pf.ko`, `tools/out/pfctl`), and
-  the scripts above were verified line-by-line for this document.
+- Stages 1–6 have each been run repeatedly on the build host (artifacts exist
+  in-tree: `out/`, `module/pf.ko`, `tools/out/{pfctl,pdivert,pflogd}`), and the
+  scripts above were verified line-by-line for this document.
+- Stage 7 (the screencasts) has been run end to end for all seven phases in
+  both languages; the videos are in `out/screencast/{en,pt}/`.
 - A **fresh-clone end-to-end run** (`quickstart-check.sh`, plan task T19) has
   *not* been executed yet; treat the exact command sequence in install.md as
   "as designed, last-run state per milestone" rather than CI-verified.

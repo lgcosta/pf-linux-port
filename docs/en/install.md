@@ -75,19 +75,34 @@ Because the deliverable is an out-of-tree module, "applying the patch set"
 adds a documented `patches/kernel/000N-*.patch` (all such patches: one
 section each in docs/en/patches.md with what/why/impact/revert).
 
-## 6. Notes on the steps above (2026-11-11)
+## 6. Notes on the steps above (2026-11-12)
 
 - Step **2.3 is a documented no-op today**: the patch set is empty and
   `scripts/apply-patches.sh` / `scripts/unpatch.sh` / `patches/kernel/series`
   are not yet in the tree (they land with the first real core patch — see
   [patches.md](patches.md)). You can safely skip 2.3.
-- Step 2.4 builds `pfctl` and the ABI harness only (`make -C tools` targets:
-  `pfctl abitest abi test clean`). `pdivert` is present as a source file with
-  no Makefile target yet; `pflogd` is not ported.
-- After 2.5, what you can actually *use* is the M2 filter core (pass/block/
-  quick/keep state/tables/anchors); NAT/scrub/queues/divert/pflog are gated
-  by later milestones — see the [feature matrix](feature-matrix.md) and read
-  [pf-guide.md](pf-guide.md) before enabling PF on a path you need.
+- Step 2.4 builds every userland tool: `make -C tools` targets are `pfctl`,
+  `pdivert`, `pflogd` and the ABI harness (`abitest`, `abi`, `test`, `clean`).
+- After 2.5, the whole feature set is usable and gated by the lab suite —
+  filtering with state, tables and anchors, NAT (`nat-to`/`rdr-to`/`binat-to`
+  plus pools), scrub, forced routing (`route-to`/`dup-to`/`reply-to`),
+  `divert`, `pflog` and the OpenBSD 8.0 queues (HFSC). The
+  [feature matrix](feature-matrix.md) says which gate proves what; read
+  [pf-guide.md](pf-guide.md) for the deviations before enabling PF on a path
+  you need.
+
+## 6.1 Optional: the narrated screencasts
+
+```sh
+export MINIMAX_API_KEY=...          # MiniMax TTS for the narration
+./scripts/vm-create.sh               # the lab must be up
+./scripts/screencast/build-all.sh    # -> out/screencast/{en,pt}/*.mp4
+```
+
+It records real shell sessions against the lab, generates the narration with
+a MiniMax female voice (English and Portuguese) and renders 1080p30 MP4s
+with burned-in subtitles and the lab's network diagram. Details:
+[screencast.md](screencast.md).
 
 ## 7. Where to go next
 
@@ -99,4 +114,5 @@ section each in docs/en/patches.md with what/why/impact/revert).
 | Daily rulesets & warnings | [pf-guide.md](pf-guide.md) |
 | Known divergences | [caveats.md](caveats.md) |
 | Core patch mechanism | [patches.md](patches.md) |
+| Narrated screencasts | [screencast.md](screencast.md) |
 | Doc index | [README.md](README.md) |

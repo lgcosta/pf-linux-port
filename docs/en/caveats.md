@@ -159,6 +159,33 @@ matter when reasoning about rule semantics:
   kernel. Containers/namespaces are not visible to PF and cannot be filtered
   with it in this design.
 
+## Screencast pipeline (2026-11-12)
+
+### 10. MiniMax video generation is not enabled on this account
+
+Every MiniMax video model (`T2V-01`, `T2V-01-Director`, `MiniMax-Hailuo-02`)
+answers with API error **2068 — "The current Token Plan tier does not support
+this model"**. The narration (TTS) and the title artwork work fine; only the
+video models are blocked. The phase transitions are therefore rendered
+locally with ffmpeg (a crossfade over a chapter card) instead of AI-generated
+clips. Upgrading the plan is the only thing needed to change that — the
+extension point is `scripts/screencast/join.py`, which builds the cards.
+
+### 11. The narration is a separate track, not a dubbing of the video
+
+Each phase is recorded **once** and serves both languages: the terminal
+session is language-neutral, and the two narrated versions differ only in the
+audio track and the burned-in subtitles. The recorder holds each beat on
+screen for as long as the longest narration segment (EN or PT) needs, so the
+voice and the terminal action stay in step in both.
+
+### 12. What the videos do not show
+
+The videos are a demonstration, not a test run: the lab's own gate suite
+(`scripts/vm-run-tests.sh`) is the authority for PASS/FAIL, and its logs live
+in `out/test-logs/`. The screencasts show the same commands, but a video frame
+is not a verdict.
+
 ## What is *not* a caveat
 
 ARP and other non-IPv4/IPv6 EtherTypes never enter the netfilter IPv4/IPv6

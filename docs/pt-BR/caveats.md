@@ -163,6 +163,34 @@ sobre a semântica das regras:
   kernel. Containers/namespaces não são visíveis ao PF e não podem ser
   filtrados por ele neste design.
 
+## Pipeline dos screencasts (2026-11-12)
+
+### 10. A geração de vídeo do MiniMax não está habilitada nesta conta
+
+Todos os modelos de vídeo do MiniMax (`T2V-01`, `T2V-01-Director`,
+`MiniMax-Hailuo-02`) respondem com o erro de API **2068 — "The current Token
+Plan tier does not support this model"**. A narração (TTS) e a arte do
+cartão de título funcionam normalmente; só os modelos de vídeo estão
+bloqueados. Por isso as transições entre fases são renderizadas localmente
+com ffmpeg (um crossfade sobre um cartão de capítulo) em vez de clipes
+gerados por IA. Mudar isso exige só subir o tier da conta — o ponto de
+extensão é `scripts/screencast/join.py`, que constrói os cartões.
+
+### 11. A narração é uma trilha separada, não uma dublagem do vídeo
+
+Cada fase é gravada **uma vez** e serve aos dois idiomas: a sessão de
+terminal é neutra em relação ao idioma, e as duas versões narradas diferem
+apenas na trilha de áudio e nas legendas queimadas. O gravador segura cada
+batida na tela pelo tempo que o segmento de narração mais longo (EN ou PT)
+precisa, então a voz e a ação no terminal ficam em sincronia nos dois.
+
+### 12. O que os vídeos não mostram
+
+Os vídeos são uma demonstração, não uma rodada de teste: a suíte de gates do
+lab (`scripts/vm-run-tests.sh`) é a autoridade para PASS/FAIL, e os logs
+dela ficam em `out/test-logs/`. Os screencasts mostram os mesmos comandos,
+mas um quadro de vídeo não é um veredito.
+
 ## O que *não* é ressalva
 
 ARP e outros EtherTypes não-IPv4/IPv6 nunca entram nos hooks netfilter de

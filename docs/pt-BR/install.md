@@ -75,22 +75,36 @@ Como a entrega é um módulo out-of-tree, "aplicar o conjunto" = passos
 milestone acrescentar `patches/kernel/000N-*.patch` documentado (cada patch:
 uma seção em docs/pt-BR/patches.md com o quê/por quê/impacto/reversão).
 
-## 6. Notas sobre os passos acima (2026-11-11)
+## 6. Notas sobre os passos acima (2026-11-12)
 
 - O passo **2.3 é um no-op documentado hoje**: o conjunto de patches está
   vazio e os scripts `scripts/apply-patches.sh` / `scripts/unpatch.sh` e o
   arquivo `patches/kernel/series` ainda não existem na árvore (entram junto
   com o primeiro patch real de core — ver [patches.md](patches.md)). Pode
   pular 2.3 com segurança.
-- O passo 2.4 compila apenas o `pfctl` e o verificador de ABI (alvos de
-  `make -C tools`: `pfctl abitest abi test clean`). `pdivert` existe como
-  arquivo-fonte sem alvo no Makefile por enquanto; `pflogd` ainda não foi
-  portado.
-- Depois do 2.5, o que dá para usar de verdade é o núcleo de filtragem M2
-  (pass/block/quick/keep state/tabelas/anchors); NAT/scrub/queues/divert/
-  pflog dependem dos próximos milestones — consulte a
-  [matriz de features](feature-matrix.md) e leia [pf-guide.md](pf-guide.md)
-  antes de habilitar PF num caminho que você precisa manter vivo.
+- O passo 2.4 compila todas as ferramentas de userland: os alvos de
+  `make -C tools` são `pfctl`, `pdivert`, `pflogd` e o verificador de ABI
+  (`abitest`, `abi`, `test`, `clean`).
+- Depois do 2.5, todo o conjunto de features é usável e coberto pela suíte do
+  lab — filtragem com estado, tabelas e anchors, NAT (`nat-to`/`rdr-to`/
+  `binat-to` e pools), scrub, roteamento forçado (`route-to`/`dup-to`/
+  `reply-to`), `divert`, `pflog` e as filas do OpenBSD 8.0 (HFSC). A
+  [matriz de features](feature-matrix.md) diz qual gate prova o quê; leia
+  [pf-guide.md](pf-guide.md) para conhecer as divergências antes de habilitar
+  o PF num caminho que você precisa manter vivo.
+
+## 6.1 Opcional: os screencasts narrados
+
+```sh
+export MINIMAX_API_KEY=...          # TTS do MiniMax para a narração
+./scripts/vm-create.sh               # o lab precisa estar no ar
+./scripts/screencast/build-all.sh    # -> out/screencast/{en,pt}/*.mp4
+```
+
+O pipeline grava sessões shell reais contra o lab, gera a narração com uma
+voz feminina do MiniMax (inglês e português) e renderiza MP4 1080p30 com
+legendas queimadas e o diagrama de rede do lab. Detalhes:
+[screencast.md](screencast.md).
 
 ## 7. Para onde ir agora
 

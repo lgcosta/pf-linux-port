@@ -3,10 +3,12 @@
 Português: [docs/pt-BR/pf-guide.md](../pt-BR/pf-guide.md).
 
 This is the "what can I actually run today" guide. It follows the
-[feature matrix](feature-matrix.md): **M2 scope (filtering core: pass/block/
-quick/keep state/tables/anchors + enable/disable)** has VM evidence behind it;
-everything beyond that is either COMPILES-untested or PENDING. Install/build
-is covered by [install.md](install.md) and [build.md](build.md).
+[feature matrix](feature-matrix.md): the filtering core (pass/block/quick/
+keep state/tables/anchors), the NAT family, scrub, forced routing, pools,
+`divert`, `pflog` and the OpenBSD 8.0 queues all have **VM evidence** behind
+them — 15/15 lab gates are green. What is *not* gate-verified is listed
+explicitly below. Install/build is covered by [install.md](install.md) and
+[build.md](build.md).
 
 ## Daily loop
 
@@ -25,21 +27,21 @@ sudo rmmod pf                     # unload (rule/state flush happens here)
 
 > **Warning — order matters**: `-f` then `-e`. Enabling with no matching `pass` rule
 > for your admin path blocks it — this port follows OpenBSD's default-block
-> policy, and the M2 gate runs have *actually cut the test VM's ssh* that
-> way (the lab keeps a serial console for exactly this). On a remote host,
-> pass your management interface before you enable anything.
+> policy, and the lab runs have *actually cut the test VM's ssh* that way
+> (the lab keeps a serial console for exactly this). On a remote host, pass
+> your management interface before you enable anything.
 
 ## A ruleset that works in this port today
 
 ```pf
-# /etc/pf.conf — M2 scope only. Interface names here match the VM lab
-# (mgmt/lan/wan); substitute your own (eth0, enp1s0, …).
+# /etc/pf.conf. Interface names here match the VM lab (mgmt/lan/wan);
+# substitute your own (eth0, enp1s0, …).
 
 # 1) keep yourself reachable (do this first, always)
 pass in  quick on mgmt
 pass out quick
 
-# 2) filter core — proven today: quick, proto/port matching, state, drop
+# 2) filter core — proven in the lab: quick, proto/port matching, state, drop
 table <blk> persist                       # live blocklist (gate 03 pattern)
 block in quick proto tcp from <blk> to any
 
@@ -56,12 +58,17 @@ grammar **parse** fine — `make -C tools test` exercises them offline — but
 the *kernel behavior* of most `set` options has not been gate-verified yet;
 treat them as load-and-pray until the matrix moves them.
 
-## What to avoid until the milestones land
+**Not gate-verified** (honest gaps): the IPv6 path, OS fingerprinting, the
+`set` options above, syncookies and the FQ-CoDel discipline. `af-to` is
+compiled out in this build (`INET6 0`).
+
+## Feature notes — what each syntax does today
 
 | Syntax | Until | What happens today |
 |---|---|---|
 | `nat-to`, `rdr-to`, `binat-to` | — | **Verified in the lab** (gates `05-nat`, `06-rdr`, the latter pulls 2 MB through a redirect and compares it byte for byte). `nat-to (egress)` expands the OpenBSD interface *group*; on a multi-NIC host prefer the explicit `nat-to (<iface>)` form. `binat-to` is expanded by pfctl into a `nat-to … static-port` + `rdr-to` pair (gate `07-binat`). |
-| `scrub (min-ttl, max-mss, df, random-id)`, `set reassemble` | — | **Verified in the lab** (gate `09-scrub.sh`): `min-ttl` and `max-mss` measurably rewrite transit packets. || `divert-to`, `divert` tag | — | **Verified in the lab** (gate `11-divert`): the packet is delivered to an `AF_DIVERT` socket (`PF_DIVERT=32`) served by `tools/pdivert`; with no listener it is dropped, exactly like BSD's `divs_noport`. |
+| `scrub (min-ttl, max-mss, df, random-id)`, `set reassemble` | — | **Verified in the lab** (gate `09-scrub.sh`): `min-ttl` and `max-mss` measurably rewrite transit packets. |
+| `divert-to`, `divert` tag | — | **Verified in the lab** (gate `11-divert`): the packet is delivered to an `AF_DIVERT` socket (`PF_DIVERT=32`) served by `tools/pdivert`; with no listener it is dropped, exactly like BSD's `divs_noport`. |
 | `route-to`, `dup-to`, `reply-to` | — | **Verified in the lab** (gates `08-routeto.sh`, `13-replyto.sh`): the forced gateway is used instead of the normal egress, `dup-to` copies while keeping the flow, and `reply-to` pushes a flow's answers out through the gateway link. `fail-to` is not a keyword in OpenBSD 8.0 (removed upstream). |
 | `queue` / `queue on` / `pfctl -s queue` | — | **Verified in the lab** (gate `15-queue.sh`): queues load, hfsc attaches, `pfctl -s queue -v` reports class statistics and a queued 2 MB flow is counted by the class. `bandwidth` is a *guarantee under contention*, not a cap - 8.0's pf.conf has no upperlimit keyword. |
 | `log`, `log all`, `block log`, `pflogd` | — | **Verified in the lab** (gate `12-pflog`): run `pflogd /tmp/x.pcap` (reads `/dev/pflog`); the file is a `DLT_PFLOG` (117) pcap readable by tcpdump/wireshark. |

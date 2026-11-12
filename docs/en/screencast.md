@@ -1,6 +1,6 @@
 # Screencasts / Videos da demonstracao
 
-> PT-BR: [docs/pt-BR/screencast.md](pt-BR/screencast.md) · EN: this page
+> PT-BR: [docs/pt-BR/screencast.md](../pt-BR/screencast.md) · EN: this page
 
 Sete videos por idioma, com **narracao com voz feminina** (MiniMax),
 **legendas queimadas**, **diagrama de rede do lab** e um **filme completo**
@@ -52,7 +52,7 @@ Etapas individuais:
 ```sh
 python3 scripts/screencast/make_audio.py --lang pt      # audio MiniMax
 python3 scripts/screencast/record.py --plan scripts/screencast/plans/04-roteamento.json \\
-        --out out/screencast/caps/04-roteamento.cast --pace
+        --out out/screencast/caps/04-roteamento.cast --pace --ensure-pf
 python3 scripts/screencast/assemble.py --phase 04-roteamento --lang pt
 python3 scripts/screencast/join.py --lang pt
 ```

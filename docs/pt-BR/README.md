@@ -1,36 +1,42 @@
-# Documentação PF-on-Linux (português)
+# Documentação do PF-on-Linux (português)
 
 English documentation: [`docs/en/README.md`](../en/README.md).
 
-Este é o conjunto de documentação de usuário do port do **PF do OpenBSD 8.0**
-para o **Linux 7.3.4** — o engine PF de verdade (`pf.c`, `pf_norm.c`,
-`pf_table.c`, `pf_lb.c`, …) rodando como módulo out-of-tree `pf.ko`,
-controlado pelo `pfctl` real do OpenBSD pela ABI ioctl de `/dev/pf`.
+Este é o conjunto de documentação de usuário do port do **packet filter do
+OpenBSD 8.0 (PF)** para o **Linux 7.3.4** — o engine PF real (`pf.c`,
+`pf_norm.c`, `pf_table.c`, `pf_lb.c`, `hfsc.c`, …) rodando como o módulo
+out-of-tree `pf.ko`, controlado pelo `pfctl` real do OpenBSD sobre a ABI ioctl
+de `/dev/pf`.
 
 ## Índice
 
-| Documento | Conteúdo |
+| Doc | O que cobre |
 |---|---|
 | [guide.md](guide.md) | Arquitetura em uma página: componentes, caminho de dados, plano de controle, milestones |
-| [install.md](install.md) | Receita de aplicação/build/instalação (kernel, módulo, ferramentas) |
+| [install.md](install.md) | Receita de apply/build/install (kernel, módulo, ferramentas) |
 | [build.md](build.md) | Pipeline de build em detalhe: fetch → vendorize → kernel → módulo → pfctl |
-| [vm-lab.md](vm-lab.md) | Bancada de validação em libvirt: topologia, recriar/rodar, o que cada gate prova |
-| [feature-matrix.md](feature-matrix.md) | Status por feature: VERIFIED-in-VM / COMPILES-untested / PENDING-Mx |
-| [pf-guide.md](pf-guide.md) | Uso diário: o que funciona hoje em `/etc/pf.conf`, o que evitar até M3/M4 |
-| [patches.md](patches.md) | Patches de core do Linux (hoje vazio) + regras e template para futuros `000N-*.patch` |
-| [caveats.md](caveats.md) | Divergências conhecidas de comportamento e limitações atuais |
+| [vm-lab.md](vm-lab.md) | O lab de validação em libvirt: topologia, recriar/rodar, o que cada um dos 15 gates prova |
+| [feature-matrix.md](feature-matrix.md) | Status por feature: VERIFIED-in-VM / VERIFIED-offline / COMPILES-untested / NOT-ENABLED |
+| [pf-guide.md](pf-guide.md) | Uso diário: o que funciona hoje em `/etc/pf.conf` e as divergências a conhecer |
+| [screencast.md](screencast.md) | Os vídeos narrados (inglês e português): fases, pipeline, como regravar |
+| [patches.md](patches.md) | Conjunto de patches de core do Linux (hoje vazio) + regras e template para futuros `000N-*.patch` |
+| [caveats.md](caveats.md) | Divergências conhecidas em relação ao OpenBSD e limitações atuais |
 
-## Fontes de verdade
+## Fontes da verdade
 
-A documentação descreve o código como ele existe na árvore. Em caso de dúvida,
-as referências autoritativas são:
+Os docs descrevem o código como ele existe nesta árvore. Na dúvida, as
+referências autoritativas são:
 
 - `docs/superpowers/specs/2026-11-11-pf-linux-port-design.md` — design
-- `docs/superpowers/plans/2026-11-11-pf-linux-port.md` — plano de milestones (tarefas T1–T19)
-- `docs/porting-notes.md` — log de staging + registro de desvios da camada de compat (M1)
+- `docs/superpowers/plans/2026-11-11-pf-linux-port.md` — plano dos milestones (tarefas T1–T19)
+- `docs/porting-notes.md` — log de staging + registro das divergências (a verdade sobre as divergências da camada de compat)
 
-Vocabulário de status usado em todos os documentos:
+Vocabulário de status usado nestes docs:
 
-- **VERIFIED-in-VM** — exercitado de ponta a ponta na bancada libvirt (ver vm-lab.md).
-- **COMPILES-untested** — o código compila no `pf.ko`, mas nenhum gate provou o comportamento ainda.
-- **PENDING-Mx** — entra (ou entra por completo) no milestone Mx; o comportamento observável hoje está documentado.
+- **VERIFIED-in-VM** — exercitado de ponta a ponta no lab libvirt; o gate que prova está nomeado (veja [vm-lab.md](vm-lab.md)).
+- **VERIFIED-offline** — provado por um teste de fixture ou de ABI, não por tráfego.
+- **COMPILES-untested** — o código é compilado dentro do `pf.ko`/`pfctl` mas nenhum gate o exercitou.
+- **NOT-ENABLED** — o código existe mas a feature está desligada neste build.
+- **OUT-OF-SCOPE** — fora de escopo por desenho (spec §3).
+
+A suíte do lab está **15/15 verde** (`./scripts/vm-run-tests.sh`).

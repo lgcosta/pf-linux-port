@@ -3,11 +3,12 @@
 English: [docs/en/pf-guide.md](../en/pf-guide.md).
 
 Este é o guia do "o que dá para rodar hoje". Ele segue a
-[matriz de features](feature-matrix.md): o escopo do **M2 (núcleo de
-filtragem: pass/block/quick/keep state/tabelas/anchors + habilitar/
-desabilitar)** tem evidência em VM; tudo além disso é COMPILES-untested ou
-PENDING. Instalação/build ficam em [install.md](install.md) e
-[build.md](build.md).
+[matriz de features](feature-matrix.md): o núcleo de filtragem
+(pass/block/quick/keep state/tabelas/anchors), a família de NAT, o scrub, o
+roteamento forçado, os pools, o `divert`, o `pflog` e as filas do OpenBSD
+8.0 têm todos **evidência em VM** — os 15 gates do lab estão verdes. O que
+*não* tem gate está listado explicitamente abaixo. Instalação/build ficam em
+[install.md](install.md) e [build.md](build.md).
 
 ## Ciclo diário
 
@@ -26,7 +27,7 @@ sudo rmmod pf                     # descarrega (regras/estados são liberados aq
 
 > **Atenção — a ordem importa**: `-f` e depois `-e`. Habilitar sem uma regra `pass`
 > que cubra o caminho de administração corta esse caminho — este port segue
-> a política padrão de bloqueio do OpenBSD, e as rodadas do gate M2
+> a política padrão de bloqueio do OpenBSD, e as rodadas do lab
 > *realmente derrubaram o ssh da VM de teste* assim (a bancada mantém console
 > serial exatamente por isso). Num host remoto, libere a interface de
 > gerência antes de habilitar qualquer coisa.
@@ -34,8 +35,8 @@ sudo rmmod pf                     # descarrega (regras/estados são liberados aq
 ## Um ruleset que funciona neste port hoje
 
 ```pf
-# /etc/pf.conf — apenas escopo M2. Os nomes de interface aqui são os da
-# bancada (mgmt/lan/wan); troque pelos seus (eth0, enp1s0, …).
+# /etc/pf.conf. Os nomes de interface aqui são os da bancada
+# (mgmt/lan/wan); troque pelos seus (eth0, enp1s0, …).
 
 # 1) mantenha você mesmo alcançável (faça isso primeiro, sempre)
 pass in  quick on mgmt
@@ -59,7 +60,11 @@ tudo isso offline — mas o *comportamento no kernel* da maioria das opções
 `set` ainda não foi verificado em gate; trate como "carrega e reza" até a
 matriz mudar.
 
-## O que evitar até os milestones chegarem
+**Sem gate** (lacunas honestas): o caminho IPv6, o fingerprint de OS, as
+opções `set` acima, os syncookies e a disciplina FQ-CoDel. O `af-to` está
+compilado fora neste build (`INET6 0`).
+
+## Notas por feature — o que cada sintaxe faz hoje
 
 | Sintaxe | Até | O que acontece hoje |
 |---|---|---|

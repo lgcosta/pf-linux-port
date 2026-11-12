@@ -2,32 +2,32 @@
 
 Port of the OpenBSD **PF** (packet filter) to **Linux 7.3.4** as an
 out-of-tree kernel module — the real PF engine (`pf.c`, `pf_norm.c`,
-`pf_table.c`, `pf_lb.c`, … ported from OpenBSD 8.0 sources) driven by the
-real OpenBSD `pfctl` over the `/dev/pf` ioctl ABI. (A second module for the
-`pfq` qdisc arrives with M5.)
+`pf_table.c`, `pf_lb.c`, `hfsc.c`, … ported from OpenBSD 8.0 sources) driven by
+the real OpenBSD `pfctl` over the `/dev/pf` ioctl ABI.
 
 **Status:** the filter core, stateful filtering, tables, anchors, NAT
-(`nat-to`/`rdr-to`/`binat-to`), forced routing (`route-to`/`dup-to`), `divert`
-and `pflog` are **verified in a real libvirt lab** (14/14 gates green).  The
-remaining features (queue attachment/pacing, af-to) are still pending — honest per-feature status:
-[`docs/en/feature-matrix.md`](docs/en/feature-matrix.md).
-Demo (asciinema): [`docs/en/demo.md`](docs/en/demo.md).
+(`nat-to`/`rdr-to`/`binat-to`), forced routing (`route-to`/`dup-to`/`reply-to`),
+pools, `divert`, `pflog` and the OpenBSD 8.0 **queues (HFSC)** are **verified
+in a real libvirt lab** — 15/15 gates green. What is still pending is stated
+per feature in [`docs/en/feature-matrix.md`](docs/en/feature-matrix.md).
+
+Screencasts (EN + PT, narrated): [`docs/en/screencast.md`](docs/en/screencast.md).
 Design: [`docs/superpowers/specs/2026-11-11-pf-linux-port-design.md`](docs/superpowers/specs/2026-11-11-pf-linux-port-design.md)
 · plan: [`docs/superpowers/plans/2026-11-11-pf-linux-port.md`](docs/superpowers/plans/2026-11-11-pf-linux-port.md).
 
 ## Milestones
 
-| Milestone | Scope | Status (2026-11-11) |
+| Milestone | Scope | Status |
 |---|---|---|
 | M0 | repo, scripts, kernel build, VM boots the custom kernel | done |
 | M1 | compat layer, `pf.ko` loads, `/dev/pf`, `pfctl -f` / `-s info` | done |
 | M2 | filter core: rules/states/tables/anchors, VM gates 01–04 | **done** — gates 01/02/03/04 green |
 | M3 | NAT (`nat-to`/`rdr-to`/`binat-to`), scrub | **done** — gates 05/06/07/09 (incl. 2 MB integrity through a redirect, min-ttl/max-mss measured) |
-| M4 | route-to/dup-to/reply-to, divert e2e, pflog | **done** — divert (11), pflog (12), route-to/dup-to (08), pools (10), reply-to (13) verified |
+| M4 | route-to/dup-to/reply-to, pools, divert e2e, pflog | **done** — divert (11), pflog (12), route-to/dup-to (08), pools (10), reply-to (13) verified |
 | M5 | queues: HFSC back end in the data path | **done (mechanical)** — gate 15: queues load, hfsc attaches, `pfctl -s queue -v` reports class stats, a 2 MB queued flow is counted by the class. `bandwidth` = HFSC linkshare (guarantee, not cap; 8.0 has no upperlimit syntax) |
-| M6 | docs complete, patchset tidy, full suite green, tagged release | **done** — docs EN+PT-BR, 11/11 suite green, tagged (v0.5.0) |
+| M6 | docs complete, patchset tidy, full suite green, tagged release | **done** — docs EN+PT-BR, 15/15 suite green, tagged (`v1.0.0`) |
 
-## What you get (planned)
+## What you get
 
 | Area | Feature |
 |---|---|
@@ -64,22 +64,22 @@ Details, per-phase breakdown and the YouTube description text:
 ## Quick start
 
 Full recipe: [`docs/en/install.md`](docs/en/install.md). Short version
-(commands are read from the scripts; a fresh-clone end-to-end run is still
-pending):
+(commands are read from the scripts):
 
 ```sh
 ./scripts/fetch-sources.sh          # OpenBSD 8.0 sources (C3SL mirror, sha256-pinned)
 ./scripts/vendorize.sh              # stage the pristine files we port
 ./scripts/build-kernel.sh           # kernel 7.3.4: bzImage + modules_prepare (export patch: none needed)
 ./scripts/build-module.sh           # -> module/pf.ko
-make -C tools                       # -> tools/out/pfctl (static), ABI harness
+make -C tools                       # -> tools/out/{pfctl,pdivert,pflogd,abitest}
 sudo insmod module/pf.ko            # /dev/pf (0600) + netfilter hooks
 sudo pfctl -f /etc/pf.conf && sudo pfctl -e
 ```
 
-Read [`docs/en/pf-guide.md`](docs/en/pf-guide.md) **before** enabling PF on a
-path you need: only the M2 filter core is gated today; NAT/scrub/queues/
-divert/pflog are not usable yet ([`docs/en/feature-matrix.md`](docs/en/feature-matrix.md)).
+Every feature listed above is exercised by the lab suite before you need it;
+[`docs/en/feature-matrix.md`](docs/en/feature-matrix.md) says which gate proves
+what, and [`docs/en/pf-guide.md`](docs/en/pf-guide.md) lists the deviations you
+should know before putting PF on a path that matters.
 
 VM validation lab (Alpine on libvirt): [`docs/en/vm-lab.md`](docs/en/vm-lab.md).
 Documentação em português: [`README.pt-BR.md`](README.pt-BR.md) e
@@ -87,11 +87,11 @@ Documentação em português: [`README.pt-BR.md`](README.pt-BR.md) e
 
 ## Layout
 
-- `module/` — kernel sources (ported PF + compat layer; the `pfq` qdisc lands with M5)
-- `tools/` — pfctl (static Linux build), pdivert relay source, ABI harness (`pflogd` not ported yet)
+- `module/` — kernel sources: ported PF engine (`module/pfsrc`) + Linux compat layer (`module/compat`)
+- `tools/` — pfctl (static Linux build), pdivert relay, pflogd, ABI harness (`make -C tools abi`)
 - `patches/kernel/` — Linux core patch set (currently empty; evidence in `p1-needs.txt`, see `docs/en/patches.md`)
-- `scripts/` — fetch/build/patch/VM automation
-- `tests/` — VM suite (`tests/vm/NN-*.sh`, scapy helpers)
+- `scripts/` — fetch/build/patch/VM automation, plus `scripts/screencast/` for the videos
+- `tests/vm/` — VM suite: 15 gates (`tests/vm/NN-*.sh`) + `lib.sh`
 - `docs/en/` + `docs/pt-BR/` — full bilingual documentation
 - `docs/superpowers/` — design spec + implementation plan
 
