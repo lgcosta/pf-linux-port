@@ -21,11 +21,11 @@ Portanto, `patches/kernel/` não contém nenhum `000N-*.patch` hoje, e aplicar
 o conjunto (vazio) é um no-op.
 
 > Nota honesta: o install.md e o design mencionam `scripts/apply-patches.sh`,
-> `scripts/unpatch.sh` e `patches/kernel/series`. Esses helpers **ainda não
-> estão na árvore**; até entrarem, "aplicar o conjunto de patches" é, por
-> definição, nada a fazer. Quando um patch real for necessário, o primeiro
-> commit que o adicionar DEVE também adicionar os dois scripts e o arquivo
-> `series` (ver as regras abaixo).
+> Nota honesta: `scripts/apply-patches.sh`, `scripts/unpatch.sh` e
+> `patches/kernel/series` **estão na árvore**. O `series` é vazio por projeto,
+> então aplicá-lo é um no-op verificado (`PATCHES_APPLIED=0`). Quando um patch
+> real for necessário, o commit que o adiciona também atualiza o `series` e
+> as regras abaixo.
 
 ## O mecanismo (como o conjunto deve funcionar)
 

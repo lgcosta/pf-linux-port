@@ -20,11 +20,11 @@ used.
 `patches/kernel/` therefore contains no `000N-*.patch` today, and applying
 the (empty) set is a no-op.
 
-> Honest note: install.md and the design mention `scripts/apply-patches.sh`,
-> `scripts/unpatch.sh` and `patches/kernel/series`. Those helpers are **not
-> in the tree yet**; until they land, "apply the patch set" is by definition
-> nothing to do. When a real patch is needed, the first commit that adds it
-> MUST also add the two scripts and the `series` file (see rules below).
+> Honest note: `scripts/apply-patches.sh`, `scripts/unpatch.sh` and
+> `patches/kernel/series` **are in the tree** and are exercised by
+> `make test`-adjacent scripts; the series is empty by design, so applying it
+> is a verified no-op (`PATCHES_APPLIED=0`). When a real patch is needed, the
+> commit that adds it MUST also extend the series file and the rules below.
 
 ## The mechanism (how the set is meant to work)
 
