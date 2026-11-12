@@ -22,15 +22,18 @@ deploy() {
 	# showed up as a bogus gate failure.  Retry and verify the copy.
 	local i
 	for i in 1 2 3; do
+		local extra=()
+		[ -x "$REPO/tools/out/pdivert" ] && extra+=("$REPO/tools/out/pdivert")
+		[ -x "$REPO/tools/out/pflogd" ] && extra+=("$REPO/tools/out/pflogd")
 		if scp -q -o ProxyJump=root@192.168.1.242 -o StrictHostKeyChecking=accept-new \
 			-i "$HOME/.ssh/pflab_ed" "$REPO/module/pf.ko" \
-			"$REPO/tools/out/pfctl" "$REPO/tests/confs/"*.conf pf0:/tmp/ 2>/dev/null; then
+			"$REPO/tools/out/pfctl" "${extra[@]}" "$REPO/tests/confs/"*.conf pf0:/tmp/ 2>/dev/null; then
 			break
 		fi
 		sleep 2
 	done
 	# stage onto pf0 /opt/pf via mgmt alias already copied to /tmp
-	ssh "$DEB" "$SSH 'mkdir -p /opt/pf; mv /tmp/pf.ko /tmp/pfctl /opt/pf/ 2>/dev/null; true'" >/dev/null
+	ssh "$DEB" "$SSH 'mkdir -p /opt/pf; mv /tmp/pf.ko /tmp/pfctl /tmp/pdivert /tmp/pflogd /opt/pf/ 2>/dev/null; chmod +x /opt/pf/pfctl /opt/pf/pdivert /opt/pf/pflogd 2>/dev/null; true'" >/dev/null
 	ssh "$DEB" "$SSH 'test -s /opt/pf/pf.ko && test -x /opt/pf/pfctl'" >/dev/null 2>&1 || {
 		echo "deploy: pf.ko/pfctl missing on pf0"; return 1; }
 }
