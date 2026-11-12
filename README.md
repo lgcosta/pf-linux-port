@@ -45,6 +45,20 @@ Not in scope: `pfsync`/CARP failover, IPsec/pfkey, `ftp-proxy`, per-netns PF
 instances, classic-ALTQ-only schedulers (cbq/wfq/red — removed upstream before
 OpenBSD 8.0).
 
+## Screencasts
+
+Six silent 1080p30 MP4 screencasts of the lab — implementation in the kernel,
+activation, basic rules, routing, balancing and QOS — each one a real session
+against the Alpine VMs:
+
+```sh
+./scripts/screencast/record-all.sh      # -> out/screencast/*.mp4
+```
+
+Details, per-phase breakdown and the YouTube description text:
+[`docs/en/screencast.md`](docs/en/screencast.md) ·
+[`docs/pt-BR/screencast.md`](docs/pt-BR/screencast.md)
+
 ## Quick start
 
 Full recipe: [`docs/en/install.md`](docs/en/install.md). Short version
