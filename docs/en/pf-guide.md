@@ -61,8 +61,7 @@ treat them as load-and-pray until the matrix moves them.
 | Syntax | Until | What happens today |
 |---|---|---|
 | `nat-to`, `rdr-to`, `binat-to` | — | **Verified in the lab** (gates `05-nat`, `06-rdr`, the latter pulls 2 MB through a redirect and compares it byte for byte). `nat-to (egress)` expands the OpenBSD interface *group*; on a multi-NIC host prefer the explicit `nat-to (<iface>)` form. `binat-to` is expanded by pfctl into a `nat-to … static-port` + `rdr-to` pair (gate `07-binat`). |
-| `scrub (…)`, `set reassemble` | M3 | `pf_norm.c` runs inside `pf_test` (compiled) — crafted-fragment behavior is untested; treat results as unvalidated. |
-| `divert-to`, `divert` tag | — | **Verified in the lab** (gate `11-divert`): the packet is delivered to an `AF_DIVERT` socket (`PF_DIVERT=32`) served by `tools/pdivert`; with no listener it is dropped, exactly like BSD's `divs_noport`. |
+| `scrub (min-ttl, max-mss, df, random-id)`, `set reassemble` | — | **Verified in the lab** (gate `09-scrub.sh`): `min-ttl` and `max-mss` measurably rewrite transit packets. || `divert-to`, `divert` tag | — | **Verified in the lab** (gate `11-divert`): the packet is delivered to an `AF_DIVERT` socket (`PF_DIVERT=32`) served by `tools/pdivert`; with no listener it is dropped, exactly like BSD's `divs_noport`. |
 | `route-to`, `dup-to` | — | **Verified in the lab** (gate `08-routeto.sh`): the forced gateway is used instead of the normal egress, and `dup-to` copies while keeping the flow. `fail-to`/`reply-to` load but have no gate yet. |
 | `queue` / `queue on` / `pfctl -s queue` | M5 | Parse and load. Queuing falls back to the priq-shaped compat `ifq` layer; **no bandwidth enforcement happens until the `pfq` qdisc lands**. |
 | `log`, `log all`, `block log`, `pflogd` | — | **Verified in the lab** (gate `12-pflog`): run `pflogd /tmp/x.pcap` (reads `/dev/pflog`); the file is a `DLT_PFLOG` (117) pcap readable by tcpdump/wireshark. |
