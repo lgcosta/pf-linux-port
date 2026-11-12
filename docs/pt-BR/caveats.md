@@ -111,6 +111,30 @@ lendo `/dev/pflog`; sem ele a fila atinge o limite (256 registros / 1 MiB) e
 descarta. Nenhum dos dois é mais stub, mas nenhum faz algo sem o consumidor
 rodar (ver [pf-guide.md](pf-guide.md)).
 
+### 9. Configurar filas esbarra numa asserção de lock no caminho de purge (aberto)
+
+Carregar uma regra `queue` agora alcança o escalonador (`pfq_alloc` tem sucesso,
+a disciplina hfsc é criada) e `pf_commit_queues()` é exercitada de ponta a ponta.
+Dois bugs foram encontrados e corrigidos no caminho: o handle da classe raiz
+colidia com qids ímpares do pf (`pfq_addqueue` devolvia EBUSY) e a disciplina
+NULL não era verificada.
+
+O que ainda bloqueia as filas: o timer de purge do port pode rodar enquanto um
+ioctl segura o lock de escrita, e `pf_purge_expired_states()` afirma o contrário:
+
+```
+splassert: pf_purge_expired_states: expected 0, got 2
+kernel BUG at compat/pfk_kern.c:51
+```
+
+O OpenBSD serializa isso com `splnet()`; o port substituiu a camada spl por
+rw-semáforos e work queue, então a asserção passou a ser uma corrida real em vez
+de formalidade. Até corrigi-la (liberar o lock em torno da chamada, ou dar ao
+estado o seu próprio lock como o upstream faz com `pf_state_lock`), um host que
+configure filas pode travar o módulo em `Unloading`. **Não habilite regras
+`queue` em host real ainda** — os 14 gates do lab nunca configuram filas, e é
+por isso que continuam verdes.
+
 ## Desvios da camada de compat (de `docs/porting-notes.md`, registro do M1)
 
 Estes são desvios deliberados e marcados no código; importam ao raciocinar

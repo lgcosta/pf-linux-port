@@ -111,6 +111,30 @@ kernel prints `pfk: divert port N: no socket bound`. `log` needs
 (256 records / 1 MiB) and drops. Neither is a stub any more, but neither does
 anything until its consumer runs (see [pf-guide.md](pf-guide.md)).
 
+### 9. Queue configuration hits a lock assertion in the purge path (open)
+
+Loading a `queue` rule now reaches the scheduler (`pfq_alloc` succeeds, the
+hfsc discipline is created), and `pf_commit_queues()` is exercised end to end.
+Two bugs were found and fixed while getting there — the root-class handle
+colliding with odd pf queue ids (`pfq_addqueue` returned EBUSY), and a NULL
+discipline not being checked.
+
+What still blocks queues: the port's purge timer can run while an ioctl holds
+the write lock, and `pf_purge_expired_states()` asserts the opposite:
+
+```
+splassert: pf_purge_expired_states: expected 0, got 2
+kernel BUG at compat/pfk_kern.c:51
+```
+
+OpenBSD serialises this with `splnet()`; the port replaced the spl layer with
+rw-semas and a work queue, so the assertion is now a real race rather than a
+formality. Until it is fixed (release the lock around the call, or give the
+state tree its own lock as upstream does for `pf_state_lock`), a host that
+configures queues can wedge the module in `Unloading`. **Do not enable
+`queue` rules on a live host yet** — the 14 lab gates never configure queues,
+which is why they stay green.
+
 ## Compat-layer deviations (from `docs/porting-notes.md`, M1 record)
 
 These are deliberate, marked-in-code divergences of the compat layer; they
