@@ -151,7 +151,20 @@ p0 "cat /tmp/pflogd.log; ls -l /tmp/pflog.pcap; echo 'pcap header (magic d4c3b2a
 p0 "pkill pflogd 2>/dev/null; /opt/pf/pfctl -f /tmp/demo-pf.conf >/dev/null"
 echo
 
-bold "--- 9. divert-to: the packet goes to userspace and comes back ---"
+bold "--- 9. route-to: force the next hop away from the normal path ---"
+p0 "cat > /tmp/demo-route.conf <<EOF
+pass in quick proto icmp from $CLI_IP to $SRV_IP route-to { 10.0.3.2 } keep state
+pass out quick
+EOF"
+p0 "/opt/pf/pfctl -f /tmp/demo-route.conf && echo 'route-to rule loaded'"
+p0 "(tcpdump -ni eth3 -c 2 -e icmp > /tmp/route.td 2>&1 &); (tcpdump -ni eth2 -c 2 -e icmp > /tmp/norm.td 2>&1 &); sleep 1"
+vmc "ping -c1 -W2 $SRV_IP | tail -2"
+sleep 2
+p0 "echo 'forced egress (eth3, toward the gateway):'; grep -v '^tcpdump\|^listening\|^$' /tmp/route.td | head -2; echo 'normal egress (eth2):'; grep -c 'echo request' /tmp/norm.td"
+p0 "/opt/pf/pfctl -f /tmp/demo-pf.conf >/dev/null"
+echo
+
+bold "--- 10. divert-to: the packet goes to userspace and comes back ---"
 p0 "cat /tmp/demo-divert.conf"
 p0 "/opt/pf/pfctl -f /tmp/demo-divert.conf && echo 'divert rule loaded'"
 p0 "chmod +x /tmp/pdivert; (setsid /tmp/pdivert -p 10000 -f >/tmp/pdivert.log 2>&1 </dev/null &); sleep 1; pgrep pdivert"
@@ -160,7 +173,7 @@ p0 "head -3 /tmp/pdivert.log"
 echo "  (pdivert flipped the last payload byte and fixed the ICMP checksum)"
 echo
 
-bold "--- 10. shutdown ---"
+bold "--- 11. shutdown ---"
 p0 "pkill pdivert; /opt/pf/pfctl -f /dev/null; /opt/pf/pfctl -d; echo 'pf disabled'"
 p0 "lsmod | grep '^pf '"
 echo

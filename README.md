@@ -7,9 +7,10 @@ real OpenBSD `pfctl` over the `/dev/pf` ioctl ABI. (A second module for the
 `pfq` qdisc arrives with M5.)
 
 **Status:** the filter core, stateful filtering, tables, anchors, NAT
-(`nat-to`/`rdr-to`), `divert` and `pflog` are **verified in a real libvirt
-lab** (10/10 gates green).  The remaining features (route-to/dup-to,
-scrub e2e, ALTQ/pfq, af-to) are still pending — honest per-feature status:
+(`nat-to`/`rdr-to`/`binat-to`), forced routing (`route-to`/`dup-to`), `divert`
+and `pflog` are **verified in a real libvirt lab** (11/11 gates green).  The
+remaining features (scrub e2e, ALTQ/pfq, af-to, `fail-to`/`reply-to`) are
+still pending — honest per-feature status:
 [`docs/en/feature-matrix.md`](docs/en/feature-matrix.md).
 Demo (asciinema): [`docs/en/demo.md`](docs/en/demo.md).
 Design: [`docs/superpowers/specs/2026-11-11-pf-linux-port-design.md`](docs/superpowers/specs/2026-11-11-pf-linux-port-design.md)
@@ -23,9 +24,9 @@ Design: [`docs/superpowers/specs/2026-11-11-pf-linux-port-design.md`](docs/super
 | M1 | compat layer, `pf.ko` loads, `/dev/pf`, `pfctl -f` / `-s info` | done |
 | M2 | filter core: rules/states/tables/anchors, VM gates 01–04 | **done** — gates 01/02/03/04 green |
 | M3 | NAT (`nat-to`/`rdr-to`/`binat-to`), scrub e2e | **partial** — NAT verified (gate 05), redirect incl. 2 MB integrity (gate 06), `binat-to` (gate 07); scrub e2e pending |
-| M4 | route-to/dup-to/fail-to, divert e2e, pflog | **partial** — divert e2e (gate 11) and pflog (gate 12) verified; route-to/dup-to pending |
+| M4 | route-to/dup-to/fail-to, divert e2e, pflog | **partial** — divert (gate 11), pflog (gate 12), route-to/dup-to (gate 08) verified; `fail-to`/`reply-to` pending |
 | M5 | queues: HFSC/FQ-CoDel back ends + `pfq` qdisc | pending |
-| M6 | docs complete, patchset tidy, full suite green, tagged release | in progress (docs done, suite 7/7 green) |
+| M6 | docs complete, patchset tidy, full suite green, tagged release | **done** — docs EN+PT-BR, 11/11 suite green, tagged (v0.5.0) |
 
 ## What you get (planned)
 
@@ -37,8 +38,8 @@ Design: [`docs/superpowers/specs/2026-11-11-pf-linux-port-design.md`](docs/super
 | Scrub | fragment reassembly, overlap drop, `min-ttl`/`max-mss`/`df`/`no-df`, `set reassemble` |
 | QoS (ALTQ successor) | `queue`/`queue on` with OpenBSD 8.0 `ifq` schedulers: **default (priq), HFSC, FQ-CoDel**, attached via the `pfq` qdisc; `pfctl -s queue -v` stats |
 | Divert | `divert-to` / `divert` tag + `pdivert` relay over an in-module `PF_DIVERT` socket family (verified: packet to userspace and back) |
-| Route | `route-to` (pools rr/hash-source/hash-state, `fail-to`), `reply-to`, `dup-to` |
-| Logging | `pflogd` via `/dev/pflog` (DLT_PFLOG pcap, OpenBSD record layout) |
+| Route | `route-to`/`dup-to` verified; pools (`rr`, `source-hash`), `fail-to`, `reply-to` pending |
+| Logging | `pflogd` via `/dev/pflog` (DLT_PFLOG pcap, OpenBSD record layout) — verified |
 | Control | `/dev/pf` (0600), OpenBSD 8.0 ioctl ABI, Linux build of `pfctl` (single binary) |
 
 Not in scope: `pfsync`/CARP failover, IPsec/pfkey, `ftp-proxy`, per-netns PF
