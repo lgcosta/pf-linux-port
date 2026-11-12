@@ -6,6 +6,7 @@
  * ip6_route_output, tcp_v4_send_reset if needed).
  */
 #include <pfk.h>
+#include <pfk_api.h>
 
 static struct dst_entry *
 pfk_route4(__be32 daddr, __be32 saddr, int oif)
@@ -20,6 +21,26 @@ pfk_route4(__be32 daddr, __be32 saddr, int oif)
 	rt = ip_route_output_key(&init_net, &fl4);
 	if (IS_ERR(rt))
 		return NULL;
+	return &rt->dst;
+}
+
+/*
+ * Forced nexthop (route-to/dup-to/reply-to).  Linux resolves the neighbour
+ * from the *packet's* destination unless the route says it goes through a
+ * gateway (ip_neigh_for_gw() only honours rt_gw4 when rt_gw_family is set),
+ * which would ARP the final host on the gateway's link.  Look the gateway up
+ * as its own host route and mark it as the nexthop - the same pattern OVS
+ * uses after its own FIB lookups.
+ */
+static struct dst_entry *
+pfk_route4_nh(__be32 gw, int oif)
+{
+	struct rtable *rt = (struct rtable *)pfk_route4(gw, 0, oif);
+
+	if (rt == NULL)
+		return NULL;
+	rt->rt_gw_family = AF_INET;
+	rt->rt_gw4 = gw;
 	return &rt->dst;
 }
 
@@ -76,7 +97,7 @@ if_output_tso(struct pfk_ifnet *ifp, struct mbuf **mp, void *dst,
 		 * packet's source (a transit address, not local to us) makes
 		 * ip_route_output_key fail with ENETUNREACH; ip_output keeps
 		 * the header source untouched. */
-		d = pfk_route4(gw, 0, ifp->if_index);
+		d = pfk_route4_nh(gw, ifp->if_index);
 		if (!d) {
 			ret = EHOSTUNREACH;
 			goto drop;
@@ -121,6 +142,21 @@ if_output_tso(struct pfk_ifnet *ifp, struct mbuf **mp, void *dst,
 	 * mbuf wrapper ref) stay balanced - without this the work queue's
 	 * cleanup double-frees the skb and corrupts the slab.
 	 */
+	/*
+	 * pf_route() has already evaluated the OUT ruleset (it calls
+	 * pf_test(PF_OUT) itself, exactly like OpenBSD's ip_forward).  Mark the
+	 * packet so our POST_ROUTING hook does not run the out ruleset a second
+	 * time - that re-match hits the state, re-enters pf_route and recurses
+	 * (OpenBSD stops this with PF_TAG_PROCESSED carried in the mbuf).
+	 */
+	skb->mark |= PFK_DONE_OUT;
+	/*
+	 * The port stashes its mbuf pointer in skb->cb; the IP stack uses the
+	 * same bytes as its own control block (IPCB).  Hand the packet to the
+	 * stack with a clean cb, otherwise ip_output() reads our pointer as
+	 * frag_max_size/flags and the packet is silently lost.
+	 */
+	memset(skb->cb, 0, sizeof(skb->cb));
 	skb_get(skb);
 	ret = skb_dst(skb)->output(&init_net, NULL, skb);
 	/* output consumed skb (and wrapper); avoid double free */

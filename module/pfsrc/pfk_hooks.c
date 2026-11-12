@@ -35,8 +35,6 @@ struct pfk_pkt {
 	int			dir;
 };
 
-#define PFK_DONE_IN	0x00000001u	/* skb->mark bit: PF_IN pass completed */
-#define PFK_DONE_OUT	0x00000002u	/* skb->mark bit: PF_OUT pass completed */
 
 static void
 pfk_pkt_reinject(struct pfk_pkt *pk)
@@ -104,6 +102,8 @@ pfk_reroute(struct sk_buff *skb)
 	skb_dst_set(skb, &rt->dst);
 	skb->dev = rt->dst.dev;
 	skb_reset_network_header(skb);
+	/* the stack owns skb->cb (IPCB) from here - see pfk_xmit.c */
+	memset(skb->cb, 0, sizeof(skb->cb));
 	rt->dst.output(&init_net, skb->sk, skb);
 }
 

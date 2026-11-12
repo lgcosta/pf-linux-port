@@ -8,6 +8,8 @@ long pfk_ioctl(struct file *f, unsigned int cmd, unsigned long addr);
 int  pfk_enable(int on);
 void pfk_status(struct pf_status *s);
 #define PFK_SKIP_PF	0x00000004u	/* skb->mark: reinjected, bypass pf */
+#define PFK_DONE_IN	0x00000001u	/* skb->mark bit: PF_IN pass completed */
+#define PFK_DONE_OUT	0x00000002u	/* skb->mark bit: PF_OUT pass completed */
 
 int  pfk_hooks_register(void);
 void pfk_hooks_unregister(void);

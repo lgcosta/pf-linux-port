@@ -8283,11 +8283,6 @@ pf_test(sa_family_t af, int fwdir, struct pfk_ifnet *ifp, struct mbuf **m0)
 
 	if (!pf_status.running)
 		return (PF_PASS);
-	if (m0 && *m0 && (*m0)->m_pkthdr.len >= 20 &&
-	    ((*m0)->m_data[9] == IPPROTO_ICMP))
-		pr_info_ratelimited("pfk: T1 enter dir=%d ifp=%px kif=%px\n",
-		    fwdir, ifp, ifp ? ifp->if_pf_kif : NULL);
-
 #if NCARP > 0
 	if (ifp->if_type == IFT_CARP) {
 		struct pfk_ifnet *ifp0;
