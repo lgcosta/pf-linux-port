@@ -102,7 +102,7 @@ de saída: o pacote chega, é descartado ou é traduzido, e a prova é lida de
 volta nos contadores do próprio firewall, na tabela de estados, em capturas de
 pacote ou no par.
 
-A lista completa está na §6 (15 gates, todos verdes). Cada gate é um script
+A lista completa está na §6 (16 gates, todos verdes). Cada gate é um script
 shell em `tests/vm/` que fala com as VMs através do deb com ssh aninhado,
 usando os helpers de `tests/vm/lib.sh` (`pf0`, `cli`, `srv`, `gw2`, `pfput`,
 `pfload`, `ok`, `bad`). O `scripts/vm-run-tests.sh` roda tudo em ordem e
@@ -114,15 +114,23 @@ compila dentro do `pf.ko`, mas nenhum gate os exercita. O FQ-CoDel compila e
 compartilha o header de estatísticas com o `pfctl`, mas só a disciplina
 **hfsc** é exercitada.
 
-**Não existe gate numérico de performance**: o `bench-basic.sh` não está na
-árvore e nenhuma meta de vazão é reivindicada.
+**Não existe gate numérico de performance**: a decisão de design (spec §7) é
+que *os gates funcionais são a régua* — um contrato de performance forçaria um
+shim reescrito, pouco fiel. O que existe é um **teste de stress**
+(`tests/vm/16-stress.sh`, disparado por `scripts/stress/run-stress.sh`) que
+afere **invariantes sob carga** — sem vazamento de estados/tabelas, sem falha
+de carga de regras, payload idêntico sob um stream saturando o link, sem
+`BUG/WARNING/Oops`, o firewall ainda roteando — e **reporta** a comparação de
+vazão (baseline sem o módulo vs. com PF ligado) como informação, sem meta
+numérica de pass/fail. O relatório e o log bruto ficam em
+`out/stress/<timestamp>/`.
 
 ## 6. Status atual da suíte (2026-11-12)
 
-**15/15 gates verdes.** Uma rodada completa e limpa
-(`./scripts/vm-run-tests.sh`, ~9 min) recria e reinicia o `pftest-pf0` antes
+**16/16 gates verdes.** Uma rodada completa e limpa
+(`./scripts/vm-run-tests.sh`, ~13 min) recria e reinicia o `pftest-pf0` antes
 de cada gate, reimplanta o módulo e as ferramentas, e termina com
-`PASS=15 FAIL=0`. Os logs capturados ficam em
+`PASS=16 FAIL=0`. Os logs capturados ficam em
 `out/test-logs/<gate>.sh.log`.
 
 | Gate | O que prova hoje |
@@ -142,6 +150,7 @@ de cada gate, reimplanta o módulo e as ferramentas, e termina com
 | `13-replyto.sh` | `reply-to` força a resposta para o link do gateway |
 | `14-soak.sh` | reload de ruleset sob tráfego, ciclo de `rmmod`, checagem de vazamento |
 | `15-queue.sh` | filas hfsc: anexação, estatísticas da classe, um fluxo de 2 MB contado pela classe |
+| `16-stress.sh` | stress: vazão baseline vs. PF, churn de estados/regras/tabelas com verificação de vazamento, 2 MB por NAT sob stream saturante, saúde do dmesg (rodado por `scripts/stress/run-stress.sh`, que grava um relatório) |
 
 Os screencasts ([screencast.md](screencast.md)) mostram boa parte desses
 gates sendo executados, com o diagrama de rede do lab desenhado sobre o

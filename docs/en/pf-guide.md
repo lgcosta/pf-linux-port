@@ -6,7 +6,7 @@ This is the "what can I actually run today" guide. It follows the
 [feature matrix](feature-matrix.md): the filtering core (pass/block/quick/
 keep state/tables/anchors), the NAT family, scrub, forced routing, pools,
 `divert`, `pflog` and the OpenBSD 8.0 queues all have **VM evidence** behind
-them — 15/15 lab gates are green. What is *not* gate-verified is listed
+them — 16/16 lab gates are green. What is *not* gate-verified is listed
 explicitly below. Install/build is covered by [install.md](install.md) and
 [build.md](build.md).
 

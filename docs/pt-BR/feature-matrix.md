@@ -14,7 +14,7 @@ Atualizado em 2026-11-12; fonte da evidência por linha: `out/test-logs/`,
 `docs/porting-notes.md`, commits dos milestones e os screencasts
 ([screencast.md](screencast.md)) para a prova visível.
 
-A suíte está **15/15 verde** (`./scripts/vm-run-tests.sh`).
+A suíte está **16/16 verde** (`./scripts/vm-run-tests.sh`).
 
 ## Plano de controle e ferramentas
 

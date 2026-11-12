@@ -2,6 +2,61 @@
 
 ## Unreleased
 
+### Debian 13 implementation manual
+
+`docs/en/debian13.md` + `docs/pt-BR/debian13.md` — the complete from-zero
+path on Debian 13 (trixie): host preparation, kernel 7.3.4, `pf.ko`, the
+userland, the libvirt lab, the gate suite and the stress test. Every command
+was executed on the lab's Debian 13.7 host; the toolchain output, the
+kernel.org checksum and the measured numbers are the real ones.
+
+- `scripts/debian13/prepare-host.sh` — idempotent host preparation
+  (packages + toolchain report). Verified on trixie: gcc 14.2.0, make 4.4.1,
+  bison 3.8.2, flex 2.6.4, libvirt 11.3.0, QEMU 10.0.13.
+- **Two build-script bugs fixed** (they broke the plain
+  `./scripts/build-kernel.sh` invocation the manual documents):
+  `scripts/kernel-config.sh` resolved its default kernel tree to
+  `../../linux_kernel/linux-7.3.4` (one level too many — it only worked when
+  `KERNELDIR` was exported), and `scripts/build-kernel.sh` did not pass the
+  tree it resolved on to `kernel-config.sh`, so the two could configure
+  different trees. Both now agree on `<repo>/../linux-7.3.4`.
+- **gcc note**: Debian 13 ships gcc 14 and has no `gcc-15` in trixie. The
+  7.3.4 kernel and `pf.ko` build with gcc 14 — no patch needed.
+
+### Stress test (`tests/vm/16-stress.sh` + `scripts/stress/run-stress.sh`)
+
+The project had no performance/load gate; the stress is a new gate that
+asserts *invariants under load* and reports throughput informationally, per
+the design decision that functional gates are the bar:
+
+| Phase | Assertion |
+|---|---|
+| baseline / overhead | throughput with the module out of the path vs. with PF enabled (information + a configurable overhead limit) |
+| state churn | states appear under 300 concurrent connections and drain back after `pfctl -F s` (no state-table leak) |
+| rule churn | 200 reloads of a 200-rule ruleset, timed inside the VM, zero failures, stable rule count |
+| table churn | 2000 `pfr` entries added and flushed back to 0 |
+| integrity | 2 MB through `nat-to` under a concurrent stream — sha256 must match |
+| health | no `BUG/WARNING/Oops`, PF counters moving, the firewall still routing |
+
+Report and raw log land in `out/stress/<timestamp>/report.md`; the guest's
+serial console is captured during the run so a panic is diagnosable.
+
+Measured on the lab (full profile): 400 Mbit/s sustained with PF enabled at
+0% overhead against the no-module baseline, 300/300 concurrent flows tracked
+as states and the table drained back to 0, 200 reloads of a 202-rule ruleset
+with zero failures (11 ms average, 20 ms worst), 2000 `pfr` entries flushed
+back to 0, 2 MB through NAT byte-identical under load, and no
+`BUG/WARNING/Oops` in `dmesg`.
+
+### Capacity finding: the workqueue backlog OOMs the guest above ~1 Gbit/s
+
+Measured while building the stress test, and now documented in
+`docs/*/caveats.md` §13: PF steals every skb onto one ordered workqueue, so
+the backlog grows with the offered rate. On the 1 GB lab guest, 400 Mbit/s
+through a stateful ruleset is stable and ~1 Gbit/s **panics the kernel**
+("System is deadlocked on memory"). The stress test therefore runs its
+traffic phases at a bounded rate; the functional gates are unaffected.
+
 - **M5 (first step)**: OpenBSD's `hfsc.c` and `fq_codel.c` now compile and link
   into `pf.ko` (157 scheduler symbols reachable from `pf_ioctl`).  Added the
   compat surface they need — `ml_*`/`struct mbuf_list`, `ifq_q_enter/leave`,

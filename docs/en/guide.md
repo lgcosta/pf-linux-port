@@ -25,7 +25,7 @@ between kernel and userland (ioctl encoding per `module/include/pfk.h`).
 | `module/include/` | `pfk.h` (master compat header + OpenBSD-style `_IO*` encoding), staged `net/pfvar.h`, `pfk_mbuf.h`, `pfk_net.h`, `pfk_if.h` |
 | `tools/` | Linux build of OpenBSD 8.0 `pfctl` (single binary), `pdivert` relay, ABI parity harness (`abitest` + `make abi`), offline parse tests (`make test`). Deltas vs upstream: `tools/UPSTREAM.md` |
 | `scripts/` | `fetch-sources.sh`, `vendorize.sh`, `stage-port.sh` (deterministic staging), `build-kernel.sh`, `build-module.sh`, `vm-*.sh` lab automation, `screencast/` (video pipeline) |
-| `tests/vm/` | VM suite: 15 gates `01-state.sh … 15-queue.sh` + `lib.sh`; `tests/confs/` rulesets deployed to the lab |
+| `tests/vm/` | VM suite: 16 gates `01-state.sh … 16-stress.sh` + `lib.sh`; `tests/confs/` rulesets deployed to the lab |
 | `patches/kernel/` | Core patch set — currently **empty** (`p1-needs.txt` records why no exports were needed); see [patches.md](patches.md) |
 
 ## Data path (M2, as implemented today)
@@ -100,7 +100,7 @@ rebuilt.
 | M3 | NAT (`nat-to`/`rdr-to`/`binat-to`), scrub, pflog | **done** — gates 05/06/07/09 (incl. 2 MB integrity through a redirect) and pflog gate 12 |
 | M4 | route-to/dup-to/reply-to, pools, divert e2e | **done** — gates 08/10/13 and divert gate 11 |
 | M5 | queues: ifq back ends (hfsc/fq_codel) | **done (mechanical)** — gate 15: hfsc attaches, `pfctl -s queue -v` reports class stats, a 2 MB queued flow is counted by the class. `bandwidth` = HFSC linkshare (a guarantee under contention, not a cap) |
-| M6 | docs complete, patchset tidy, full suite green, tagged releases | **done** — docs EN+PT-BR, 15/15 suite green, tagged (`v1.0.0`) |
+| M6 | docs complete, patchset tidy, full suite green, tagged releases | **done** — docs EN+PT-BR, 16/16 suite green, tagged (`v1.0.0`) |
 
 ## Next reads
 

@@ -191,6 +191,45 @@ lab (`scripts/vm-run-tests.sh`) é a autoridade para PASS/FAIL, e os logs
 dela ficam em `out/test-logs/`. Os screencasts mostram os mesmos comandos,
 mas um quadro de vídeo não é um veredito.
 
+## Achados de capacidade (2026-11-12, a partir de `scripts/stress/run-stress.sh`)
+
+### 13. O backlog da workqueue cresce com a taxa oferecida: acima de ~1 Gbit/s a VM dá OOM-panic
+
+Esta é a consequência mais dura da §1 e ela é **reproduzível**, não teórica.
+O PF rouba cada skb para uma única workqueue ordenada e roda o engine em
+contexto de processo, então o número de pacotes em voo só é limitado pela
+memória que o backlog consome.
+
+Medido no lab (guest Alpine, **1 GB** de RAM, 4 fluxos TCP por um ruleset
+stateful):
+
+| Taxa oferecida (por fluxo × 4) | Resultado |
+|---|---|
+| 50 Mbit/s (200 Mbit/s no total) | estável |
+| 100 Mbit/s (400 Mbit/s no total) | estável |
+| 250 Mbit/s (**1 Gbit/s** no total) | **kernel panic: "System is deadlocked on memory"** |
+
+O panic é um OOM sem processo matável; o slab naquele momento mostra
+`kmalloc-8k` ≈ 50 MB, `skbuff_head_cache` ≈ 18 MB e `files_cache` ≈ 40 MB —
+ou seja, o backlog comeu o 1 GB. A VM reinicia (watchdog de 120 s) e todas as
+conexões que passavam pelo firewall caem junto.
+
+Consequências práticas:
+
+- **Limite a taxa que você aponta para o PF** e dimensione a máquina para o
+  backlog: a memória necessária cresce com a taxa oferecida, não com o
+  número de fluxos concorrentes.
+- Por isso o teste de stress (`tests/vm/16-stress.sh`) roda as fases de
+  tráfego a uma taxa **limitada** (padrão: 100 Mbit/s por fluxo = 400 Mbit/s
+  no total) — o regime que este port suporta — e reporta o teto
+  separadamente, em vez de dar OOM no firewall sob teste.
+- Os gates funcionais (01-15) não são afetados: eles movem megabytes, não gigabits
+  por segundo.
+
+O que resolveria isso é um fast path de verdade (avaliar `pf_test()` inline em
+softirq, como o OpenBSD faz) ou uma fila limitada com política de drop — as
+duas são mudanças de design fora do escopo deste port.
+
 ## O que *não* é ressalva
 
 ARP e outros EtherTypes não-IPv4/IPv6 nunca entram nos hooks netfilter de

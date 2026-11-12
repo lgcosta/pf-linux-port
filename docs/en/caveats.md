@@ -186,6 +186,45 @@ The videos are a demonstration, not a test run: the lab's own gate suite
 in `out/test-logs/`. The screencasts show the same commands, but a video frame
 is not a verdict.
 
+## Capacity findings (2026-11-12, from `scripts/stress/run-stress.sh`)
+
+### 13. The workqueue backlog grows with the offered rate: above ~1 Gbit/s the guest OOM-panics
+
+This is the sharpest consequence of §1 and it is **reproducible**, not
+theoretical. PF steals every skb onto one ordered workqueue and runs the
+engine in process context, so the number of packets in flight is bounded only
+by the memory the backlog takes.
+
+Measured on the lab (Alpine guest, **1 GB** RAM, 4 TCP streams through a
+stateful ruleset):
+
+| Offered rate (per stream × 4) | Result |
+|---|---|
+| 50 Mbit/s (200 Mbit/s total) | stable |
+| 100 Mbit/s (400 Mbit/s total) | stable |
+| 250 Mbit/s (**1 Gbit/s** total) | **kernel panic: "System is deadlocked on memory"** |
+
+The panic is an OOM with no killable process; the slab at that moment shows
+`kmalloc-8k` ≈ 50 MB, `skbuff_head_cache` ≈ 18 MB and `files_cache` ≈ 40 MB,
+i.e. the backlog is what ate the 1 GB. The guest reboots (120 s watchdog
+delay) and every connection through the firewall is lost with it.
+
+Practical consequences:
+
+- **Rate-limit what you point at PF**, and size the box for the backlog:
+  memory needed grows with the offered rate, not with the number of
+  concurrent flows.
+- The stress test (`tests/vm/16-stress.sh`) therefore runs its traffic phases
+  at a **bounded** rate (default 100 Mbit/s per stream = 400 Mbit/s total) —
+  the regime this port survives — and reports the ceiling separately instead
+  of OOM-killing the firewall under test.
+- The functional gates (01-15) are unaffected: they move megabytes, not gigabits
+  per second.
+
+What would fix it is a real fast path (evaluate `pf_test()` inline in
+softirq, as OpenBSD does) or a bounded queue with a drop policy — both are
+design changes beyond this port's scope.
+
 ## What is *not* a caveat
 
 ARP and other non-IPv4/IPv6 EtherTypes never enter the netfilter IPv4/IPv6

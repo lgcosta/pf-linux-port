@@ -14,8 +14,9 @@ de `/dev/pf`.
 |---|---|
 | [guide.md](guide.md) | Arquitetura em uma página: componentes, caminho de dados, plano de controle, milestones |
 | [install.md](install.md) | Receita de apply/build/install (kernel, módulo, ferramentas) |
+| [debian13.md](debian13.md) | Implementação completa do zero no Debian 13 (trixie): preparar host, compilar kernel/módulo/ferramentas, lab libvirt, teste de stress |
 | [build.md](build.md) | Pipeline de build em detalhe: fetch → vendorize → kernel → módulo → pfctl |
-| [vm-lab.md](vm-lab.md) | O lab de validação em libvirt: topologia, recriar/rodar, o que cada um dos 15 gates prova |
+| [vm-lab.md](vm-lab.md) | O lab de validação em libvirt: topologia, recriar/rodar, o que cada um dos 16 gates prova |
 | [feature-matrix.md](feature-matrix.md) | Status por feature: VERIFIED-in-VM / VERIFIED-offline / COMPILES-untested / NOT-ENABLED |
 | [pf-guide.md](pf-guide.md) | Uso diário: o que funciona hoje em `/etc/pf.conf` e as divergências a conhecer |
 | [screencast.md](screencast.md) | Os vídeos narrados (inglês e português): fases, pipeline, como regravar |
@@ -39,4 +40,4 @@ Vocabulário de status usado nestes docs:
 - **NOT-ENABLED** — o código existe mas a feature está desligada neste build.
 - **OUT-OF-SCOPE** — fora de escopo por desenho (spec §3).
 
-A suíte do lab está **15/15 verde** (`./scripts/vm-run-tests.sh`).
+A suíte do lab está **16/16 verde** (`./scripts/vm-run-tests.sh`).

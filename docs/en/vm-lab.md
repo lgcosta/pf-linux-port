@@ -97,7 +97,7 @@ code: the packet either arrives, is dropped, or is translated, and the proof
 is read back from the firewall's own counters, state table, capture files or
 peer.
 
-The full list is in §6 (15 gates, all green). Each gate is a shell script in
+The full list is in §6 (16 gates, all green). Each gate is a shell script in
 `tests/vm/` that talks to the VMs through deb with nested ssh, using the
 helpers in `tests/vm/lib.sh` (`pf0`, `cli`, `srv`, `gw2`, `pfput`, `pfload`,
 `ok`, `bad`). `scripts/vm-run-tests.sh` runs them in order and captures
@@ -108,14 +108,22 @@ Not gated (honest gaps): the IPv6 path, OS fingerprinting, `set` options
 `pf.ko` but no gate drives it. FQ-CoDel compiles and shares its stats header
 with `pfctl`, but only the **hfsc** discipline is exercised.
 
-There is **no numeric performance gate**: `bench-basic.sh` does not exist in
-the tree and no throughput target is claimed.
+There is **no numeric performance gate**: the design decision (spec §7) is
+that *functional gates are the bar* — a perf contract would force a
+non-faithful rewrite-first shim. What exists instead is a **stress test**
+(`tests/vm/16-stress.sh`, driven by `scripts/stress/run-stress.sh`) that
+asserts *invariants under load* — no state/table leak, no rule-load failure,
+byte-identical payload under a saturating stream, no `BUG/WARNING/Oops`, the
+firewall still routing — and **reports** the throughput comparison
+(baseline without the module vs. with PF enabled) as information, without a
+numeric pass/fail target. Report and raw log land in
+`out/stress/<timestamp>/`.
 
 ## 6. Current suite status (2026-11-12)
 
-**15/15 gates green.** A full clean run (`./scripts/vm-run-tests.sh`, ~9 min)
+**16/16 gates green.** A full clean run (`./scripts/vm-run-tests.sh`, ~13 min)
 recreates and reboots `pftest-pf0` before every gate, redeploys the module
-and the tools, and ends with `PASS=15 FAIL=0`. The captured logs live in
+and the tools, and ends with `PASS=16 FAIL=0`. The captured logs live in
 `out/test-logs/<gate>.sh.log`.
 
 | Gate | What it proves now |
@@ -135,6 +143,7 @@ and the tools, and ends with `PASS=15 FAIL=0`. The captured logs live in
 | `13-replyto.sh` | `reply-to` forces the reply onto the gateway link |
 | `14-soak.sh` | ruleset reload under traffic, `rmmod` cycle, leak check |
 | `15-queue.sh` | hfsc queues: attach, class statistics, a 2 MB queued flow counted by the class |
+| `16-stress.sh` | stress: throughput baseline vs. PF, state/rule/table churn with leak checks, 2 MB through NAT under a saturating stream, dmesg health (run by `scripts/stress/run-stress.sh`, which writes a report) |
 
 The screencasts ([screencast.md](screencast.md)) show most of these gates
 being run, with the lab's network diagram drawn over the terminal.

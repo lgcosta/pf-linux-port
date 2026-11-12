@@ -14,7 +14,7 @@ As of 2026-11-12; source of per-row evidence: `out/test-logs/`,
 `docs/porting-notes.md`, milestone commits, and the screencasts
 ([screencast.md](screencast.md)) for the visible proof.
 
-The suite is **15/15 green** (`./scripts/vm-run-tests.sh`).
+The suite is **16/16 green** (`./scripts/vm-run-tests.sh`).
 
 ## Control plane & tools
 
