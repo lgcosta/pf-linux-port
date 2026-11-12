@@ -1,5 +1,45 @@
 # Changelog
 
+## v0.5.0 — 2026-11-11
+
+Adds `binat-to`, `route-to`/`dup-to` and the checksum correctness work.
+Suite: 11 gates, all green in the libvirt lab.
+
+### Verified in the lab (new since v0.4.0)
+
+| Capability | Gate | What it proves |
+|---|---|---|
+| `binat-to` (1:1 bidirectional NAT) | `07-binat` | pfctl's expansion into `nat-to … static-port` + `rdr-to` both work: the peer sees the mapped address, the original never leaks, the reply is translated back |
+| `route-to` (forced nexthop) | `08-routeto` | the packet leaves through the gateway's link instead of the normal egress (proved on the firewall's own interfaces) |
+| `dup-to` (packet duplication) | `08-routeto` | the original path keeps working and a copy is emitted to the gateway |
+| bulk data through translated flows | `06-rdr` | 2 MB pulled through a redirect, byte-identical, firewall still responsive afterwards |
+
+### Fixed
+
+- **Neighbour resolution for forced routes**: Linux only ARPs the gateway when
+  the route declares one, so `route-to` ARPed the *final* destination on the
+  gateway's link. The port now sets `rt_gw4`/`rt_gw_family` on the looked-up
+  route (the same pattern OVS uses).
+- **`route-to` looked the route up with the packet's source**, which is not
+  local for transit traffic → `ENETUNREACH` → silent drop. Destination-only
+  lookup now.
+- **`if_output_tso` reference imbalance**: the stack's output path consumed the
+  hook queue's skb reference, so the work queue's cleanup double-freed the skb
+  and corrupted the slab (observed as the firewall dying mid-test).
+- **GSO/TSO checksums**: materializing a transport checksum in software for a
+  translated skb covers only the first segment; every later segment is then
+  wrong, bulk transfers stall and the firewall's own `sshd` starves. The port
+  now recomputes in software only for non-GSO skbs and hands `CHECKSUM_PARTIAL`
+  back to the NIC otherwise (regression guarded by gate `06-rdr`).
+- Gate `08` counts only echo *requests* (a reply also contains the client
+  address) and tolerates a not-yet-created capture file.
+
+### Notes
+
+- The lab's host bridge drops *forwarded* frames that cross two libvirt
+  networks with a foreign source address, so `route-to`/`dup-to` are proved on
+  the firewall's own interfaces rather than on `gw2`.
+
 ## v0.4.0 — 2026-11-11
 
 Lab-verified milestone release.  The full gate suite (9 gates) runs against
