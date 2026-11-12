@@ -939,3 +939,33 @@ Rationale: a single consumer is the real use case, and Linux gives no bpf hook
 for a non-`net_device` virtual interface without pulling in a much larger
 amount of the BSD if layer.  The on-disk format is unchanged, so existing
 tooling works.
+
+## Scheduler back ends in the build (M5, first step)
+
+`pfsrc/hfsc.c` and `pfsrc/fq_codel.c` are now compiled into `pf.ko` (the
+`pf_ioctl` queue manager already references `hfsc_initialize`,
+`hfsc_pf_addqueue`, `ifq_hfsc_ops`, `fqcodel_pf_addqueue`, `ifq_fqcodel_ops`).
+The priq shim in `compat/pfk_ifq.c` remains the *attached* scheduler, so
+behaviour is unchanged until the data path enqueues into a queue.
+
+Compat surface added for the back ends (all in `module/include/pfk.h` /
+`pfk_if.h` / `compat/pfk_ifq.c`):
+
+| OpenBSD | This port |
+|---|---|
+| `struct mbuf_list` + `ml_init/ml_enqueue/ml_dequeue/ml_dequeue_tail/ml_enlist/ml_len/ml_empty/ml_purge`, `MBUF_LIST_FIRST/INITIALIZER` | inline helpers in `pfk_if.h` (`ml_purge` in `compat/pfk_mbuf.c`) |
+| `ifq_q_enter()/ifq_q_leave()` (scheduler ownership handshake, guarded by the ifq mutex) | ownership check against `ifq->ifq_ops`, returning `ifq_softc`; `leave` is a no-op (the port has no ifq mutex — the data path is one ordered work queue) |
+| `nsecuptime()` | `getnsecuptime()` (`ktime_get_ns`) |
+| `tick_nsec` (`HFSC_CLK_PER_TICK`) | `1000000000 / HZ` |
+| `splnet()/splx()` | no-ops, kept as markers of the critical regions |
+| `KERNEL_ASSERT_LOCKED()` | no-op (structural, not runtime) |
+| `struct hfsc_sc`, `struct hfsc_class_stats`, `struct fqcodel_stats`, `PKTCNTR_INC`, `HFSC_*` limits | declared in `pfk.h` (OpenBSD keeps them in `net/if_hfsc.h` / `net/if_fq_codel.h`) |
+
+Two port fixes worth recording:
+
+- `min(cd->drops - 1, nitems(...) - 1)` → `min_t(unsigned int, ...)`: Linux
+  type-checks `min()` and `nitems()` is `size_t`.
+- `hfsc_more_slots(u_int current)` → renamed the parameter: **`current` is a
+  kernel macro** (`get_current()`), which turned the definition into a K&R
+  function and produced a baffling "makes pointer from integer" error at the
+  call site.

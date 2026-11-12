@@ -94,7 +94,7 @@ tamanho embutido na codificação `_IOR/_IOW` OpenBSD e despacha para o
 | M2 | núcleo do filtro: regras/estados/tabelas/âncoras, gates VM | **pronto** — gates 01–04 verdes |
 | M3 | NAT (`nat-to`/`rdr-to`/`binat-to`), scrub, pflog | **pronto** — gates 05/06/07/09 (incl. integridade de 2 MB via redirect) e pflog gate 12 |
 | M4 | route-to/dup-to/reply-to, pools, divert e2e | **pronto** — gates 08/10/13 e divert gate 11 |
-| M5 | filas: back ends ifq (hfsc/fq_codel) + qdisc `pfq` | pendente (código dos escalonadores portado, qdisc faltando) |
+| M5 | filas: back ends ifq (hfsc/fq_codel) | **parcial** — back ends compilados no `pf.ko`; anexação/ritmo pendentes |
 | M6 | docs completas, patchset limpo, suíte verde, releases com tag | em andamento — docs EN+PT-BR completas, suíte 14/14 verde, com tag |
 
 ## Próximas leituras

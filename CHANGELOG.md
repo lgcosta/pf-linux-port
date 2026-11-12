@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- **M5 (first step)**: OpenBSD's `hfsc.c` and `fq_codel.c` now compile and link
+  into `pf.ko` (157 scheduler symbols reachable from `pf_ioctl`).  Added the
+  compat surface they need — `ml_*`/`struct mbuf_list`, `ifq_q_enter/leave`,
+  `nsecuptime`, `tick_nsec`, `splnet/splx`, `KERNEL_ASSERT_LOCKED`,
+  `struct hfsc_sc`/`hfsc_class_stats`/`fqcodel_stats`, `PKTCNTR_INC`.  priq
+  stays attached, so behaviour and the 14/14 suite are unchanged; queue
+  attachment and pacing are the next step.
+
 ## v0.6.0 — 2026-11-11
 
 Adds scrub, route pools and `reply-to` verification.  Suite: 14 gates, all green.

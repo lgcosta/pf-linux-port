@@ -9,7 +9,7 @@ real OpenBSD `pfctl` over the `/dev/pf` ioctl ABI. (A second module for the
 **Status:** the filter core, stateful filtering, tables, anchors, NAT
 (`nat-to`/`rdr-to`/`binat-to`), forced routing (`route-to`/`dup-to`), `divert`
 and `pflog` are **verified in a real libvirt lab** (14/14 gates green).  The
-remaining features (ALTQ/pfq, af-to) are still pending — honest per-feature status:
+remaining features (queue attachment/pacing, af-to) are still pending — honest per-feature status:
 [`docs/en/feature-matrix.md`](docs/en/feature-matrix.md).
 Demo (asciinema): [`docs/en/demo.md`](docs/en/demo.md).
 Design: [`docs/superpowers/specs/2026-11-11-pf-linux-port-design.md`](docs/superpowers/specs/2026-11-11-pf-linux-port-design.md)
@@ -24,7 +24,7 @@ Design: [`docs/superpowers/specs/2026-11-11-pf-linux-port-design.md`](docs/super
 | M2 | filter core: rules/states/tables/anchors, VM gates 01–04 | **done** — gates 01/02/03/04 green |
 | M3 | NAT (`nat-to`/`rdr-to`/`binat-to`), scrub | **done** — gates 05/06/07/09 (incl. 2 MB integrity through a redirect, min-ttl/max-mss measured) |
 | M4 | route-to/dup-to/reply-to, divert e2e, pflog | **done** — divert (11), pflog (12), route-to/dup-to (08), pools (10), reply-to (13) verified |
-| M5 | queues: HFSC/FQ-CoDel back ends + `pfq` qdisc | pending |
+| M5 | queues: HFSC/FQ-CoDel back ends + queue attachment | **partial** — both back ends now compile and link into `pf.ko` (suite still 14/14); priq remains attached, no bandwidth enforced yet |
 | M6 | docs complete, patchset tidy, full suite green, tagged release | **done** — docs EN+PT-BR, 11/11 suite green, tagged (v0.5.0) |
 
 ## What you get (planned)

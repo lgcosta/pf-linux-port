@@ -332,7 +332,9 @@ control_law(struct codel *cd, struct codel_params *cp, int64_t rts)
 	unsigned int idx;
 
 	KASSERT(cd->drops > 0);
-	idx = min(cd->drops - 1, nitems(codel_intervals) - 1);
+	/* PFLINUX: Linux' min() type-checks its arguments; nitems() is size_t */
+	idx = min_t(unsigned int, cd->drops - 1,
+	    (unsigned int)(nitems(codel_intervals) - 1));
 	cd->next = rts + cp->intervals[idx];
 }
 

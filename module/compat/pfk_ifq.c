@@ -273,10 +273,11 @@ static const struct pfq_ops pfk_priq_pfq_ops = {
  * packets are still queued, but the traffic shaping curves are not yet
  * applied — recorded in the feature matrix as pending M5).
  */
-const struct ifq_ops * const ifq_hfsc_ops = &pfk_priq_ifq_ops;
-const struct ifq_ops * const ifq_fqcodel_ops = &pfk_priq_ifq_ops;
-const struct pfq_ops * const pfq_hfsc_ops = &pfk_priq_pfq_ops;
-const struct pfq_ops * const pfq_fqcodel_ops = &pfk_priq_pfq_ops;
+/*
+ * M5: the real scheduler back ends (pfsrc/hfsc.c, pfsrc/fq_codel.c) define
+ * ifq_hfsc_ops/pfq_hfsc_ops/ifq_fqcodel_ops/pfq_fqcodel_ops themselves; the
+ * priq shim above stays as the default for interfaces without a queue rule.
+ */
 
 /* ---------------- framework ---------------- */
 void
@@ -303,6 +304,29 @@ ifq_attach(struct ifqueue *ifq, const struct ifq_ops *ops, void *opsarg)
 		opsarg = ops->ifqop_alloc(0, NULL);
 	ifq->ifq_ops = ops;
 	ifq->ifq_softc = opsarg;
+}
+
+/*
+ * Scheduler hand-off used by the ported back ends (hfsc/fq_codel) when they
+ * need their per-interface state.  PFLINUX: the port has no ifq mutex (the
+ * data path is a single ordered work queue), so "enter" is a plain ownership
+ * check and "leave" is a no-op - the pair exists to mirror OpenBSD's API.
+ */
+void *
+ifq_q_enter(struct ifqueue *ifq, const struct ifq_ops *ops)
+{
+	if (ifq == NULL || ops == NULL || ifq->ifq_ops != ops)
+		return NULL;			/* another scheduler owns it */
+	if (ifq->ifq_softc == NULL && ops->ifqop_alloc)
+		ifq->ifq_softc = ops->ifqop_alloc(0, NULL);
+	return ifq->ifq_softc;
+}
+
+void
+ifq_q_leave(struct ifqueue *ifq, void *q)
+{
+	(void)ifq;
+	(void)q;
 }
 
 void
@@ -423,19 +447,3 @@ ifq_hdatalen(struct ifqueue *ifq)
 	return 0;
 }
 
-/* ---------------- scheduler back ends (milestone M5) ---------------- */
-/* The staged OpenBSD hfsc.c/fq_codel.c are not in the build yet; the priq
- * ops above are the active scheduler.  These wrappers keep pf_ioctl's
- * initialisation calls valid until M5 replaces them with the ported
- * schedulers (docs/porting-notes.md). */
-void
-hfsc_initialize(void)
-{
-	pr_info("pfk: hfsc back end pending M5 (priq active)\n");
-}
-
-void
-fq_codel_initialize(void)
-{
-	pr_info("pfk: fq_codel back end pending M5 (priq active)\n");
-}

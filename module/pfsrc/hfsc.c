@@ -335,9 +335,9 @@ hfsc_class_purge(struct hfsc_class *cl, struct mbuf_list *ml)
 }
 
 static inline u_int
-hfsc_more_slots(u_int current)
+hfsc_more_slots(u_int cur)	/* PFLINUX: 'current' is a kernel macro */
 {
-	u_int want = current * 2;
+	u_int want = cur * 2;
 
 	return (want > HFSC_MAX_CLASSES ? HFSC_MAX_CLASSES : want);
 }

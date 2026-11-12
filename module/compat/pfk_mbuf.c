@@ -607,3 +607,14 @@ pfk_mbuf_exit(void)
 {
 	kmem_cache_destroy(pfk_mbuf_cache);
 }
+
+void
+ml_purge(struct mbuf_list *ml)
+{
+	struct mbuf *m;
+
+	while ((m = ml_dequeue(ml)) != NULL)
+		m_freem(m);
+	ml->ml_first = ml->ml_last = NULL;
+	ml->ml_len = 0;
+}

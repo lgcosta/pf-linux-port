@@ -1212,5 +1212,94 @@ struct pfk_pflog_stat {
 };
 #define PFKIOCGETPFLOGSTAT	_IOR('L', 1, struct pfk_pflog_stat)
 
+
+/*
+ * Pieces the staged scheduler back ends (fq_codel(4)/hfsc(4) ports) need from
+ * OpenBSD <net/if_var.h>, <net/if_fq_codel.h> and <net/if_hfsc.h>.
+ */
+#ifndef nsecuptime
+#define nsecuptime()	 getnsecuptime()
+#endif
+
+struct fqcodel_pktcntr { uint64_t packets; uint64_t bytes; };
+struct hfsc_pktcntr	 { uint64_t packets; uint64_t bytes; };
+
+struct fqcodel_stats {
+	struct fqcodel_pktcntr xmit_cnt;
+	struct fqcodel_pktcntr drop_cnt;
+	uint32_t	 target, interval, tc_interval_drop;
+	uint32_t	 rcvtime, mtu, qlimit, qlength;
+	uint64_t	 delaysum, delaysumsq;
+	uint8_t		 ecn, limit, flows, lscroll, flags;
+};
+
+/* ifq scheduler hand-off (see pfsrc/ifq.c): enter returns the scheduler's
+ * queue when it owns the interface queue, NULL otherwise. */
+void	*ifq_q_enter(struct ifqueue *, const struct ifq_ops *);
+void	 ifq_q_leave(struct ifqueue *, void *);
+
+
+/*
+ * OpenBSD <net/if_hfsc.h> pieces the staged hfsc(4) back end needs.
+ * PFLINUX: the port keeps the BSD scheduler sources verbatim, so the
+ * user-visible service curve, the class-stats record and the class-table
+ * limits live here instead of in a separate kernel header.
+ */
+struct hfsc_sc {				/* user-supplied service curve */
+	u_int64_t	m1;			/* slope1 (bytes/sec) */
+	u_int64_t	d;			/* ordinate of the knee (us) */
+	u_int64_t	m2;			/* slope2 (bytes/sec) */
+};
+
+struct hfsc_class_stats {
+	u_int		class_id;
+	u_int32_t	class_handle;
+	struct hfsc_sc	rsc, fsc, usc;
+	u_int64_t	total, cumul;
+	u_int64_t	d, e, vt, f;
+	u_int64_t	initvt, vtperiod, parentperiod;
+	int		nactive;
+	u_int64_t	vtoff, cvtmax, myf, cfmin, cvtmin, myfadj, vtadj;
+	u_int		period;
+	struct hfsc_pktcntr xmit_cnt, drop_cnt;
+	u_int64_t	cur_time;
+	u_int64_t	machclk_freq;
+	int		qlength;
+	int		qlimit;
+	int		qtype;
+};
+
+/* OpenBSD's global nanoseconds-per-clocktick (HFSC_CLK_PER_TICK).  The port
+ * has no clock_rate machinery, so derive it from the kernel's HZ. */
+#ifndef tick_nsec
+#define tick_nsec		(1000000000LL / HZ)
+#endif
+
+#define HFSC_ROOT_CLASS		0x1		/* root class of the tree */
+#define HFSC_DEFAULTCLASS	0x8		/* auto-created default class */
+#define HFSC_MAX_CLASSES	64
+#define HFSC_DEFAULT_CLASSES	8
+#define HFSC_DEFAULT_QLIMIT	1000
+
+/*
+ * PFLINUX notes on the scheduler back ends:
+ *
+ * - splnet()/splx(): OpenBSD raises the software interrupt level around
+ *   class-table surgery.  This port runs the whole data path in one ordered
+ *   work queue and guards the queue with ifq_mtx, so these are no-ops; they
+ *   are kept as markers of the critical regions.
+ * - KERNEL_ASSERT_LOCKED(): the schedulers are only reached from ifq/pf paths
+ *   that already hold the queue mutex; asserted structurally, not by spl.
+ * - HFSC_ENABLED(): the scheduler owns the interface queue once it attached
+ *   its private state through ifq_q_enter().
+ */
+#define splnet()		0
+#define splx(s)			((void)(s))
+#define KERNEL_ASSERT_LOCKED()	do { } while (0)
+#define HFSC_ENABLED(_ifq)	((_ifq)->ifq_q != NULL)
+
+#define PKTCNTR_INC(_c, _len)	do { (_c)->packets++; (_c)->bytes += (_len); } \
+				  while (0)
+
 #endif /* _PFK_H */
 

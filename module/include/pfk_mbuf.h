@@ -73,7 +73,7 @@ struct pkthdr {
 	u_int32_t		 ph_flowid;
 	u_int			 ph_ifidx;
 	u_int			 ph_rtableid;
-	struct pfk_timeval	 ph_timestamp;
+	int64_t			 ph_timestamp;	/* OpenBSD 8.0: nanoseconds */
 	struct pfk_ifnet	*ifp;
 	struct pfk_ifnet	*rcvif;
 	u_short			 ph;		/* tso segs: unused, kept as pad */

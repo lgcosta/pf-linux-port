@@ -74,6 +74,79 @@ ml_dequeue(struct mbuf_list *ml)
 	return m;
 }
 
+
+/* BSD <net/if_var.h> mbuf_list helpers (net/if_var.h ml_*) */
+static inline void
+ml_init(struct mbuf_list *ml)
+{
+	ml->ml_first = ml->ml_last = NULL;
+	ml->ml_len = 0;
+}
+
+static inline void
+ml_enqueue(struct mbuf_list *ml, struct mbuf *m)
+{
+	m->m_next = NULL;
+	if (ml->ml_last == NULL)
+		ml->ml_first = m;
+	else
+		ml->ml_last->m_next = m;
+	ml->ml_last = m;
+	ml->ml_len++;
+}
+
+static inline struct mbuf *
+ml_dequeue_tail(struct mbuf_list *ml)
+{
+	struct mbuf *m, *prev = NULL;
+
+	if (ml->ml_first == NULL)
+		return NULL;
+	for (m = ml->ml_first; m->m_next; m = m->m_next)
+		prev = m;
+	if (prev == NULL)			/* single element */
+		ml->ml_first = NULL;
+	else
+		prev->m_next = NULL;
+	ml->ml_last = prev;
+	ml->ml_len--;
+	m->m_next = NULL;
+	return m;
+}
+
+/* append every packet in m2 to m1 (m2 becomes empty) */
+static inline void
+ml_enlist(struct mbuf_list *m1, struct mbuf_list *m2)
+{
+	if (m2->ml_first == NULL)
+		return;
+	if (m1->ml_last == NULL)
+		m1->ml_first = m2->ml_first;
+	else
+		m1->ml_last->m_next = m2->ml_first;
+	m1->ml_last = m2->ml_last;
+	m1->ml_len += m2->ml_len;
+	m2->ml_first = m2->ml_last = NULL;
+	m2->ml_len = 0;
+}
+
+static inline unsigned int
+ml_len(const struct mbuf_list *ml)
+{
+	return (unsigned int)ml->ml_len;
+}
+
+static inline int
+ml_empty(const struct mbuf_list *ml)
+{
+	return ml->ml_first == NULL;
+}
+
+void	ml_purge(struct mbuf_list *ml);	/* compat/pfk_mbuf.c (needs m_freem) */
+
+#define MBUF_LIST_FIRST(_ml)		((_ml)->ml_first)
+#define MBUF_LIST_INITIALIZER()		{ NULL, NULL, 0 }
+
 /* egress interface (default-route dev), maintained on fib/net events */
 struct pfk_ifnet *pfk_egress_if(void);
 void pfk_egress_refresh(void);

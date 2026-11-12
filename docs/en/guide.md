@@ -92,7 +92,7 @@ rebuilt.
 | M2 | filter core: rules/states/tables/anchors VM gates | **done** — gates 01–04 green |
 | M3 | NAT (`nat-to`/`rdr-to`/`binat-to`), scrub, pflog | **done** — gates 05/06/07/09 (incl. 2 MB integrity through a redirect) and pflog gate 12 |
 | M4 | route-to/dup-to/reply-to, pools, divert e2e | **done** — gates 08/10/13 and divert gate 11 |
-| M5 | queues: ifq back ends (hfsc/fq_codel) + `pfq` qdisc | pending (scheduler code ported, qdisc missing) |
+| M5 | queues: ifq back ends (hfsc/fq_codel) | **partial** — back ends compiled into `pf.ko`; queue attachment/pacing pending |
 | M6 | docs complete, patchset tidy, full suite green, tagged releases | in progress — docs EN+PT-BR complete, 14/14 suite green, tagged |
 
 ## Next reads
