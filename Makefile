@@ -1,7 +1,7 @@
 # PF-on-Linux top-level make
 KERNELDIR ?= $(HOME)/lab/linux_kernel/linux-7.3.4
 
-.PHONY: module tools kernel test clean vm vm-destroy docs demo
+.PHONY: module tools kernel test stress clean vm vm-destroy docs demo
 
 module:
 	$(MAKE) -C $(KERNELDIR) M=$(CURDIR)/module modules
@@ -20,6 +20,12 @@ vm-destroy:
 
 test:
 	./scripts/vm-run-tests.sh
+
+# Stress: throughput/state/rule/table churn against the lab, with a report in
+# out/stress/<timestamp>/report.md.  Pass options through, e.g.
+#   make stress ARGS="--quick"
+stress:
+	./scripts/stress/run-stress.sh $(ARGS)
 
 docs:
 	@for f in docs/en/*.md; do echo "EN  $$f"; done
