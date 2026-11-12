@@ -1203,4 +1203,14 @@ int	pf_anchor_stack_pop(struct pf_ruleset **, struct pf_rule **,
 struct inpcb;
 void	pf_remove_divert_state(struct inpcb *);
 
+/* pflog backend (/dev/pflog) - 'L' keeps the namespace clear of DIOC* ('P') */
+struct pfk_pflog_stat {
+	u_int64_t	queued;		/* records currently queued	*/
+	u_int64_t	bytes;		/* bytes queued			*/
+	u_int64_t	dropped;	/* records dropped (queue full)	*/
+	u_int64_t	seq;		/* records produced since load	*/
+};
+#define PFKIOCGETPFLOGSTAT	_IOR('L', 1, struct pfk_pflog_stat)
+
 #endif /* _PFK_H */
+

@@ -94,6 +94,8 @@ static struct miscdevice pfk_dev = {
 extern void pf_status_init(void);
 extern int pfattach(int);
 extern int pfk_divert_sock_register(void);
+extern int pfk_pflog_register(void);
+extern void pfk_pflog_unregister(void);
 extern void pfk_divert_sock_unregister(void);
 
 static void
@@ -133,9 +135,12 @@ static int __init pfk_init(void)
 	pfattach(0);
 	pfk_if_set_event_cb(pfk_pfi_event);
 	pfk_if_iterate(pfk_pfi_attach_one);
-	err = pfk_divert_sock_register();
+	err = pfk_pflog_register();
 	if (err)
 		goto err_if;
+	err = pfk_divert_sock_register();
+	if (err)
+		goto err_pflog;
 	err = pfk_hooks_register();
 	if (err)
 		goto err_divert;
@@ -147,6 +152,8 @@ static int __init pfk_init(void)
 err_hooks:
 	pfk_divert_sock_unregister();
 err_divert:
+	pfk_pflog_unregister();
+err_pflog:
 	pfk_hooks_unregister();
 err_if:
 	pfk_if_exit();
@@ -166,6 +173,7 @@ static void __exit pfk_exit(void)
 	 * workqueues non-empty forever (observed rmmod hang). */
 	misc_deregister(&pfk_dev);
 	pfk_divert_sock_unregister();
+	pfk_pflog_unregister();
 	pfk_net_lock();
 	pf_status.running = 0;
 	pfk_net_unlock();

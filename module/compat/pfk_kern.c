@@ -619,16 +619,5 @@ if_congested(void)
 }
 
 
-/* ---------------- pflog (netlink backend, milestone M4) ---------------- */
-/* NPFLOG=1: the staged if_pflog.c needs the OpenBSD ifpf layer; until the
- * netlink-backed pflog lands (M4), pflog_packet() consumes nothing and
- * reports the missing backend at least once so logged packets are never
- * silently vanished (see docs/porting-notes.md). */
-int
-pflog_packet(struct pf_pdesc *pd, u_int8_t reason, struct pf_rule *rm,
-    struct pf_rule *am, struct pf_ruleset *ruleset, struct pf_rule *cm)
-{
-	(void)pd; (void)reason; (void)rm; (void)am; (void)ruleset; (void)cm;
-	pr_warn_once("pfk: pflog backend pending M4; packet not logged\n");
-	return (0);
-}
+/* pflog_packet() lives in pfsrc/pfk_pflog.c (the /dev/pflog backend). */
+

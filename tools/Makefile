@@ -57,7 +57,7 @@ GOODTESTS := tests/01_basic.conf tests/02_translations.conf \
 	tests/03_queues_scrub.conf
 
 .PHONY: all pfctl abitest test abi clean
-all: pfctl abitest pdivert
+all: pfctl abitest pdivert pflogd
 
 pfctl: $(OUT)/pfctl
 
@@ -190,3 +190,12 @@ $(PD): pdivert/pdivert.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ pdivert/pdivert.c
 
 clean: 
+
+# ---------------------------------------------------------------------------
+# pflogd - reads /dev/pflog and writes DLT_PFLOG pcap (self-contained)
+LOGD := $(OUT)/pflogd
+pflogd: $(LOGD)
+
+$(LOGD): pflogd/pflogd.c
+	@mkdir -p $(OUT)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ pflogd/pflogd.c

@@ -20,7 +20,7 @@ pf-objs := pfsrc/pfk_mod.o pfsrc/pfk_hooks.o \
 # ported OpenBSD 8.0 engine
 pf-objs += pfsrc/pf_ruleset.o pfsrc/pf_table.o pfsrc/pf_norm.o pfsrc/pf_if.o \
            pfsrc/pf_lb.o pfsrc/pf_osfp.o pfsrc/pf_syncookies.o \
-           pfsrc/pf_ioctl.o pfsrc/pf.o pfsrc/divert_sock.o
+           pfsrc/pf_ioctl.o pfsrc/pf.o pfsrc/divert_sock.o pfsrc/pfk_pflog.o
 
 # queueing framework (compat/pfk_ifq.c implements the ifq API with priq
 # semantics; the OpenBSD hfsc/fq_codel back ends land in milestone M5)
