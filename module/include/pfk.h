@@ -1214,62 +1214,18 @@ struct pfk_pflog_stat {
 
 
 /*
- * Pieces the staged scheduler back ends (fq_codel(4)/hfsc(4) ports) need from
- * OpenBSD <net/if_var.h>, <net/if_fq_codel.h> and <net/if_hfsc.h>.
+ * Scheduler back-end ABI: the very headers OpenBSD ships (net/hfsc.h,
+ * net/fq_codel.h), vendored into the port so that pfctl and pf.ko agree on the
+ * stats layouts and on the class-handle/service-curve constants.  (Hand-rolled
+ * approximations of these structs made DIOCGETQSTATS fail with EINVAL, because
+ * pfctl's sizeof(struct hfsc_class_stats) did not match the kernel's.)
  */
 #ifndef nsecuptime
 #define nsecuptime()	 getnsecuptime()
 #endif
 
-struct fqcodel_pktcntr { uint64_t packets; uint64_t bytes; };
-struct hfsc_pktcntr	 { uint64_t packets; uint64_t bytes; };
-
-struct fqcodel_stats {
-	struct fqcodel_pktcntr xmit_cnt;
-	struct fqcodel_pktcntr drop_cnt;
-	uint32_t	 target, interval, tc_interval_drop;
-	uint32_t	 rcvtime, mtu, qlimit, qlength;
-	uint64_t	 delaysum, delaysumsq;
-	uint8_t		 ecn, limit, flows, lscroll, flags;
-};
-
-/* ifq scheduler hand-off (see pfsrc/ifq.c): enter returns the scheduler's
- * queue when it owns the interface queue, NULL otherwise. */
-void	*ifq_q_enter(struct ifqueue *, const struct ifq_ops *);
-void	 ifq_q_leave(struct ifqueue *, void *);
-int	 pfk_ifq_transmit(struct ifqueue *, struct mbuf *);
-int	 pf_kifq_input(struct pfk_ifnet *, struct mbuf *);
-
-
-/*
- * OpenBSD <net/if_hfsc.h> pieces the staged hfsc(4) back end needs.
- * PFLINUX: the port keeps the BSD scheduler sources verbatim, so the
- * user-visible service curve, the class-stats record and the class-table
- * limits live here instead of in a separate kernel header.
- */
-struct hfsc_sc {				/* user-supplied service curve */
-	u_int64_t	m1;			/* slope1 (bytes/sec) */
-	u_int64_t	d;			/* ordinate of the knee (us) */
-	u_int64_t	m2;			/* slope2 (bytes/sec) */
-};
-
-struct hfsc_class_stats {
-	u_int		class_id;
-	u_int32_t	class_handle;
-	struct hfsc_sc	rsc, fsc, usc;
-	u_int64_t	total, cumul;
-	u_int64_t	d, e, vt, f;
-	u_int64_t	initvt, vtperiod, parentperiod;
-	int		nactive;
-	u_int64_t	vtoff, cvtmax, myf, cfmin, cvtmin, myfadj, vtadj;
-	u_int		period;
-	struct hfsc_pktcntr xmit_cnt, drop_cnt;
-	u_int64_t	cur_time;
-	u_int64_t	machclk_freq;
-	int		qlength;
-	int		qlimit;
-	int		qtype;
-};
+#include <net/hfsc.h>
+#include <net/fq_codel.h>
 
 /* OpenBSD's global nanoseconds-per-clocktick (HFSC_CLK_PER_TICK).  The port
  * has no clock_rate machinery, so derive it from the kernel's HZ. */
@@ -1277,18 +1233,13 @@ struct hfsc_class_stats {
 #define tick_nsec		(1000000000LL / HZ)
 #endif
 
-/*
- * Class-handle namespace.  pf queue ids are u_int16_t, so the root class gets
- * a high bit that can never collide with a queue handle (a collision made
- * hfsc_pf_addqueue() see the root class as a duplicate and refuse the queue
- * with EBUSY).  HFSC_DEFAULTCLASS must equal PFQS_DEFAULT because hfsc.c
- * receives the pf queue flags verbatim.
- */
-#define HFSC_ROOT_CLASS		0x80000000u
-#define HFSC_DEFAULTCLASS	0x1000
-#define HFSC_MAX_CLASSES	64
-#define HFSC_DEFAULT_CLASSES	8
-#define HFSC_DEFAULT_QLIMIT	1000
+/* ifq scheduler hand-off (see pfsrc/ifq.c): enter returns the scheduler's
+ * queue state when it owns the interface queue, NULL otherwise. */
+void	*ifq_q_enter(struct ifqueue *, const struct ifq_ops *);
+void	 ifq_q_leave(struct ifqueue *, void *);
+int	 pfk_ifq_transmit(struct ifqueue *, struct mbuf *);
+int	 pf_kifq_input(struct pfk_ifnet *, struct mbuf *);
+
 
 /*
  * PFLINUX notes on the scheduler back ends:
@@ -1299,16 +1250,13 @@ struct hfsc_class_stats {
  *   are kept as markers of the critical regions.
  * - KERNEL_ASSERT_LOCKED(): the schedulers are only reached from ifq/pf paths
  *   that already hold the queue mutex; asserted structurally, not by spl.
- * - HFSC_ENABLED(): the scheduler owns the interface queue once it attached
- *   its private state through ifq_q_enter().
+ * - HFSC_ENABLED(), PKTCNTR_INC(), the class-handle constants and the stats
+ *   layouts all come from the vendored net/hfsc.h / net/fq_codel.h above, so
+ *   kernel and pfctl cannot drift apart.
  */
 #define splnet()		0
 #define splx(s)			((void)(s))
 #define KERNEL_ASSERT_LOCKED()	do { } while (0)
-#define HFSC_ENABLED(_ifq)	((_ifq)->ifq_q != NULL)
-
-#define PKTCNTR_INC(_c, _len)	do { (_c)->packets++; (_c)->bytes += (_len); } \
-				  while (0)
 
 #endif /* _PFK_H */
 

@@ -1828,6 +1828,8 @@ deps_pfsrc/pf_osfp.o := \
   include/compat/sys/rwlock.h \
   include/compat/sys/mutex.h \
   include/compat/sys/pclock.h \
+  include/net/hfsc.h \
+  include/net/fq_codel.h \
 
 pfsrc/pf_osfp.o: $(deps_pfsrc/pf_osfp.o)
 

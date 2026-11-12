@@ -1828,6 +1828,8 @@ deps_compat/pfk_xmit.o := \
   include/compat/sys/rwlock.h \
   include/compat/sys/mutex.h \
   include/compat/sys/pclock.h \
+  include/net/hfsc.h \
+  include/net/fq_codel.h \
   include/pfk_api.h \
 
 compat/pfk_xmit.o: $(deps_compat/pfk_xmit.o)

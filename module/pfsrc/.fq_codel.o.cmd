@@ -1828,6 +1828,8 @@ deps_pfsrc/fq_codel.o := \
   include/compat/sys/rwlock.h \
   include/compat/sys/mutex.h \
   include/compat/sys/pclock.h \
+  include/net/hfsc.h \
+  include/net/fq_codel.h \
 
 pfsrc/fq_codel.o: $(deps_pfsrc/fq_codel.o)
 

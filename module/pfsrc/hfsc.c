@@ -481,7 +481,16 @@ hfsc_pf_qstats(struct pf_queuespec *q, void *ubuf, int *nbytes)
 	if (hif == NULL)
 		return (EBADF);
 
-	if ((cl = hfsc_clh2cph(hif, q->qid)) == NULL) {
+	/*
+	 * A root queue's class is created with handle HFSC_ROOT_CLASS | qid
+	 * (see hfsc_pf_addqueue), so looking the queue up by its plain pf qid
+	 * only finds non-root classes: fall back to the root handle, otherwise
+	 * "pfctl -s queue" fails with EINVAL on the first (root) queue.
+	 */
+	if ((cl = hfsc_clh2cph(hif, q->qid)) == NULL &&
+	    (q->flags & PFQS_ROOTCLASS))
+		cl = hfsc_clh2cph(hif, HFSC_ROOT_CLASS | q->qid);
+	if (cl == NULL) {
 		ifq_q_leave(&ifp->if_snd, hif);
 		return (EINVAL);
 	}

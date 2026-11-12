@@ -1828,6 +1828,8 @@ deps_pfsrc/pfk_hooks.o := \
   include/compat/sys/rwlock.h \
   include/compat/sys/mutex.h \
   include/compat/sys/pclock.h \
+  include/net/hfsc.h \
+  include/net/fq_codel.h \
   include/pfk_api.h \
 
 pfsrc/pfk_hooks.o: $(deps_pfsrc/pfk_hooks.o)

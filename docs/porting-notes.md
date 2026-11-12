@@ -969,3 +969,64 @@ Two port fixes worth recording:
   kernel macro** (`get_current()`), which turned the definition into a K&R
   function and produced a baffling "makes pointer from integer" error at the
   call site.
+
+## ifq contract details found while wiring the schedulers (M5)
+
+The staged OpenBSD back ends assume three things the first version of the
+port's ifq shim got wrong.  All three were reproduced in the lab and fixed:
+
+| Assumption | What the port did | Fix |
+|---|---|---|
+| `ifqop_enq()` returns **the packet to drop** (NULL = accepted) | treated a non-NULL return as an error (`ENOMEM`) and the NULL return as success → every accepted packet was reported as dropped | `ifq_enqueue()` frees the returned mbuf and reports success |
+| the scheduler state lives in `ifq->ifq_q` | `ifq_attach()` stored it in `ifq_softc` only → `hfsc_enq()` dereferenced NULL and the box died mid-transfer | `ifq_attach()` keeps both fields in sync |
+| `ifq_deq_begin()`'s cookie is consumed by `ifq_deq_commit()` | the cookie was dropped on the floor (always NULL) | a per-queue `ifq_dequeue` slot carries it |
+
+Also fixed: the hfsc **root-class handle** used bit `0x1`, which is exactly the
+handle of any odd pf queue id, so `hfsc_pf_addqueue()` saw the root class as a
+duplicate of the queue being added and returned `EBUSY` ("cannot add queue").
+Handles now use bit `0x80000000`; pf queue ids are `u_int16_t`, so they can
+never collide.
+
+### `splassert` under rw-semas
+
+`PF_ASSERT_UNLOCKED()` (used by `pf_purge_expired_states()`) is a BSD
+per-CPU-spl check: "this context did not take the lock".  With an rw-semaphore
+`rw_status()` is global, so the assert fires whenever *another* CPU holds the
+lock - which is not a bug, and `BUG()` there turned a harmless race into a
+wedged module (`Unloading`, refcount -1).  It now logs once
+(`pr_warn_ratelimited`) instead of killing the host; the invariant it protects
+(purge never acquires `pf_lock` itself) is upheld by the call sites, which are
+only reached from `systqmp` tasks and timer work.
+
+### What `bandwidth` can and cannot do here
+
+OpenBSD 8.0's `pfctl` keyword table exposes `burst`, `flows`, `qlimit`,
+`parent`, `default` - **not** `minimum`/`maximum`.  A pf `queue` therefore only
+sets HFSC's **linkshare** curve (`qspec.linkshare = scspec` in `expand_queue`).
+Linkshare is a *guarantee under contention*, not a cap: a single active class
+may run at line rate, and `bandwidth 2Mbit` alone will not make one flow
+measure 2 Mbit/s.  Verifying HFSC in this port therefore requires two competing
+leaf queues and comparing their shares - which is the remaining M5 item, not a
+code defect in the queue path (attach, enqueue, drain and transmit are
+verified: `eth2` carries the hfsc ops, 117 drains observed, transfer completes,
+box stays alive).
+
+## Scheduler ABI must be shared, not re-implemented (M5)
+
+The first version of this note hand-wrote `struct hfsc_class_stats`,
+`struct fqcodel_stats`, `struct hfsc_sc` and the `HFSC_*` constants in `pfk.h`
+from memory of the BSD sources.  Two consequences showed up in the lab:
+
+1. `pfctl -s queue -v` failed with `EINVAL` - `hfsc_pf_qstats()` rejects the
+   call when `*nbytes < sizeof(stats)`, and pfctl's struct (from the vendored
+   `net/hfsc.h`) was smaller than the kernel's invented one.
+2. `HFSC_ROOT_CLASS` was guessed as `0x1`, which is exactly the handle of every
+   odd pf queue id, so `hfsc_pf_addqueue()` refused every root queue with
+   `EBUSY`.  The real value is `0x10000`, safely above the `u_int16_t` qid
+   range.
+
+The port now vendors OpenBSD's `net/hfsc.h` and `net/fq_codel.h` into
+`module/include/net/` and includes them from `pfk.h`, so kernel and pfctl
+compile against one definition.  Rule for anything else in this area: if a
+struct crosses the ioctl boundary, take the header from OpenBSD's tree - do not
+reconstruct it.

@@ -115,11 +115,22 @@ pfk_pflog_pull(struct mbuf *m, char *buf, size_t want)
 {
 	struct sk_buff *skb = m ? m_to_skb(m) : NULL;
 	size_t n;
+	int off;
 
 	if (skb == NULL)
 		return 0;
-	n = min_t(size_t, want, skb->len);
-	if (skb_copy_bits(skb, 0, buf, n))
+	/*
+	 * BSD logs from the network header; pf may already have advanced the
+	 * mbuf/skb data pointer to the transport header while parsing, so
+	 * anchor explicitly at the IP header instead of at skb->data.
+	 */
+	off = skb_network_offset(skb);
+	if (off < 0)
+		off = 0;
+	if (off > skb->len)
+		return 0;
+	n = min_t(size_t, want, skb->len - off);
+	if (skb_copy_bits(skb, off, buf, n))
 		return 0;
 	return n;
 }

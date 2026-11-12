@@ -24,7 +24,7 @@ Design: [`docs/superpowers/specs/2026-11-11-pf-linux-port-design.md`](docs/super
 | M2 | filter core: rules/states/tables/anchors, VM gates 01–04 | **done** — gates 01/02/03/04 green |
 | M3 | NAT (`nat-to`/`rdr-to`/`binat-to`), scrub | **done** — gates 05/06/07/09 (incl. 2 MB integrity through a redirect, min-ttl/max-mss measured) |
 | M4 | route-to/dup-to/reply-to, divert e2e, pflog | **done** — divert (11), pflog (12), route-to/dup-to (08), pools (10), reply-to (13) verified |
-| M5 | queues: HFSC/FQ-CoDel back ends + queue attachment | **partial** — both back ends now compile and link into `pf.ko` (suite still 14/14); priq remains attached, no bandwidth enforced yet |
+| M5 | queues: HFSC back end in the data path | **done (mechanical)** — gate 15: queues load, hfsc attaches, `pfctl -s queue -v` reports class stats, a 2 MB queued flow is counted by the class. `bandwidth` = HFSC linkshare (guarantee, not cap; 8.0 has no upperlimit syntax) |
 | M6 | docs complete, patchset tidy, full suite green, tagged release | **done** — docs EN+PT-BR, 11/11 suite green, tagged (v0.5.0) |
 
 ## What you get (planned)
@@ -35,7 +35,7 @@ Design: [`docs/superpowers/specs/2026-11-11-pf-linux-port-design.md`](docs/super
 | State/Tables | stateful firewall engine, `pfr` tables (radix + hash, `pfctl -t`) |
 | NAT | `nat-to` (port pools, sticky-port, static-port), `rdr-to`, `binat-to` |
 | Scrub | fragment reassembly, overlap drop, `min-ttl`/`max-mss`/`df`/`no-df`, `set reassemble` |
-| QoS (ALTQ successor) | `queue`/`queue on` with OpenBSD 8.0 `ifq` schedulers: **default (priq), HFSC, FQ-CoDel**, attached via the `pfq` qdisc; `pfctl -s queue -v` stats |
+| QoS (ALTQ successor) | `queue`/`queue on` with OpenBSD 8.0 `ifq` schedulers: **HFSC verified in the data path** (gate 15), priq default, FQ-CoDel compiled; `pfctl -s queue -v` works |
 | Divert | `divert-to` / `divert` tag + `pdivert` relay over an in-module `PF_DIVERT` socket family (verified: packet to userspace and back) |
 | Route | `route-to`/`dup-to`/`reply-to` + pools (`round-robin`, `source-hash`) verified (`fail-to` no longer exists in OpenBSD 8.0) |
 | Logging | `pflogd` via `/dev/pflog` (DLT_PFLOG pcap, OpenBSD record layout) — verified |

@@ -111,29 +111,31 @@ lendo `/dev/pflog`; sem ele a fila atinge o limite (256 registros / 1 MiB) e
 descarta. Nenhum dos dois é mais stub, mas nenhum faz algo sem o consumidor
 rodar (ver [pf-guide.md](pf-guide.md)).
 
-### 9. Configurar filas esbarra numa asserção de lock no caminho de purge (aberto)
+### 9. Filas: caminho verificado; a semântica de modelagem é do HFSC, não um bug
 
-Carregar uma regra `queue` agora alcança o escalonador (`pfq_alloc` tem sucesso,
-a disciplina hfsc é criada) e `pf_commit_queues()` é exercitada de ponta a ponta.
-Dois bugs foram encontrados e corrigidos no caminho: o handle da classe raiz
-colidia com qids ímpares do pf (`pfq_addqueue` devolvia EBUSY) e a disciplina
-NULL não era verificada.
+`15-queue.sh` prova que o caminho de filas funciona de ponta a ponta: a
+configuração carrega, a disciplina hfsc é anexada à interface, `pfctl -s
+queue -v` lista as duas classes com estatísticas, um fluxo de 2 MB pela fila
+completa, e o contador de pacotes da classe avança - o escalonador está mesmo
+no caminho de dados.
 
-O que ainda bloqueia as filas: o timer de purge do port pode rodar enquanto um
-ioctl segura o lock de escrita, e `pf_purge_expired_states()` afirma o contrário:
+O que o lab não mostra é um *teto de taxa*, e isso é semântica do HFSC, não
+defeito do port: o `pf.conf` do OpenBSD 8.0 expõe apenas `bandwidth`, que mapeia
+para a curva **linkshare** do HFSC - garantia quando classes competem, não limite
+de um fluxo isolado. Não existe palavra-chave `minimum`/`maximum` nesta versão do
+pfctl (verificado na sua tabela de palavras-chave), logo não há como definir
+upperlimit pelo pf.conf. Um teste de contenção com duas classes saturadas seria o
+próximo passo se você quiser asserir sobre share; no enlace virtual de centenas de
+Mbit do lab, um único fluxo termina antes de acumular dívida de tempo virtual.
 
-```
-splassert: pf_purge_expired_states: expected 0, got 2
-kernel BUG at compat/pfk_kern.c:51
-```
-
-O OpenBSD serializa isso com `splnet()`; o port substituiu a camada spl por
-rw-semáforos e work queue, então a asserção passou a ser uma corrida real em vez
-de formalidade. Até corrigi-la (liberar o lock em torno da chamada, ou dar ao
-estado o seu próprio lock como o upstream faz com `pf_state_lock`), um host que
-configure filas pode travar o módulo em `Unloading`. **Não habilite regras
-`queue` em host real ainda** — os 14 gates do lab nunca configuram filas, e é
-por isso que continuam verdes.
+Bugs encontrados e corrigidos no caminho (detalhes em `docs/porting-notes.md`): a
+convenção de retorno de `ifqop_enq`, `ifq_q` vs `ifq_softc` (deref de NULL que
+matava a máquina no meio da transferência), o cookie de dequeue perdido, o
+handle da classe raiz do hfsc colidindo com qids ímpares do pf, o
+`DIOCGETQSTATS` falhando porque kernel e pfctl discordavam sobre
+`struct hfsc_class_stats` (ambos agora usam o `net/hfsc.h` vendorizado), o
+payload do pflog começando no cabeçalho de transporte, e o `splassert` do caminho
+de purge que transformava uma corrida benigna em `BUG()`.
 
 ## Desvios da camada de compat (de `docs/porting-notes.md`, registro do M1)
 

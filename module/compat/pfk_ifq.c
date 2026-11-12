@@ -217,10 +217,14 @@ pfk_pfq_enqueue(void *arg, struct mbuf *m)
 	struct pfk_pfq *pfq = arg;
 
 	if (!pfq)
-		return NULL;
-	if (ifq_enqueue(&pfq->ifq, m) != 0)
-		return NULL;
-	return m;
+		return m;			/* caller keeps ownership */
+	/*
+	 * ifq_enqueue takes ownership of m (the scheduler may drop it); we then
+	 * drain immediately, so nothing is returned for the caller to send.
+	 */
+	ifq_enqueue(&pfq->ifq, m);
+	ifq_start(&pfq->ifq);
+	return NULL;
 }
 
 static struct mbuf *
@@ -303,7 +307,13 @@ ifq_attach(struct ifqueue *ifq, const struct ifq_ops *ops, void *opsarg)
 	if (!opsarg && ops->ifqop_alloc)
 		opsarg = ops->ifqop_alloc(0, NULL);
 	ifq->ifq_ops = ops;
+	/*
+	 * The port's own helpers use ifq_softc; the staged OpenBSD schedulers
+	 * (hfsc/fq_codel) read ifq->ifq_q.  Keep both in sync or the back ends
+	 * dereference a NULL scheduler state.
+	 */
 	ifq->ifq_softc = opsarg;
+	ifq->ifq_q = opsarg;
 }
 
 /*
@@ -336,19 +346,35 @@ ifq_destroy(struct ifqueue *ifq)
 		ifq->ifq_ops->ifqop_free(0, ifq->ifq_softc);
 	ifq->ifq_ops = NULL;
 	ifq->ifq_softc = NULL;
+	ifq->ifq_q = NULL;
 }
 
+/*
+ * ifqop_enq returns the packet the scheduler decided to DROP (possibly the one
+ * just offered), and NULL when the packet was accepted - it is NOT an error
+ * code.  Freeing the returned mbuf is this layer's job.
+ */
 int
 ifq_enqueue(struct ifqueue *ifq, struct mbuf *m)
 {
-	if (!ifq->ifq_ops || !ifq->ifq_ops->ifqop_enq)
+	struct mbuf *dm;
+
+	if (!ifq->ifq_ops || !ifq->ifq_ops->ifqop_enq) {
+		m_freem(m);
 		return EINVAL;
+	}
 	if (ifq->ifq_maxlen && ifq->ifq_len >= ifq->ifq_maxlen) {
 		ifq->ifq_errors++;
 		ifq->ifq_qdrops++;
+		m_freem(m);
 		return ENOBUFS;
 	}
-	return ifq->ifq_ops->ifqop_enq(ifq, m) ? 0 : ENOMEM;
+	dm = ifq->ifq_ops->ifqop_enq(ifq, m);
+	if (dm) {
+		ifq->ifq_qdrops++;
+		m_freem(dm);
+	}
+	return 0;
 }
 
 struct mbuf *
@@ -402,9 +428,12 @@ void
 ifq_start(struct ifqueue *ifq)
 {
 	struct mbuf *m;
+	int n;
 
+	n = 0;
 	ifq->ifq_oactive = 1;
 	while ((m = ifq_dequeue(ifq)) != NULL) {
+		n++;
 		if (pfk_ifq_transmit(ifq, m))
 			break;			/* device busy: packet kept */
 	}
@@ -422,6 +451,8 @@ pf_kifq_input(struct pfk_ifnet *ifp, struct mbuf *m)
 	struct ifqueue *ifq;
 
 	if (ifp == NULL || m == NULL)
+		return 0;
+	if (ifp == NULL)
 		return 0;
 	ifq = &ifp->if_snd;
 	if (ifq->ifq_ops == NULL || ifq->ifq_ops == ifq_priq_ops)

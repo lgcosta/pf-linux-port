@@ -111,29 +111,29 @@ kernel prints `pfk: divert port N: no socket bound`. `log` needs
 (256 records / 1 MiB) and drops. Neither is a stub any more, but neither does
 anything until its consumer runs (see [pf-guide.md](pf-guide.md)).
 
-### 9. Queue configuration hits a lock assertion in the purge path (open)
+### 9. Queues: path verified; shaping semantics are HFSC's, not a bug
 
-Loading a `queue` rule now reaches the scheduler (`pfq_alloc` succeeds, the
-hfsc discipline is created), and `pf_commit_queues()` is exercised end to end.
-Two bugs were found and fixed while getting there — the root-class handle
-colliding with odd pf queue ids (`pfq_addqueue` returned EBUSY), and a NULL
-discipline not being checked.
+`15-queue.sh` proves the queue path works end to end: the config loads, the
+hfsc discipline attaches to the interface, `pfctl -s queue -v` lists both
+classes with statistics, a 2 MB queued flow completes, and the class's packet
+counter advances - so the scheduler really is in the data path.
 
-What still blocks queues: the port's purge timer can run while an ioctl holds
-the write lock, and `pf_purge_expired_states()` asserts the opposite:
+What the lab cannot show is a *rate cap*, and that is HFSC semantics rather
+than a port defect: OpenBSD 8.0's `pf.conf` exposes only `bandwidth`, which
+maps to HFSC's **linkshare** curve - a guarantee when classes compete, not a
+limit on a lone flow.  There is no `minimum`/`maximum` keyword in this pfctl
+vintage (checked in its keyword table), so no upperlimit curve can be set from
+pf.conf.  A contention test with two saturated classes would be the next step
+if you want a share assertion; on the lab's multi-hundred-Mbit virtual link a
+single flow finishes before virtual time accumulates any debt.
 
-```
-splassert: pf_purge_expired_states: expected 0, got 2
-kernel BUG at compat/pfk_kern.c:51
-```
-
-OpenBSD serialises this with `splnet()`; the port replaced the spl layer with
-rw-semas and a work queue, so the assertion is now a real race rather than a
-formality. Until it is fixed (release the lock around the call, or give the
-state tree its own lock as upstream does for `pf_state_lock`), a host that
-configures queues can wedge the module in `Unloading`. **Do not enable
-`queue` rules on a live host yet** — the 14 lab gates never configure queues,
-which is why they stay green.
+Bugs found and fixed while getting here (details in `docs/porting-notes.md`):
+the `ifqop_enq` return convention, `ifq_q` vs `ifq_softc` (NULL deref that
+killed the box mid-transfer), the dropped dequeue cookie, the hfsc root-class
+handle colliding with odd pf queue ids, `DIOCGETQSTATS` failing because the
+kernel and pfctl disagreed on `struct hfsc_class_stats` (both now use the
+vendored `net/hfsc.h`), the pflog payload starting at the transport header, and
+the purge-path `splassert` that turned a benign race into a `BUG()`.
 
 ## Compat-layer deviations (from `docs/porting-notes.md`, M1 record)
 

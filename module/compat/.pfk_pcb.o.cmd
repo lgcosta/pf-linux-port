@@ -1828,6 +1828,8 @@ deps_compat/pfk_pcb.o := \
   include/compat/sys/rwlock.h \
   include/compat/sys/mutex.h \
   include/compat/sys/pclock.h \
+  include/net/hfsc.h \
+  include/net/fq_codel.h \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/net/inet6_hashtables.h \
 
 compat/pfk_pcb.o: $(deps_compat/pfk_pcb.o)

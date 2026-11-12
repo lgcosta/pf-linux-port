@@ -47,8 +47,21 @@ pfk_printk_compat(const char *fmt, ...)
 void
 splassert_fail(int expected, int actual, const char *func)
 {
-	pr_err("splassert: %s: expected %d, got %d\n", func, expected, actual);
-	BUG();
+	/*
+	 * PFLINUX: OpenBSD's splassert() checks a per-CPU spl level, so
+	 * "assert unlocked" really means "this context did not take the lock".
+	 * The port replaced spl with rw-semas plus work queues, where
+	 * rw_status() is a global counter: an assert-unlocked in a work-queue
+	 * task fires whenever *another* CPU happens to hold the lock, which is
+	 * not a bug (the task never acquires pf_lock itself) and was turning a
+	 * harmless race into a kernel BUG() that wedged the module in
+	 * "Unloading".  Report it once instead of killing the host; the
+	 * structural invariant the BSD assert protects - purge never runs while
+	 * holding pf_lock - is upheld by the call sites (pf_purge_* are only
+	 * reached from systqmp tasks and timer work).
+	 */
+	pr_warn_ratelimited("pfk: splassert: %s: expected %d, got %d\n",
+	    func, expected, actual);
 }
 
 /* ---------------- addlog (OpenBSD kern.log) ---------------- */

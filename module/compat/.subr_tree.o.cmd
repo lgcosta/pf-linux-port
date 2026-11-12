@@ -1828,6 +1828,8 @@ deps_compat/subr_tree.o := \
   include/compat/sys/rwlock.h \
   include/compat/sys/mutex.h \
   include/compat/sys/pclock.h \
+  include/net/hfsc.h \
+  include/net/fq_codel.h \
 
 compat/subr_tree.o: $(deps_compat/subr_tree.o)
 
