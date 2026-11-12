@@ -921,3 +921,21 @@ made bulk transfers silently stall (the peer dropped every segment after the
 first) and starved `sshd` on the firewall — the box answered ping but not SSH.
 `tests/vm/06-rdr.sh` pulls 2 MB through a redirect and compares the size to
 catch it.
+
+## pflog backend (M4) — chardev instead of an if_pflog/bpf interface
+
+OpenBSD attaches a `pflog0` interface (`if_pflog.c`, `IFT_PFLOG`) and `pflogd`
+reads it through `bpf(4)`.  This port keeps `if_pflog.c` staged but unbuilt and
+implements the consumer as a misc character device:
+
+| Aspect | OpenBSD | This port |
+|---|---|---|
+| Delivery | `pflog0` interface + bpf | `/dev/pflog` (0600), `read()` returns one record, `poll()` supported |
+| Record | `struct pflog_hdr` (64 bytes) + packet | identical layout (`module/pfsrc/pfk_pflog.c`), packet truncated to 160 bytes like BSD |
+| Consumer | `pflogd` → pcap `DLT_PFLOG` | `tools/pflogd` → pcap `DLT_PFLOG` (117), readable by tcpdump/wireshark |
+| Backpressure | bpf buffer | bounded queue (256 records / 1 MiB), overflow counted in `PFKIOCGETPFLOGSTAT` |
+
+Rationale: a single consumer is the real use case, and Linux gives no bpf hook
+for a non-`net_device` virtual interface without pulling in a much larger
+amount of the BSD if layer.  The on-disk format is unchanged, so existing
+tooling works.

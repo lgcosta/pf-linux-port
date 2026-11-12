@@ -64,7 +64,7 @@ As of 2026-11-11; source of per-row evidence: `out/test-logs/`,
 | HFSC | `queue on wan { hfsc … }` | M5 | COMPILES-untested — **priq fallback until M5**; `pfsrc/hfsc.c` staged (real OpenBSD 8.0 code) but **not in the module object list** |
 | FQ-CoDel | `queue on wan { fq_codel … }` | M5 | COMPILES-untested — same as HFSC: staged, not built |
 | `pfq` qdisc (`tc qdisc … root pfq`) | n/a (Linux glue) | M5 | PENDING-M5 (does not exist in the tree yet) |
-| pflog (`log`, `log all`, `block log`, `pfctl -s log`) + `pflogd` pcap (DLT_PFLOG) | `pass out quick log` | M4 | PENDING-M4 — `pflog_packet()` returns success **without logging** (one-time `pr_warn "packet not logged"`); `if_pflog.c` staged, not built; `pflogd` not ported yet |
+| pflog (`log`, `log all`, `block log`) + `pflogd` pcap (DLT_PFLOG) | `pass out quick log` + `pflogd /tmp/x.pcap` | M4 | **VERIFIED in lab** — gate `12-pflog.sh`: logged packets are queued by the engine, read through `/dev/pflog` and written as a pcap with linktype DLT_PFLOG (117); the dump contains the real packet bytes. Deviation: a chardev instead of an if_pflog/bpf interface (Linux has no bpf over such a virtual interface here); record layout is byte-compatible with OpenBSD `pflog(4)`. `if_pflog.c` stays unbuilt. |
 
 ## Non-goals (explicit)
 
