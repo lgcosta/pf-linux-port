@@ -904,3 +904,20 @@ demonstrates the BSD "receive -> rewrite -> reinject" cycle.
 
 Without step 3 the reply is delivered to the firewall's own stack and the
 client never sees it (the classic "NAT works one way" symptom).
+
+## Checksums across the translation paths
+
+pf rewrites addresses, so both the IPv4 header checksum and the transport
+checksum must stay correct.  Three cases matter in the lab:
+
+| Case | What Linux gives us | What the port does |
+|---|---|---|
+| transit packet, no translation | `CHECKSUM_UNNECESSARY` (vhost-net did not materialize the field) | leave it alone — the peer's stack trusts the marker |
+| translated packet, plain skb | same | recompute the transport checksum in software over the new pseudo-header, then the IP header checksum |
+| translated packet, GSO/TSO skb (bulk, locally generated) | `CHECKSUM_PARTIAL` | **do not** compute in software: one computation covers only the first segment. Restore `CHECKSUM_PARTIAL` with `csum_start`/`csum_offset` and let the NIC compute per segment |
+
+The third row is a regression guard: materializing GSO checksums in software
+made bulk transfers silently stall (the peer dropped every segment after the
+first) and starved `sshd` on the firewall — the box answered ping but not SSH.
+`tests/vm/06-rdr.sh` pulls 2 MB through a redirect and compares the size to
+catch it.

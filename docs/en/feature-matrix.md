@@ -49,8 +49,8 @@ As of 2026-11-11; source of per-row evidence: `out/test-logs/`,
 | Feature | Upstream syntax | Milestone | Status |
 |---|---|---|---|
 | `nat-to` (port pools, sticky-port, static-port) | `pass out … nat-to (eth1:0)` | M3 | **VERIFIED in lab** — source NAT works end to end: the packet leaves with the pool address (tcpdump proof), the reply is de-NATed and re-routed to the client, and the state shows both tuples (`10.0.2.1:59335 (10.0.1.10:4380) -> 10.0.2.20:8`). Gate: `tests/vm/05-nat.sh`. |
-| `rdr-to` | `rdr pass on wan proto tcp from any to any port 8080 -> srv port 80` | M3 | PENDING-M3 |
-| `binat-to` | `binat-to …` | M3 | PENDING-M3 |
+| `rdr-to` | `pass in … to <fw> port 8080 rdr-to <srv> port 80 keep state` | M3 | **VERIFIED in lab** — port redirect works end to end (gate `06-rdr.sh`): the client talks to the firewall's address, pf rewrites the destination, re-routes the packet, and the reply is un-redirected. The gate also pulls 2 MB through the redirect and checks byte-for-byte integrity (GSO/TSO regression guard). |
+| `binat-to` | `binat-to <net>` (no direction) | M3 | PENDING-M3 — parser accepts the 8.0 form (`binat-to` is a rule option, not a standalone rule); VM gate not written yet. |
 | Scrub/normalize: reassembly, `fragment drop-overlap`, `min-ttl`, `max-mss`, `df`/`no-df`, `random-id`, `set reassemble yes` | `match on all scrub (max-mss 1380 …)` | M3 | COMPILES-untested (`pf_norm.c` compiled into pf.ko and reached from `pf_test`; scapy gate 08 pending) |
 | OS fingerprinting in states | `pass … set os A` + `/etc/pf.os` | bonus | COMPILES-untested (`pf_osfp.c` compiled; no fingerprint packaging yet — missing `/etc/pf.os` is tolerated) |
 
