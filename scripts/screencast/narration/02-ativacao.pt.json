@@ -1,0 +1,29 @@
+{
+  "phase": "02-ativacao",
+  "lang": "pt",
+  "voice": "Portuguese_ConfidentWoman",
+  "title": "Ativação",
+  "subtitle": "insmod pf.ko e o pfctl conversa com ele pela ABI de ioctls do OpenBSD",
+  "segments": [
+    {
+      "beat": "b1",
+      "text": "Primeiro a gente garante que não tem nada carregado, para a ativação ser honesta. Sem módulo, sem firewall."
+    },
+    {
+      "beat": "b2",
+      "text": "Agora inserimos. O kernel aceita o módulo e o log mostra a nossa mensagem de inicialização. Este é o motor do OpenBSD rodando dentro do Linux."
+    },
+    {
+      "beat": "b3",
+      "text": "O dispositivo aparece, do root, com modo seiscentos, exatamente como no BSD original, e o módulo aparece na lista de módulos carregados."
+    },
+    {
+      "beat": "b4",
+      "text": "O pfctl é a ferramenta original do OpenBSD. Habilitamos o firewall e pedimos o status. A interface de ioctl, a tabela de estatísticas, os contadores das regras: tudo é a ABI do OpenBSD, sem alteração."
+    },
+    {
+      "beat": "b5",
+      "text": "O ruleset ainda está vazio, e isso está certo: sem regras, o pf bloqueia tudo e devolve. O motor está armado e esperando instruções."
+    }
+  ]
+}

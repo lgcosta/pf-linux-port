@@ -1,0 +1,43 @@
+{
+  "phase": "00-ambiente",
+  "lang": "pt",
+  "voice": "Portuguese_ConfidentWoman",
+  "title": "O ambiente de testes",
+  "subtitle": "Quatro VMs Alpine sob libvirt, rodando um kernel compilado do fonte",
+  "segments": [
+    {
+      "beat": "b1",
+      "text": "Bem-vindo à demonstração do PF on Linux. Antes de falar do firewall em si, deixa eu mostrar o ambiente onde tudo acontece. São quatro máquinas virtuais administradas pelo libvirt, todas com Alpine Linux, e a máquina que você está vendo é o firewall: um kernel que compilamos do fonte, versão sete ponto três ponto quatro, com o nosso port do packet filter do OpenBSD compilado dentro como módulo."
+    },
+    {
+      "beat": "b2",
+      "text": "O firewall tem quatro interfaces. A interface de gerência, na rede virtual que o hypervisor usa para falar com a gente. E depois três redes de trânsito: dez ponto zero ponto um, onde mora o cliente; dez ponto zero ponto dois, onde mora o servidor; e dez ponto zero ponto três, um segundo gateway que vamos usar para demonstrar decisões de roteamento.",
+      "highlight": [
+        "cli",
+        "pf0",
+        "srv",
+        "gw2"
+      ],
+      "diagram_caption": "três redes de transito, quatro interfaces"
+    },
+    {
+      "beat": "b3",
+      "text": "As ferramentas do OpenBSD estão instaladas nesta máquina exatamente como são distribuídas: o pfctl original, um daemon de pflog e a nossa ferramenta de divert. O módulo ainda não está carregado, e é por aí que a gente começa.",
+      "highlight": [
+        "pf0"
+      ],
+      "diagram_caption": "pfctl, pflogd e pdivert originais do OpenBSD"
+    },
+    {
+      "beat": "b4",
+      "text": "E do firewall a gente alcança as outras máquinas diretamente. O cliente está em dez ponto zero ponto um ponto dez, o servidor em dez ponto zero ponto dois ponto vinte, e o segundo gateway em dez ponto zero ponto três ponto dois. Todo comando desta demonstração é tráfego real cruzando interfaces reais.",
+      "highlight": [
+        "cli",
+        "pf0",
+        "srv",
+        "gw2"
+      ],
+      "diagram_caption": "cli, srv e gw2 alcançáveis a partir do pf0"
+    }
+  ]
+}

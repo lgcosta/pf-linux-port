@@ -1,0 +1,41 @@
+{
+  "title": "Activation",
+  "subtitle": "insmod pf.ko, then pfctl talks to it over the OpenBSD ioctl ABI",
+  "beats": [
+    {
+      "id": "b1",
+      "cmds": [
+        "rmmod pf 2>/dev/null; lsmod | grep '^pf ' || echo 'pf: not loaded'"
+      ]
+    },
+    {
+      "id": "b2",
+      "cmds": [
+        "insmod /opt/pf/pf.ko && echo 'pf.ko loaded'",
+        "dmesg | tail -4"
+      ]
+    },
+    {
+      "id": "b3",
+      "cmds": [
+        "ls -l /dev/pf",
+        "lsmod | grep '^pf '"
+      ]
+    },
+    {
+      "id": "b4",
+      "cmds": [
+        "pfctl -e && echo 'pf enabled'",
+        "pfctl -si | head -6"
+      ]
+    },
+    {
+      "id": "b5",
+      "cmds": [
+        "pfctl -sr",
+        "pfctl -s Tables"
+      ]
+    }
+  ],
+  "phase": "02-ativacao"
+}

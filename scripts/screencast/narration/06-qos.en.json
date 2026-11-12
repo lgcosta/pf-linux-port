@@ -1,0 +1,29 @@
+{
+  "phase": "06-qos",
+  "lang": "en",
+  "voice": "English_ConfidentWoman",
+  "title": "Quality of service",
+  "subtitle": "OpenBSD 8.0 queues: hfsc classes attached to the interface",
+  "segments": [
+    {
+      "beat": "b1",
+      "text": "The last piece is quality of service. This is the OpenBSD eight point zero queue syntax: a root class with ten megabits of bandwidth, a leaf class with two megabits as the default, and a rule that steers the traffic from the client to that leaf class."
+    },
+    {
+      "beat": "b2",
+      "text": "pfctl shows the queues with their statistics, and the rule set shows the queue attached to the rule."
+    },
+    {
+      "beat": "b3",
+      "text": "Now we move real traffic through the queue. On the server we prepare two megabytes and listen on port ninety ninety five."
+    },
+    {
+      "beat": "b4",
+      "text": "And the client downloads it, through the firewall, through the class."
+    },
+    {
+      "beat": "b5",
+      "text": "Two million bytes transferred, and look at the queue counters: the hfsc class counted the packets and the bytes. The scheduler is in the data path, not just in the configuration."
+    }
+  ]
+}

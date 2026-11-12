@@ -1,0 +1,51 @@
+{
+  "title": "Basic rules",
+  "subtitle": "tables, anchors, keep state and block drop",
+  "beats": [
+    {
+      "id": "b1",
+      "cmds": [
+        "cat > /tmp/demo.conf <<'EOF'\nset block-policy return\ntable <trusted> { 10.0.1.0/24 }\nanchor \"demo\"\npass in quick on ingress proto icmp from <trusted> keep state\npass out quick on egress proto icmp keep state\npass in quick\npass out quick\nEOF",
+        "pfctl -f /tmp/demo.conf && echo 'ruleset loaded'"
+      ]
+    },
+    {
+      "id": "b2",
+      "cmds": [
+        "pfctl -sr",
+        "pfctl -s Tables",
+        "pfctl -t trusted -T show"
+      ]
+    },
+    {
+      "id": "b3",
+      "cmds": [
+        "ssh cli 'ping -c2 -W2 10.0.2.20 | tail -3'",
+        "pfctl -ss | head -5"
+      ]
+    },
+    {
+      "id": "b4",
+      "cmds": [
+        "cat > /tmp/block.conf <<'EOF'\nset block-policy return\nblock drop in quick on ingress proto icmp from 10.0.1.0/24\npass in quick\npass out quick\nEOF",
+        "pfctl -f /tmp/block.conf && echo 'blocking ruleset loaded'"
+      ]
+    },
+    {
+      "id": "b5",
+      "cmds": [
+        "ssh cli 'ping -c2 -W2 10.0.2.20 | tail -3'",
+        "pfctl -sr -vv | head -4"
+      ]
+    },
+    {
+      "id": "b6",
+      "cmds": [
+        "cat > /tmp/anchor.conf <<'EOF'\npass in quick on ingress proto icmp from 10.0.1.10 to 10.0.2.20 keep state\npass in quick\npass out quick\nEOF",
+        "pfctl -a demo -f /tmp/anchor.conf && echo 'anchor ruleset loaded'",
+        "pfctl -a demo -sr"
+      ]
+    }
+  ],
+  "phase": "03-regras"
+}

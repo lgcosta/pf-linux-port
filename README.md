@@ -47,12 +47,14 @@ OpenBSD 8.0).
 
 ## Screencasts
 
-Six silent 1080p30 MP4 screencasts of the lab — implementation in the kernel,
-activation, basic rules, routing, balancing and QOS — each one a real session
-against the Alpine VMs:
+Seven narrated screencasts per language (English and Portuguese), 1080p30 with
+burned-in subtitles, the lab's network diagram drawn over the terminal, and a
+continuous film that crossfades the phases together. Every video is a **real
+shell session** against the Alpine VMs — commands typed key by key, the kernel
+answering live — with a MiniMax female voice narrating:
 
 ```sh
-./scripts/screencast/record-all.sh      # -> out/screencast/*.mp4
+./scripts/screencast/build-all.sh       # -> out/screencast/{en,pt}/*.mp4
 ```
 
 Details, per-phase breakdown and the YouTube description text:

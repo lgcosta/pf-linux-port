@@ -1,0 +1,31 @@
+{
+  "title": "Implementation in the kernel",
+  "subtitle": "OpenBSD 8.0 sources + a Linux compatibility layer = pf.ko",
+  "beats": [
+    {
+      "id": "b1",
+      "cmds": [
+        "ls /opt/pf/src 2>/dev/null | head -20 || echo 'source tree is on the build host'"
+      ]
+    },
+    {
+      "id": "b2",
+      "cmds": [
+        "modinfo /opt/pf/pf.ko | head -6"
+      ]
+    },
+    {
+      "id": "b3",
+      "cmds": [
+        "modinfo /opt/pf/pf.ko | grep -E 'license|description|vermagic'"
+      ]
+    },
+    {
+      "id": "b4",
+      "cmds": [
+        "ls -la /opt/pf/pf.ko"
+      ]
+    }
+  ],
+  "phase": "01-implementacao"
+}

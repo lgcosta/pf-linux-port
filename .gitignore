@@ -2,7 +2,15 @@ _vendor/
 out/*
 !out/demo-pf-linux.cast
 !out/screencast/
-!out/screencast/*.mp4
+out/screencast/*
+!out/screencast/art/
+!out/screencast/art/*
+!out/screencast/en/
+out/screencast/en/*
+!out/screencast/en/*.mp4
+!out/screencast/pt/
+out/screencast/pt/*
+!out/screencast/pt/*.mp4
 *.o
 *.ko
 *.mod
@@ -16,3 +24,6 @@ tools/out/
 lab/seeds/
 *.pcap
 *.log
+
+__pycache__/
+*.pyc

@@ -1,0 +1,68 @@
+{
+  "phase": "05-balanceamento",
+  "lang": "pt",
+  "voice": "Portuguese_ConfidentWoman",
+  "title": "Balanceamento",
+  "subtitle": "Pools de NAT em round-robin e source-hash, mais o dup-to",
+  "segments": [
+    {
+      "beat": "b1",
+      "text": "O balanceamento no pf é feito com pools. Esta regra traduz a origem da rede do cliente para um pool de dois endereços, os dois gateways do firewall, e escolhe entre eles em round robin.",
+      "highlight": [
+        "cli",
+        "pf0",
+        "srv"
+      ],
+      "diagram_caption": "pool { 10.0.2.1, 10.0.3.1 }: round-robin"
+    },
+    {
+      "beat": "b2",
+      "text": "Capturamos na interface que vai para o servidor para ver qual endereço de origem cada pacote carrega."
+    },
+    {
+      "beat": "b3",
+      "text": "Seis pacotes vindo do cliente."
+    },
+    {
+      "beat": "b4",
+      "text": "E a captura mostra a verdade: três pacotes saíram com um endereço, três com o outro. O pool está realmente rodando entre os membros, e o servidor enxerga a carga balanceada.",
+      "highlight": [
+        "cli",
+        "pf0",
+        "srv"
+      ],
+      "diagram_caption": "3 pacotes com cada endereço de origem"
+    },
+    {
+      "beat": "b5",
+      "text": "Às vezes você não quer rotação. O source hash mantém uma origem sempre mapeada para o mesmo membro do pool, que é o que se quer quando a sessão precisa ser sticky.",
+      "highlight": [
+        "cli",
+        "pf0",
+        "srv"
+      ],
+      "diagram_caption": "pool { 10.0.2.1, 10.0.3.1 }: source-hash"
+    },
+    {
+      "beat": "b6",
+      "text": "Mais quatro pacotes, e agora todos carregam o mesmo endereço de origem. O mapeamento é estável por origem.",
+      "highlight": [
+        "cli",
+        "pf0",
+        "srv"
+      ],
+      "diagram_caption": "todos os pacotes com a mesma origem"
+    },
+    {
+      "beat": "b7",
+      "text": "E o dup to é o caso espelho: o pacote mantém o caminho normal e uma cópia é entregue no segundo gateway. Contamos os pedidos nas duas interfaces: um no caminho normal, um no caminho espelhado. O pacote foi duplicado, não movido.",
+      "highlight": [
+        "cli",
+        "pf0",
+        "srv",
+        "gw2"
+      ],
+      "diagram_caption": "dup-to: o caminho normal e a cópia espelhada"
+    }
+  ]
+}

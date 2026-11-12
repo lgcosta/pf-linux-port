@@ -1,0 +1,67 @@
+{
+  "phase": "04-roteamento",
+  "lang": "en",
+  "voice": "English_ConfidentWoman",
+  "title": "Routing",
+  "subtitle": "route-to forces the next hop, reply-to forces the way back",
+  "segments": [
+    {
+      "beat": "b1",
+      "text": "Now the routing features. This rule matches traffic from the client to the server and sends it through the second gateway, ten point zero point three point two, instead of the normal path. pfctl shows the rule exactly as the kernel stored it.",
+      "highlight": [
+        "cli",
+        "pf0",
+        "gw2"
+      ],
+      "diagram_caption": "route-to: normal path is eth2, forced path is eth3"
+    },
+    {
+      "beat": "b2",
+      "text": "To prove where the packet actually went, we capture on both interfaces at the same time: eth three, towards the gateway, and eth two, towards the server."
+    },
+    {
+      "beat": "b3",
+      "text": "And now the client pings the server.",
+      "highlight": [
+        "cli",
+        "pf0",
+        "gw2"
+      ],
+      "diagram_caption": "the request leaves through eth3, to the gateway"
+    },
+    {
+      "beat": "b4",
+      "text": "The evidence is in the captures. The request appears on eth three, on the way to the gateway, and it never appears on eth two. The firewall decided the next hop, not the routing table.",
+      "highlight": [
+        "cli",
+        "pf0",
+        "gw2"
+      ],
+      "diagram_caption": "1 request on eth3, 0 on eth2"
+    },
+    {
+      "beat": "b5",
+      "text": "The other half of the problem is the way back. reply to forces the reply of a flow to leave through a different gateway than the request came in, which is how you build asymmetric routing.",
+      "highlight": [
+        "cli",
+        "pf0",
+        "gw2"
+      ],
+      "diagram_caption": "reply-to: the answer leaves through another gateway"
+    },
+    {
+      "beat": "b6",
+      "text": "We capture eth three again and also eth one, the link where the client is."
+    },
+    {
+      "beat": "b7",
+      "text": "The replies show up on eth three, on the gateway link, and not on the client link. The request and the reply now take different paths, exactly as commanded.",
+      "highlight": [
+        "cli",
+        "pf0",
+        "gw2"
+      ],
+      "diagram_caption": "reply on eth3, nothing on the client link"
+    }
+  ]
+}

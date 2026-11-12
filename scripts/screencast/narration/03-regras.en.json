@@ -1,0 +1,33 @@
+{
+  "phase": "03-regras",
+  "lang": "en",
+  "voice": "English_ConfidentWoman",
+  "title": "Basic rules",
+  "subtitle": "Tables, anchors, keep state and block drop",
+  "segments": [
+    {
+      "beat": "b1",
+      "text": "Now we write a real pf dot conf. This is the original OpenBSD syntax: a table with the trusted network, an anchor, and the usual quick rules with keep state. pfctl parses it and the kernel accepts it."
+    },
+    {
+      "beat": "b2",
+      "text": "pfctl shows us what the kernel understood: the rules as they were compiled, the list of tables, and the contents of the trusted table."
+    },
+    {
+      "beat": "b3",
+      "text": "Let the traffic through. From the client we ping the server, and the firewall creates a state. You can see it in the state table: the five tuple, the timeout, the counters."
+    },
+    {
+      "beat": "b4",
+      "text": "Now the same thing with a drop. We replace the pass rule with a block drop rule for the client network, and reload."
+    },
+    {
+      "beat": "b5",
+      "text": "The ping is dead. One hundred percent packet loss. And the rule counters show the packets that were evaluated and the ones that were blocked. This is a stateful firewall behaving exactly like the original."
+    },
+    {
+      "beat": "b6",
+      "text": "Finally, anchors. We load a ruleset into the anchor called demo, and pfctl lists the rules that live inside it, separately from the main ruleset."
+    }
+  ]
+}

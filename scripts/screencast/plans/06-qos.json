@@ -1,0 +1,42 @@
+{
+  "title": "Quality of service",
+  "subtitle": "OpenBSD 8.0 queues: hfsc classes attached to the interface",
+  "beats": [
+    {
+      "id": "b1",
+      "cmds": [
+        "cat > /tmp/q.conf <<'EOF'\nqueue rootq on eth2 bandwidth 10Mbit\nqueue leafq on eth2 bandwidth 2Mbit parent rootq default\npass in quick proto tcp from 10.0.1.10 to 10.0.2.20 port 9095 queue leafq keep state\npass out quick keep state\nEOF",
+        "pfctl -f /tmp/q.conf && echo 'queues loaded'",
+        "pfctl -sr"
+      ]
+    },
+    {
+      "id": "b2",
+      "cmds": [
+        "pfctl -s queue -v"
+      ]
+    },
+    {
+      "id": "b3",
+      "cmds": [
+        "ssh srv 'head -c 2000000 /dev/zero | tr \"\\0\" A > /tmp/data.bin; ls -l /tmp/data.bin'",
+        "ssh srv 'pkill nc 2>/dev/null; (setsid nc -l -p 9095 < /tmp/data.bin >/dev/null 2>&1 &); sleep 1; echo listening'"
+      ]
+    },
+    {
+      "id": "b4",
+      "cmds": [
+        "ssh cli 'nc -w60 10.0.2.20 9095 > /tmp/out.bin; wc -c < /tmp/out.bin'"
+      ]
+    },
+    {
+      "id": "b5",
+      "cmds": [
+        "sleep 1",
+        "pfctl -s queue -v",
+        "pfctl -sr -vv | head -6"
+      ]
+    }
+  ],
+  "phase": "06-qos"
+}

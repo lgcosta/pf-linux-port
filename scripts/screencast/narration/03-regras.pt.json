@@ -1,0 +1,33 @@
+{
+  "phase": "03-regras",
+  "lang": "pt",
+  "voice": "Portuguese_ConfidentWoman",
+  "title": "Regras básicas",
+  "subtitle": "Tabelas, anchors, keep state e block drop",
+  "segments": [
+    {
+      "beat": "b1",
+      "text": "Agora escrevemos um pf ponto conf de verdade. Esta é a sintaxe original do OpenBSD: uma tabela com a rede confiável, um anchor, e as regras quick de sempre com keep state. O pfctl faz o parsing e o kernel aceita."
+    },
+    {
+      "beat": "b2",
+      "text": "O pfctl nos mostra o que o kernel entendeu: as regras como foram compiladas, a lista de tabelas e o conteúdo da tabela trusted."
+    },
+    {
+      "beat": "b3",
+      "text": "Deixa o tráfego passar. Do cliente a gente dá ping no servidor, e o firewall cria um estado. Você vê isso na tabela de estados: a tupla de cinco campos, o timeout, os contadores."
+    },
+    {
+      "beat": "b4",
+      "text": "Agora a mesma coisa com um drop. Trocamos a regra de pass por uma regra block drop para a rede do cliente, e recarregamos."
+    },
+    {
+      "beat": "b5",
+      "text": "O ping morreu. Cem por cento de perda. E os contadores da regra mostram os pacotes avaliados e os bloqueados. Este é um firewall stateful se comportando exatamente como o original."
+    },
+    {
+      "beat": "b6",
+      "text": "Por fim, os anchors. Carregamos um ruleset no anchor chamado demo, e o pfctl lista as regras que moram dentro dele, separadamente do ruleset principal."
+    }
+  ]
+}

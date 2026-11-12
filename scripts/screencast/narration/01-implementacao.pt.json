@@ -1,0 +1,25 @@
+{
+  "phase": "01-implementacao",
+  "lang": "pt",
+  "voice": "Portuguese_ConfidentWoman",
+  "title": "Implementação no kernel",
+  "subtitle": "Fontes do OpenBSD 8.0 mais uma camada de compatibilidade Linux resultam em pf.ko",
+  "segments": [
+    {
+      "beat": "b1",
+      "text": "Aqui está o coração do trabalho. A gente não reescreveu o firewall. Pegamos as fontes do OpenBSD oito ponto zero, quase vinte e sete mil linhas de C, e mantivemos praticamente intactas. Em cima disso escrevemos uma camada de compatibilidade, cerca de sete mil linhas, que traduz as interfaces de kernel do BSD para as do Linux."
+    },
+    {
+      "beat": "b2",
+      "text": "O resultado é um módulo de kernel Linux comum. Aqui o modinfo mostra a licença, a descrição e o vermagic, que nos diz exatamente com qual kernel este objeto foi compilado."
+    },
+    {
+      "beat": "b3",
+      "text": "A linha do vermagic importa: é a versão do kernel, as flags do compilador e a assinatura do módulo. Carregar o arquivo errado e o kernel recusa. Tudo que você vai ver nos próximos minutos roda dentro desse módulo."
+    },
+    {
+      "beat": "b4",
+      "text": "Este é o arquivo que carregamos no firewall. Um único artefato, compilado fora da árvore do kernel, carregando o packet filter inteiro do OpenBSD."
+    }
+  ]
+}

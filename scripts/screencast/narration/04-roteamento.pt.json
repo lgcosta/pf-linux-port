@@ -1,0 +1,67 @@
+{
+  "phase": "04-roteamento",
+  "lang": "pt",
+  "voice": "Portuguese_ConfidentWoman",
+  "title": "Roteamento",
+  "subtitle": "route-to força o próximo salto, reply-to força o caminho de volta",
+  "segments": [
+    {
+      "beat": "b1",
+      "text": "Agora as funcionalidades de roteamento. Esta regra casa com o tráfego do cliente para o servidor e o manda pelo segundo gateway, dez ponto zero ponto três ponto dois, em vez do caminho normal. O pfctl mostra a regra exatamente como o kernel guardou.",
+      "highlight": [
+        "cli",
+        "pf0",
+        "gw2"
+      ],
+      "diagram_caption": "route-to: o caminho normal e' eth2; o forcado, eth3"
+    },
+    {
+      "beat": "b2",
+      "text": "Para provar por onde o pacote realmente passou, capturamos nas duas interfaces ao mesmo tempo: eth três, rumo ao gateway, e eth dois, rumo ao servidor."
+    },
+    {
+      "beat": "b3",
+      "text": "E agora o cliente dá ping no servidor.",
+      "highlight": [
+        "cli",
+        "pf0",
+        "gw2"
+      ],
+      "diagram_caption": "o pedido sai por eth3, rumo ao gateway"
+    },
+    {
+      "beat": "b4",
+      "text": "A prova está nas capturas. O pedido aparece na eth três, indo para o gateway, e nunca aparece na eth dois. Quem decidiu o próximo salto foi o firewall, não a tabela de rotas.",
+      "highlight": [
+        "cli",
+        "pf0",
+        "gw2"
+      ],
+      "diagram_caption": "1 pedido em eth3, 0 em eth2"
+    },
+    {
+      "beat": "b5",
+      "text": "A outra metade do problema é o caminho de volta. O reply to força a resposta de um fluxo a sair por um gateway diferente do por onde o pedido entrou, que é assim que se constrói roteamento assimétrico.",
+      "highlight": [
+        "cli",
+        "pf0",
+        "gw2"
+      ],
+      "diagram_caption": "reply-to: a resposta sai por um gateway diferente"
+    },
+    {
+      "beat": "b6",
+      "text": "Capturamos a eth três de novo e também a eth um, o link onde está o cliente."
+    },
+    {
+      "beat": "b7",
+      "text": "As respostas aparecem na eth três, no link do gateway, e não no link do cliente. O pedido e a resposta agora seguem caminhos diferentes, exatamente como foi pedido.",
+      "highlight": [
+        "cli",
+        "pf0",
+        "gw2"
+      ],
+      "diagram_caption": "resposta em eth3, nada no link do cliente"
+    }
+  ]
+}

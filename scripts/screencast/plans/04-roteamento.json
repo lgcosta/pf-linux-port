@@ -1,0 +1,60 @@
+{
+  "title": "Routing",
+  "subtitle": "route-to forces the next hop, reply-to forces the way back",
+  "beats": [
+    {
+      "id": "b1",
+      "cmds": [
+        "cat > /tmp/route.conf <<'EOF'\npass in quick proto icmp from 10.0.1.10 to 10.0.2.20 route-to { 10.0.3.2 } keep state\npass out quick\nEOF",
+        "pfctl -f /tmp/route.conf && echo 'route-to loaded'",
+        "pfctl -sr"
+      ]
+    },
+    {
+      "id": "b2",
+      "cmds": [
+        "pkill tcpdump; tcpdump -ni eth3 -c 4 -e icmp > /tmp/gw.td 2>&1 &",
+        "tcpdump -ni eth2 -c 4 -e icmp > /tmp/srv.td 2>&1 &",
+        "sleep 1"
+      ]
+    },
+    {
+      "id": "b3",
+      "cmds": [
+        "ssh cli 'ping -c2 -W2 10.0.2.20 | tail -2'"
+      ]
+    },
+    {
+      "id": "b4",
+      "cmds": [
+        "sleep 2",
+        "echo 'forced egress eth3 -> gw2:'; grep -c 'echo request' /tmp/gw.td; echo 'normal egress eth2 -> srv:'; grep -c 'echo request' /tmp/srv.td"
+      ]
+    },
+    {
+      "id": "b5",
+      "cmds": [
+        "cat > /tmp/reply.conf <<'EOF'\npass in quick proto icmp from 10.0.1.10 to 10.0.2.20 reply-to { 10.0.3.2 } keep state\npass out quick\nEOF",
+        "pfctl -f /tmp/reply.conf && echo 'reply-to loaded'",
+        "pfctl -sr"
+      ]
+    },
+    {
+      "id": "b6",
+      "cmds": [
+        "pkill tcpdump; tcpdump -ni eth3 -c 6 -e icmp > /tmp/rgw.td 2>&1 &",
+        "tcpdump -ni eth1 -c 6 -e icmp > /tmp/rcli.td 2>&1 &",
+        "sleep 1",
+        "ssh cli 'ping -c2 -W2 10.0.2.20 | tail -2'"
+      ]
+    },
+    {
+      "id": "b7",
+      "cmds": [
+        "sleep 2",
+        "echo 'reply forced onto eth3:'; grep -c 'echo reply' /tmp/rgw.td; echo 'reply on the client link:'; grep -c 'echo reply' /tmp/rcli.td"
+      ]
+    }
+  ],
+  "phase": "04-roteamento"
+}

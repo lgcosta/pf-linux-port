@@ -1,0 +1,36 @@
+{
+  "title": "The lab environment",
+  "subtitle": "4 Alpine VMs under libvirt, kernel 7.3.4 built from source",
+  "beats": [
+    {
+      "id": "b1",
+      "cmds": [
+        "hostname",
+        "uname -r",
+        "cat /etc/os-release | head -2"
+      ]
+    },
+    {
+      "id": "b2",
+      "cmds": [
+        "ip -br addr",
+        "ip route"
+      ]
+    },
+    {
+      "id": "b3",
+      "cmds": [
+        "ls -l /opt/pf/",
+        "lsmod | grep '^pf ' || echo 'pf module: not loaded yet'"
+      ]
+    },
+    {
+      "id": "b4",
+      "cmds": [
+        "ssh cli 'hostname; ip -br addr | head -2'",
+        "ssh srv 'hostname; ip -br addr | head -2'"
+      ]
+    }
+  ],
+  "phase": "00-ambiente"
+}

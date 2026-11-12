@@ -1,0 +1,25 @@
+{
+  "phase": "01-implementacao",
+  "lang": "en",
+  "voice": "English_ConfidentWoman",
+  "title": "Implementation in the kernel",
+  "subtitle": "OpenBSD 8.0 sources plus a Linux compatibility layer equals pf.ko",
+  "segments": [
+    {
+      "beat": "b1",
+      "text": "This is the heart of the work. We did not rewrite the firewall. We took the OpenBSD eight point zero sources, nearly twenty seven thousand lines of C, and we kept them almost intact. On top of that we wrote a compatibility layer, about seven thousand lines, that translates the BSD kernel interfaces into Linux ones."
+    },
+    {
+      "beat": "b2",
+      "text": "The result is a normal Linux kernel module. Here modinfo shows us the license, the description and the vermagic, which tells us exactly which kernel this object was compiled against."
+    },
+    {
+      "beat": "b3",
+      "text": "The vermagic line matters: it is the kernel version, the compiler flags and the module signature. Load the wrong one and the kernel refuses it. Everything you will see in the next minutes is running inside that module."
+    },
+    {
+      "beat": "b4",
+      "text": "This file is what we load into the firewall. A single artifact, built out of tree, carrying the entire OpenBSD packet filter."
+    }
+  ]
+}

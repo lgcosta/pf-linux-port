@@ -1,0 +1,29 @@
+{
+  "phase": "06-qos",
+  "lang": "pt",
+  "voice": "Portuguese_ConfidentWoman",
+  "title": "Qualidade de serviço",
+  "subtitle": "Filas do OpenBSD 8.0: classes hfsc anexadas à interface",
+  "segments": [
+    {
+      "beat": "b1",
+      "text": "A última peça é qualidade de serviço. Esta é a sintaxe de filas do OpenBSD oito ponto zero: uma classe raiz com dez megabits de banda, uma classe folha com dois megabits como default, e uma regra que direciona o tráfego do cliente para essa classe folha."
+    },
+    {
+      "beat": "b2",
+      "text": "O pfctl mostra as filas com as estatísticas, e o ruleset mostra a fila anexada à regra."
+    },
+    {
+      "beat": "b3",
+      "text": "Agora movemos tráfego de verdade pela fila. No servidor preparamos dois megabytes e escutamos na porta noventa e noventa e cinco."
+    },
+    {
+      "beat": "b4",
+      "text": "E o cliente baixa isso, passando pelo firewall, passando pela classe."
+    },
+    {
+      "beat": "b5",
+      "text": "Dois milhões de bytes transferidos, e olha os contadores das filas: a classe hfsc contou os pacotes e os bytes. O escalonador está no caminho de dados, não só na configuração."
+    }
+  ]
+}

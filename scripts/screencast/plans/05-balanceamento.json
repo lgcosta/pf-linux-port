@@ -1,0 +1,65 @@
+{
+  "title": "Load balancing",
+  "subtitle": "NAT pools in round-robin and source-hash, plus dup-to",
+  "beats": [
+    {
+      "id": "b1",
+      "cmds": [
+        "cat > /tmp/pool.conf <<'EOF'\npass out quick on egress from 10.0.1.0/24 to any nat-to { 10.0.2.1, 10.0.3.1 } round-robin\npass in quick on ingress proto icmp keep state\npass out quick on egress proto icmp keep state\nEOF",
+        "pfctl -f /tmp/pool.conf && echo 'round-robin pool loaded'",
+        "pfctl -sr"
+      ]
+    },
+    {
+      "id": "b2",
+      "cmds": [
+        "pkill tcpdump; tcpdump -ni eth2 -c 12 -e icmp > /tmp/pool.td 2>&1 &",
+        "sleep 1"
+      ]
+    },
+    {
+      "id": "b3",
+      "cmds": [
+        "ssh cli 'for i in 1 2 3 4 5 6; do ping -c1 -W2 10.0.2.20 >/dev/null 2>&1; done; echo sent'"
+      ]
+    },
+    {
+      "id": "b4",
+      "cmds": [
+        "sleep 2",
+        "echo 'source seen by the server (the pool alternates):'; grep 'echo request' /tmp/pool.td | sed 's/.*: \\([0-9.]*\\) > .*/\\1/' | sort | uniq -c"
+      ]
+    },
+    {
+      "id": "b5",
+      "cmds": [
+        "cat > /tmp/hash.conf <<'EOF'\npass out quick on egress from 10.0.1.0/24 to any nat-to { 10.0.2.1, 10.0.3.1 } source-hash\npass in quick on ingress proto icmp keep state\npass out quick on egress proto icmp keep state\nEOF",
+        "pfctl -f /tmp/hash.conf && echo 'source-hash pool loaded'"
+      ]
+    },
+    {
+      "id": "b6",
+      "cmds": [
+        "pkill tcpdump; tcpdump -ni eth2 -c 8 -e icmp > /tmp/hash.td 2>&1 &",
+        "sleep 1",
+        "ssh cli 'for i in 1 2 3 4; do ping -c1 -W2 10.0.2.20 >/dev/null 2>&1; done; echo sent'",
+        "sleep 2",
+        "echo 'source-hash keeps the same origin on the same member:'; grep 'echo request' /tmp/hash.td | sed 's/.*: \\([0-9.]*\\) > .*/\\1/' | sort | uniq -c"
+      ]
+    },
+    {
+      "id": "b7",
+      "cmds": [
+        "cat > /tmp/dup.conf <<'EOF'\npass in quick proto icmp from 10.0.1.10 to 10.0.2.20 dup-to { 10.0.3.2 } keep state\npass out quick\nEOF",
+        "pfctl -f /tmp/dup.conf && echo 'dup-to loaded'",
+        "pkill tcpdump; tcpdump -ni eth2 -c 4 -e icmp > /tmp/d1.td 2>&1 &",
+        "tcpdump -ni eth3 -c 4 -e icmp > /tmp/d2.td 2>&1 &",
+        "sleep 1",
+        "ssh cli 'ping -c2 -W2 10.0.2.20 | tail -2'",
+        "sleep 2",
+        "echo 'normal path eth2:'; grep -c 'echo request' /tmp/d1.td; echo 'mirrored copy eth3:'; grep -c 'echo request' /tmp/d2.td"
+      ]
+    }
+  ],
+  "phase": "05-balanceamento"
+}

@@ -1,0 +1,43 @@
+{
+  "phase": "00-ambiente",
+  "lang": "en",
+  "voice": "English_ConfidentWoman",
+  "title": "The lab environment",
+  "subtitle": "Four Alpine VMs under libvirt, running a kernel built from source",
+  "segments": [
+    {
+      "beat": "b1",
+      "text": "Welcome to the PF on Linux demonstration. Before we look at the firewall itself, let me show you the environment where everything runs. These are four virtual machines managed by libvirt, all of them Alpine Linux, and the machine you are looking at is the firewall: a kernel we compiled from source, version seven point three point four, with our port of the OpenBSD packet filter built in as a module."
+    },
+    {
+      "beat": "b2",
+      "text": "The firewall has four interfaces. The management interface on the virtual network the hypervisor uses to reach us. Then three transit networks: ten point zero point one, where the client lives; ten point zero point two, where the server lives; and ten point zero point three, a second gateway we use to demonstrate routing decisions.",
+      "highlight": [
+        "cli",
+        "pf0",
+        "srv",
+        "gw2"
+      ],
+      "diagram_caption": "three transit networks, four interfaces"
+    },
+    {
+      "beat": "b3",
+      "text": "The OpenBSD tools are installed on this machine exactly as they ship: the original pfctl, a pflog daemon and our divert tool. The module is not loaded yet, which is where we will start.",
+      "highlight": [
+        "pf0"
+      ],
+      "diagram_caption": "pfctl, pflogd and pdivert, straight from OpenBSD"
+    },
+    {
+      "beat": "b4",
+      "text": "And from the firewall we can reach the other machines directly. The client is on ten point zero point one point ten, the server on ten point zero point two point twenty, and the second gateway on ten point zero point three point two. Every command in this demonstration is real traffic crossing real interfaces.",
+      "highlight": [
+        "cli",
+        "pf0",
+        "srv",
+        "gw2"
+      ],
+      "diagram_caption": "cli, srv and gw2 reachable from pf0"
+    }
+  ]
+}

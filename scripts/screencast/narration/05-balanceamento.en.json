@@ -1,0 +1,68 @@
+{
+  "phase": "05-balanceamento",
+  "lang": "en",
+  "voice": "English_ConfidentWoman",
+  "title": "Load balancing",
+  "subtitle": "NAT pools in round-robin and source-hash, plus dup-to",
+  "segments": [
+    {
+      "beat": "b1",
+      "text": "Load balancing in pf is done with pools. This rule translates the source of the client network into a pool of two addresses, the two gateways of the firewall, and selects between them round robin.",
+      "highlight": [
+        "cli",
+        "pf0",
+        "srv"
+      ],
+      "diagram_caption": "pool { 10.0.2.1, 10.0.3.1 }: round-robin"
+    },
+    {
+      "beat": "b2",
+      "text": "We capture on the interface towards the server to see which source address each packet carries."
+    },
+    {
+      "beat": "b3",
+      "text": "Six packets from the client."
+    },
+    {
+      "beat": "b4",
+      "text": "And the capture shows the truth: three packets went out with one address, three with the other. The pool is really rotating between its members, and the server sees a balanced load.",
+      "highlight": [
+        "cli",
+        "pf0",
+        "srv"
+      ],
+      "diagram_caption": "3 packets with each source address"
+    },
+    {
+      "beat": "b5",
+      "text": "Sometimes you do not want rotation. source hash keeps a given origin always mapped to the same pool member, which is what you want when a session has to be sticky.",
+      "highlight": [
+        "cli",
+        "pf0",
+        "srv"
+      ],
+      "diagram_caption": "pool { 10.0.2.1, 10.0.3.1 }: source-hash"
+    },
+    {
+      "beat": "b6",
+      "text": "Four more packets, and now every single one carries the same source address. The mapping is stable per origin.",
+      "highlight": [
+        "cli",
+        "pf0",
+        "srv"
+      ],
+      "diagram_caption": "every packet with the same source"
+    },
+    {
+      "beat": "b7",
+      "text": "And dup to is the mirror case: the packet keeps its normal path, and a copy is delivered to the second gateway. We count the requests on both interfaces: one on the normal path, one on the mirrored path. The packet was duplicated, not moved.",
+      "highlight": [
+        "cli",
+        "pf0",
+        "srv",
+        "gw2"
+      ],
+      "diagram_caption": "dup-to: the normal path and the mirrored copy"
+    }
+  ]
+}
