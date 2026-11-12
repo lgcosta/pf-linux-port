@@ -67,13 +67,16 @@ if_output_tso(struct pfk_ifnet *ifp, struct mbuf **mp, void *dst,
 	}
 	switch (sa->sa_family) {
 	case AF_INET: {
-		struct pf_ip *ip = mtod(m, struct pf_ip *);
 		__be32 gw = 0;
 
 		/* if route was forced (route-to), dst holds gw sockaddr
 		 * stored in sin_addr by pf_route; normal case dst==final */
 		gw = sintosa(dst)->sin_addr.s_addr;
-		d = pfk_route4(gw, ip->ip_src.s_addr, ifp->if_index);
+		/* PFLINUX: look the route up by destination only.  Passing the
+		 * packet's source (a transit address, not local to us) makes
+		 * ip_route_output_key fail with ENETUNREACH; ip_output keeps
+		 * the header source untouched. */
+		d = pfk_route4(gw, 0, ifp->if_index);
 		if (!d) {
 			ret = EHOSTUNREACH;
 			goto drop;
@@ -83,13 +86,11 @@ if_output_tso(struct pfk_ifnet *ifp, struct mbuf **mp, void *dst,
 	}
 #if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6: {
-		struct pf_ip6_hdr *ip6 = mtod(m, struct pf_ip6_hdr *);
 		const struct in6_addr *gw = &sin6tosa(dst)->sin6_addr;
 
 		if (!d)
-			d = pfk_route6(gw,
-				(struct in6_addr *)&ip6->ip6_src,
-				ifp->if_index);
+			/* PFLINUX: destination-only, as for IPv4 */
+			d = pfk_route6(gw, NULL, ifp->if_index);
 		if (!d) {
 			ret = EHOSTUNREACH;
 			goto drop;
@@ -114,6 +115,13 @@ if_output_tso(struct pfk_ifnet *ifp, struct mbuf **mp, void *dst,
 		ret = ENETDOWN;
 		goto drop_dst_nofree;
 	}
+	/*
+	 * The stack's output path always consumes exactly one skb reference.
+	 * Take our own so the caller's references (the hook queue ref and the
+	 * mbuf wrapper ref) stay balanced - without this the work queue's
+	 * cleanup double-frees the skb and corrupts the slab.
+	 */
+	skb_get(skb);
 	ret = skb_dst(skb)->output(&init_net, NULL, skb);
 	/* output consumed skb (and wrapper); avoid double free */
 	if (ret == 0) {
