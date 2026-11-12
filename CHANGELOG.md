@@ -2,7 +2,11 @@
 
 ## v0.6.0 — 2026-11-11
 
-Adds scrub and route-pool verification.  Suite: 13 gates, all green.
+Adds scrub, route pools and `reply-to` verification.  Suite: 14 gates, all green.
+
+| Capability | Gate | Proof |
+|---|---|---|
+| `reply-to` (asymmetric reply path) | `13-replyto` | a flow's reply is forced onto the gateway's link and never uses the client's link (measured on the firewall's own interfaces) |
 
 | Capability | Gate | Proof |
 |---|---|---|

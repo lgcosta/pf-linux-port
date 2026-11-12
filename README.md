@@ -8,8 +8,8 @@ real OpenBSD `pfctl` over the `/dev/pf` ioctl ABI. (A second module for the
 
 **Status:** the filter core, stateful filtering, tables, anchors, NAT
 (`nat-to`/`rdr-to`/`binat-to`), forced routing (`route-to`/`dup-to`), `divert`
-and `pflog` are **verified in a real libvirt lab** (13/13 gates green).  The
-remaining features (ALTQ/pfq, af-to, `reply-to`) are still pending — honest per-feature status:
+and `pflog` are **verified in a real libvirt lab** (14/14 gates green).  The
+remaining features (ALTQ/pfq, af-to) are still pending — honest per-feature status:
 [`docs/en/feature-matrix.md`](docs/en/feature-matrix.md).
 Demo (asciinema): [`docs/en/demo.md`](docs/en/demo.md).
 Design: [`docs/superpowers/specs/2026-11-11-pf-linux-port-design.md`](docs/superpowers/specs/2026-11-11-pf-linux-port-design.md)
@@ -23,7 +23,7 @@ Design: [`docs/superpowers/specs/2026-11-11-pf-linux-port-design.md`](docs/super
 | M1 | compat layer, `pf.ko` loads, `/dev/pf`, `pfctl -f` / `-s info` | done |
 | M2 | filter core: rules/states/tables/anchors, VM gates 01–04 | **done** — gates 01/02/03/04 green |
 | M3 | NAT (`nat-to`/`rdr-to`/`binat-to`), scrub | **done** — gates 05/06/07/09 (incl. 2 MB integrity through a redirect, min-ttl/max-mss measured) |
-| M4 | route-to/dup-to, divert e2e, pflog | **partial** — divert (11), pflog (12), route-to/dup-to (08), pools rr/source-hash (10) verified; `reply-to` pending |
+| M4 | route-to/dup-to/reply-to, divert e2e, pflog | **done** — divert (11), pflog (12), route-to/dup-to (08), pools (10), reply-to (13) verified |
 | M5 | queues: HFSC/FQ-CoDel back ends + `pfq` qdisc | pending |
 | M6 | docs complete, patchset tidy, full suite green, tagged release | **done** — docs EN+PT-BR, 11/11 suite green, tagged (v0.5.0) |
 
@@ -37,7 +37,7 @@ Design: [`docs/superpowers/specs/2026-11-11-pf-linux-port-design.md`](docs/super
 | Scrub | fragment reassembly, overlap drop, `min-ttl`/`max-mss`/`df`/`no-df`, `set reassemble` |
 | QoS (ALTQ successor) | `queue`/`queue on` with OpenBSD 8.0 `ifq` schedulers: **default (priq), HFSC, FQ-CoDel**, attached via the `pfq` qdisc; `pfctl -s queue -v` stats |
 | Divert | `divert-to` / `divert` tag + `pdivert` relay over an in-module `PF_DIVERT` socket family (verified: packet to userspace and back) |
-| Route | `route-to`/`dup-to` + pools (`round-robin`, `source-hash`) verified; `reply-to` pending (`fail-to` no longer exists in OpenBSD 8.0) |
+| Route | `route-to`/`dup-to`/`reply-to` + pools (`round-robin`, `source-hash`) verified (`fail-to` no longer exists in OpenBSD 8.0) |
 | Logging | `pflogd` via `/dev/pflog` (DLT_PFLOG pcap, OpenBSD record layout) — verified |
 | Control | `/dev/pf` (0600), OpenBSD 8.0 ioctl ABI, Linux build of `pfctl` (single binary) |
 
