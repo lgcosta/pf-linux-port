@@ -15,6 +15,7 @@ packet filter** to **Linux 7.3.4** — the real PF engine (`pf.c`, `pf_norm.c`,
 | [install.md](install.md) | Apply/build/install recipe (kernel, module, tools) |
 | [debian13.md](debian13.md) | Full from-zero implementation on Debian 13 (trixie): host prep, kernel/module/tools build, libvirt lab, stress test |
 | [build.md](build.md) | Build pipeline in detail: fetch → vendorize → kernel → module → pfctl |
+| [benchmark.md](benchmark.md) | Comparative benchmark: PF-on-Linux vs nftables, iptables-nft, iptables-legacy (method, results, limits) |
 | [vm-lab.md](vm-lab.md) | The libvirt validation lab: topology, recreate/run, what each of the 17 gates proves |
 | [feature-matrix.md](feature-matrix.md) | Per-feature status: VERIFIED-in-VM / VERIFIED-offline / COMPILES-untested / NOT-ENABLED |
 | [pf-guide.md](pf-guide.md) | Daily use: what works today in `/etc/pf.conf`, and the deviations to know about |

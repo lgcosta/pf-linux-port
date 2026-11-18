@@ -1,0 +1,22 @@
+#cloud-config
+hostname: bench-srv
+manage_etc_hosts: true
+users:
+  - name: root
+    lock_passwd: false
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEpDAYOOCv1N+xrIcD3yDTw/XZaN5NiROjiYxkE9n0HO pflab@deb
+chpasswd:
+  expire: false
+  users:
+    - name: root
+      password: "pftest"
+      type: text
+package_update: false
+runcmd:
+  - |
+    sysctl -q -w net.ipv4.ip_forward=1
+    for f in /proc/sys/net/ipv4/conf/*/rp_filter; do echo 0 > "$f"; done
+    ip link set eth1 up; ip addr replace 10.0.1.2/24 dev eth1
+    ip route replace 10.0.1.0/24 dev eth1
+    ip route replace 10.0.0.0/24 via 10.0.1.1 dev eth1

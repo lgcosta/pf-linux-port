@@ -1,0 +1,463 @@
+{
+ "stateless|baseline|fw_cpu_ticks": {
+  "n": 2,
+  "median": 359.0,
+  "min": 317.0,
+  "max": 401.0,
+  "stdev": 59.397,
+  "unit": "ticks",
+  "samples": [
+   317.0,
+   401.0
+  ]
+ },
+ "stateless|baseline|tcp_gbit": {
+  "n": 2,
+  "median": 0.401,
+  "min": 0.401,
+  "max": 0.401,
+  "stdev": 0.0,
+  "unit": "Gbit/s",
+  "samples": [
+   0.401,
+   0.401
+  ]
+ },
+ "stateless|baseline|latency_p50": {
+  "n": 2,
+  "median": 0.184,
+  "min": 0.181,
+  "max": 0.187,
+  "stdev": 0.0042,
+  "unit": "ms",
+  "samples": [
+   0.187,
+   0.181
+  ]
+ },
+ "stateless|baseline|latency_p95": {
+  "n": 2,
+  "median": 0.22,
+  "min": 0.201,
+  "max": 0.239,
+  "stdev": 0.0269,
+  "unit": "ms",
+  "samples": [
+   0.239,
+   0.201
+  ]
+ },
+ "stateless|baseline|latency_p99": {
+  "n": 2,
+  "median": 0.26,
+  "min": 0.231,
+  "max": 0.289,
+  "stdev": 0.041,
+  "unit": "ms",
+  "samples": [
+   0.289,
+   0.231
+  ]
+ },
+ "stateless|baseline|udp_pps": {
+  "n": 2,
+  "median": 17856.0,
+  "min": 17856.0,
+  "max": 17856.0,
+  "stdev": 0.0,
+  "unit": "pps",
+  "samples": [
+   17856.0,
+   17856.0
+  ]
+ },
+ "stateless|baseline|udp_loss": {
+  "n": 2,
+  "median": 0.0,
+  "min": 0.0,
+  "max": 0.0,
+  "stdev": 0.0,
+  "unit": "percent",
+  "samples": [
+   0.0,
+   0.0
+  ]
+ },
+ "stateless|nft|fw_cpu_ticks": {
+  "n": 2,
+  "median": 361.5,
+  "min": 329.0,
+  "max": 394.0,
+  "stdev": 45.9619,
+  "unit": "ticks",
+  "samples": [
+   329.0,
+   394.0
+  ]
+ },
+ "stateless|nft|tcp_gbit": {
+  "n": 2,
+  "median": 0.401,
+  "min": 0.401,
+  "max": 0.401,
+  "stdev": 0.0,
+  "unit": "Gbit/s",
+  "samples": [
+   0.401,
+   0.401
+  ]
+ },
+ "stateless|nft|latency_p50": {
+  "n": 2,
+  "median": 0.202,
+  "min": 0.187,
+  "max": 0.217,
+  "stdev": 0.0212,
+  "unit": "ms",
+  "samples": [
+   0.187,
+   0.217
+  ]
+ },
+ "stateless|nft|latency_p95": {
+  "n": 2,
+  "median": 0.297,
+  "min": 0.243,
+  "max": 0.351,
+  "stdev": 0.0764,
+  "unit": "ms",
+  "samples": [
+   0.243,
+   0.351
+  ]
+ },
+ "stateless|nft|latency_p99": {
+  "n": 2,
+  "median": 0.359,
+  "min": 0.287,
+  "max": 0.431,
+  "stdev": 0.1018,
+  "unit": "ms",
+  "samples": [
+   0.287,
+   0.431
+  ]
+ },
+ "stateless|nft|udp_pps": {
+  "n": 2,
+  "median": 17856.0,
+  "min": 17856.0,
+  "max": 17856.0,
+  "stdev": 0.0,
+  "unit": "pps",
+  "samples": [
+   17856.0,
+   17856.0
+  ]
+ },
+ "stateless|nft|udp_loss": {
+  "n": 2,
+  "median": 0.0,
+  "min": 0.0,
+  "max": 0.0,
+  "stdev": 0.0,
+  "unit": "percent",
+  "samples": [
+   0.0,
+   0.0
+  ]
+ },
+ "stateless|ipt-nft|fw_cpu_ticks": {
+  "n": 2,
+  "median": 362.0,
+  "min": 342.0,
+  "max": 382.0,
+  "stdev": 28.2843,
+  "unit": "ticks",
+  "samples": [
+   342.0,
+   382.0
+  ]
+ },
+ "stateless|ipt-nft|tcp_gbit": {
+  "n": 2,
+  "median": 0.4005,
+  "min": 0.4,
+  "max": 0.401,
+  "stdev": 0.0007,
+  "unit": "Gbit/s",
+  "samples": [
+   0.401,
+   0.4
+  ]
+ },
+ "stateless|ipt-nft|latency_p50": {
+  "n": 2,
+  "median": 0.2375,
+  "min": 0.231,
+  "max": 0.244,
+  "stdev": 0.0092,
+  "unit": "ms",
+  "samples": [
+   0.244,
+   0.231
+  ]
+ },
+ "stateless|ipt-nft|latency_p95": {
+  "n": 2,
+  "median": 0.3765,
+  "min": 0.373,
+  "max": 0.38,
+  "stdev": 0.0049,
+  "unit": "ms",
+  "samples": [
+   0.38,
+   0.373
+  ]
+ },
+ "stateless|ipt-nft|latency_p99": {
+  "n": 2,
+  "median": 0.4525,
+  "min": 0.432,
+  "max": 0.473,
+  "stdev": 0.029,
+  "unit": "ms",
+  "samples": [
+   0.432,
+   0.473
+  ]
+ },
+ "stateless|ipt-nft|udp_pps": {
+  "n": 2,
+  "median": 17856.0,
+  "min": 17856.0,
+  "max": 17856.0,
+  "stdev": 0.0,
+  "unit": "pps",
+  "samples": [
+   17856.0,
+   17856.0
+  ]
+ },
+ "stateless|ipt-nft|udp_loss": {
+  "n": 2,
+  "median": 0.0,
+  "min": 0.0,
+  "max": 0.0,
+  "stdev": 0.0,
+  "unit": "percent",
+  "samples": [
+   0.0,
+   0.0
+  ]
+ },
+ "stateless|ipt-legacy|fw_cpu_ticks": {
+  "n": 2,
+  "median": 363.0,
+  "min": 357.0,
+  "max": 369.0,
+  "stdev": 8.4853,
+  "unit": "ticks",
+  "samples": [
+   357.0,
+   369.0
+  ]
+ },
+ "stateless|ipt-legacy|tcp_gbit": {
+  "n": 2,
+  "median": 0.4005,
+  "min": 0.4,
+  "max": 0.401,
+  "stdev": 0.0007,
+  "unit": "Gbit/s",
+  "samples": [
+   0.4,
+   0.401
+  ]
+ },
+ "stateless|ipt-legacy|latency_p50": {
+  "n": 2,
+  "median": 0.187,
+  "min": 0.187,
+  "max": 0.187,
+  "stdev": 0.0,
+  "unit": "ms",
+  "samples": [
+   0.187,
+   0.187
+  ]
+ },
+ "stateless|ipt-legacy|latency_p95": {
+  "n": 2,
+  "median": 0.242,
+  "min": 0.233,
+  "max": 0.251,
+  "stdev": 0.0127,
+  "unit": "ms",
+  "samples": [
+   0.233,
+   0.251
+  ]
+ },
+ "stateless|ipt-legacy|latency_p99": {
+  "n": 2,
+  "median": 0.28,
+  "min": 0.269,
+  "max": 0.291,
+  "stdev": 0.0156,
+  "unit": "ms",
+  "samples": [
+   0.291,
+   0.269
+  ]
+ },
+ "stateless|ipt-legacy|udp_pps": {
+  "n": 2,
+  "median": 17856.0,
+  "min": 17856.0,
+  "max": 17856.0,
+  "stdev": 0.0,
+  "unit": "pps",
+  "samples": [
+   17856.0,
+   17856.0
+  ]
+ },
+ "stateless|ipt-legacy|udp_loss": {
+  "n": 2,
+  "median": 0.0,
+  "min": 0.0,
+  "max": 0.0,
+  "stdev": 0.0,
+  "unit": "percent",
+  "samples": [
+   0.0,
+   0.0
+  ]
+ },
+ "ceiling|baseline|tcp_gbit": {
+  "n": 2,
+  "median": 18.48,
+  "min": 18.331,
+  "max": 18.629,
+  "stdev": 0.2107,
+  "unit": "Gbit/s",
+  "samples": [
+   18.331,
+   18.629
+  ]
+ },
+ "ceiling|nft|tcp_gbit": {
+  "n": 2,
+  "median": 18.163,
+  "min": 18.107,
+  "max": 18.219,
+  "stdev": 0.0792,
+  "unit": "Gbit/s",
+  "samples": [
+   18.107,
+   18.219
+  ]
+ },
+ "ceiling|ipt-nft|tcp_gbit": {
+  "n": 2,
+  "median": 18.3495,
+  "min": 18.111,
+  "max": 18.588,
+  "stdev": 0.3373,
+  "unit": "Gbit/s",
+  "samples": [
+   18.111,
+   18.588
+  ]
+ },
+ "ceiling|ipt-legacy|tcp_gbit": {
+  "n": 2,
+  "median": 18.7675,
+  "min": 18.761,
+  "max": 18.774,
+  "stdev": 0.0092,
+  "unit": "Gbit/s",
+  "samples": [
+   18.761,
+   18.774
+  ]
+ },
+ "stateless|pf|fw_cpu_ticks": {
+  "n": 1,
+  "median": 329.0,
+  "min": 329.0,
+  "max": 329.0,
+  "stdev": 0.0,
+  "unit": "ticks",
+  "samples": [
+   329.0
+  ]
+ },
+ "stateless|pf|tcp_gbit": {
+  "n": 1,
+  "median": 0.401,
+  "min": 0.401,
+  "max": 0.401,
+  "stdev": 0.0,
+  "unit": "Gbit/s",
+  "samples": [
+   0.401
+  ]
+ },
+ "stateless|pf|latency_p50": {
+  "n": 1,
+  "median": 0.247,
+  "min": 0.247,
+  "max": 0.247,
+  "stdev": 0.0,
+  "unit": "ms",
+  "samples": [
+   0.247
+  ]
+ },
+ "stateless|pf|latency_p95": {
+  "n": 1,
+  "median": 0.466,
+  "min": 0.466,
+  "max": 0.466,
+  "stdev": 0.0,
+  "unit": "ms",
+  "samples": [
+   0.466
+  ]
+ },
+ "stateless|pf|latency_p99": {
+  "n": 1,
+  "median": 0.539,
+  "min": 0.539,
+  "max": 0.539,
+  "stdev": 0.0,
+  "unit": "ms",
+  "samples": [
+   0.539
+  ]
+ },
+ "stateless|pf|udp_pps": {
+  "n": 1,
+  "median": 17856.0,
+  "min": 17856.0,
+  "max": 17856.0,
+  "stdev": 0.0,
+  "unit": "pps",
+  "samples": [
+   17856.0
+  ]
+ },
+ "stateless|pf|udp_loss": {
+  "n": 1,
+  "median": 0.0,
+  "min": 0.0,
+  "max": 0.0,
+  "stdev": 0.0,
+  "unit": "percent",
+  "samples": [
+   0.0
+  ]
+ }
+}

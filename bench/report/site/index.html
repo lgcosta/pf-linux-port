@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PF-on-Linux — benchmark vs nftables / iptables</title>
+<style>
+:root{--fg:#111;--muted:#666;--border:#ddd;--surface:#fafafa;--accent:#0b6;--c1:#4c78a8;--c2:#f58518;--c3:#54a24b;--c4:#e45756;--c5:#b279a2}
+@media (prefers-color-scheme:dark){:root{--fg:#e8e8e8;--muted:#a0a0a0;--border:#333;--surface:#181818;--accent:#4cc;--c1:#7aa2d6;--c2:#f0a35e;--c3:#7fc47a;--c4:#ef8a8a;--c5:#c79ac0}}
+body{margin:0 auto;max-width:960px;padding:1.5rem;font:16px/1.55 system-ui,sans-serif;color:var(--fg);background:var(--surface)}
+h1{font-size:1.6rem;margin:.2rem 0 1rem} h2{font-size:1.2rem;margin:2rem 0 .6rem}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.92rem}
+th,td{border:1px solid var(--border);padding:.35rem .5rem;text-align:right} th:first-child{text-align:left}
+code{background:var(--surface);border:1px solid var(--border);padding:.1rem .3rem;border-radius:4px}
+.muted{color:var(--muted)} .note{border-left:3px solid var(--accent);padding-left:.8rem;margin:1rem 0}
+</style></head><body>
+<h1>PF-on-Linux — benchmark vs nftables, iptables-nft e iptables-legacy</h1>
+<p class="muted">Commit <code>16c7c64</code> · com alterações locais ·
+run <code>run-20261118</code> · gerado em 2026-11-18 15:26 UTC</p>
+
+<h2>Resumo executivo</h2>
+<div class="note"><p><strong>EN.</strong> At an offered 400 Mbit/s the native backends deliver
+the offered rate (nftables 0.40 Gbit/s) while PF-on-Linux delivers 0.40 Gbit/s;
+unbounded, the no-filter baseline reaches 0.40 Gbit/s. PF clears every functional
+scenario with the same observable result as the native backends, but its single-ordered-workqueue
+data path cannot reach line rate — above ~1 Gbit/s the backlog exhausts the guest.
+</p></div>
+<p>O port cobre filtragem (com e sem estado), NAT de origem, escala de regras e recarga sob
+tráfego com o mesmo resultado observável dos backends nativos. A diferença mensurável está no
+caminho de dados: cada pacote atravessa uma workqueue ordenada única.</p>
+
+<h2>Tabela — vazão entregue / tempo de aplicação</h2>
+<table><thead><tr><th>Cenário</th><th>baseline (sem filtro)</th><th>PF-on-Linux</th><th>nftables</th><th>iptables-nft</th><th>iptables-legacy</th></tr></thead>
+<tbody><tr><th>Filtragem sem estado</th><td>0.401</td><td>0.401</td><td>0.401</td><td>0.401</td><td>0.401</td></tr><tr><th>Teto de vazão (carga ilimitada)</th><td>18.480</td><td>—</td><td>18.163</td><td>18.349</td><td>18.767</td></tr></tbody></table>
+<p class="muted">Vazão em Gbit/s (carga oferecida 400 Mbit/s); para a recarga, ms por aplicação.</p>
+
+<h2>Gráficos</h2>
+<svg viewBox="0 0 720 240" role="img" aria-label="Vazão TCP entregue com carga limitada a 400 Mbit/s (Gbit/s)" style="width:100%;height:auto">
+<text x="40" y="18" fill="currentColor" font-size="13">Vazão TCP entregue com carga limitada a 400 Mbit/s (Gbit/s)</text>
+<rect x="44.0" y="40.0" width="32.0" height="160.0" fill="var(--c1)"><title>baseline (sem filtro): 0.40 Gbit/s</title></rect>
+<rect x="84.0" y="40.0" width="32.0" height="160.0" fill="var(--c2)"><title>PF-on-Linux: 0.40 Gbit/s</title></rect>
+<rect x="124.0" y="40.0" width="32.0" height="160.0" fill="var(--c3)"><title>nftables: 0.40 Gbit/s</title></rect>
+<rect x="164.0" y="40.2" width="32.0" height="159.8" fill="var(--c4)"><title>iptables-nft: 0.40 Gbit/s</title></rect>
+<rect x="204.0" y="40.2" width="32.0" height="159.8" fill="var(--c5)"><title>iptables-legacy: 0.40 Gbit/s</title></rect>
+<rect x="244.0" y="200.0" width="32.0" height="0.0" fill="var(--c1)"><title>baseline (sem filtro): 0.00 Gbit/s</title></rect>
+<rect x="284.0" y="200.0" width="32.0" height="0.0" fill="var(--c2)"><title>PF-on-Linux: 0.00 Gbit/s</title></rect>
+<rect x="324.0" y="200.0" width="32.0" height="0.0" fill="var(--c3)"><title>nftables: 0.00 Gbit/s</title></rect>
+<rect x="364.0" y="200.0" width="32.0" height="0.0" fill="var(--c4)"><title>iptables-nft: 0.00 Gbit/s</title></rect>
+<rect x="404.0" y="200.0" width="32.0" height="0.0" fill="var(--c5)"><title>iptables-legacy: 0.00 Gbit/s</title></rect>
+<rect x="444.0" y="200.0" width="32.0" height="0.0" fill="var(--c1)"><title>baseline (sem filtro): 0.00 Gbit/s</title></rect>
+<rect x="484.0" y="200.0" width="32.0" height="0.0" fill="var(--c2)"><title>PF-on-Linux: 0.00 Gbit/s</title></rect>
+<rect x="524.0" y="200.0" width="32.0" height="0.0" fill="var(--c3)"><title>nftables: 0.00 Gbit/s</title></rect>
+<rect x="564.0" y="200.0" width="32.0" height="0.0" fill="var(--c4)"><title>iptables-nft: 0.00 Gbit/s</title></rect>
+<rect x="604.0" y="200.0" width="32.0" height="0.0" fill="var(--c5)"><title>iptables-legacy: 0.00 Gbit/s</title></rect>
+<line x1="40" y1="200" x2="680" y2="200" stroke="var(--border)"/>
+<text x="40" y="228" fill="var(--muted)" font-size="11">máx 0.40 Gbit/s</text>
+</svg>
+<svg viewBox="0 0 720 240" role="img" aria-label="Latência p50 no caminho (ms)" style="width:100%;height:auto">
+<text x="40" y="18" fill="currentColor" font-size="13">Latência p50 no caminho (ms)</text>
+<rect x="44.0" y="80.8" width="32.0" height="119.2" fill="var(--c1)"><title>baseline (sem filtro): 0.18 ms</title></rect>
+<rect x="84.0" y="40.0" width="32.0" height="160.0" fill="var(--c2)"><title>PF-on-Linux: 0.25 ms</title></rect>
+<rect x="124.0" y="69.1" width="32.0" height="130.9" fill="var(--c3)"><title>nftables: 0.20 ms</title></rect>
+<rect x="164.0" y="46.2" width="32.0" height="153.8" fill="var(--c4)"><title>iptables-nft: 0.24 ms</title></rect>
+<rect x="204.0" y="78.9" width="32.0" height="121.1" fill="var(--c5)"><title>iptables-legacy: 0.19 ms</title></rect>
+<rect x="244.0" y="200.0" width="32.0" height="0.0" fill="var(--c1)"><title>baseline (sem filtro): 0.00 ms</title></rect>
+<rect x="284.0" y="200.0" width="32.0" height="0.0" fill="var(--c2)"><title>PF-on-Linux: 0.00 ms</title></rect>
+<rect x="324.0" y="200.0" width="32.0" height="0.0" fill="var(--c3)"><title>nftables: 0.00 ms</title></rect>
+<rect x="364.0" y="200.0" width="32.0" height="0.0" fill="var(--c4)"><title>iptables-nft: 0.00 ms</title></rect>
+<rect x="404.0" y="200.0" width="32.0" height="0.0" fill="var(--c5)"><title>iptables-legacy: 0.00 ms</title></rect>
+<rect x="444.0" y="200.0" width="32.0" height="0.0" fill="var(--c1)"><title>baseline (sem filtro): 0.00 ms</title></rect>
+<rect x="484.0" y="200.0" width="32.0" height="0.0" fill="var(--c2)"><title>PF-on-Linux: 0.00 ms</title></rect>
+<rect x="524.0" y="200.0" width="32.0" height="0.0" fill="var(--c3)"><title>nftables: 0.00 ms</title></rect>
+<rect x="564.0" y="200.0" width="32.0" height="0.0" fill="var(--c4)"><title>iptables-nft: 0.00 ms</title></rect>
+<rect x="604.0" y="200.0" width="32.0" height="0.0" fill="var(--c5)"><title>iptables-legacy: 0.00 ms</title></rect>
+<line x1="40" y1="200" x2="680" y2="200" stroke="var(--border)"/>
+<text x="40" y="228" fill="var(--muted)" font-size="11">máx 0.25 ms</text>
+</svg>
+
+<h2>Metodologia</h2>
+<p>Três VMs num bridge isolado: <code>bench-kedge</code> (10.0.0.2) →
+<code>bench-fw</code> (10.0.0.1 / 10.0.1.1, <code>ip_forward=1</code>) →
+<code>bench-srv</code> (10.0.1.2). O firewall boota o kernel 7.3.4 do projeto com
+<code>NF_TABLES</code>, <code>NFT_*</code> e <code>IP_NF_IPTABLES_LEGACY</code>, então todos os
+backends rodam no mesmo kernel e na mesma VM. Apenas um backend fica ativo por medição.
+Carga: <code>iperf3 -P4 -b 100M</code> (400 Mbit/s) por 5 s; UDP <code>-b 200M -l 1400</code>;
+latência por 200 pings; conexões/s por connect/close. 3 repetições por célula, ordem dos
+backends invertida a cada repetição.</p>
+
+<h2>Limitações</h2>
+<ul>
+<li>Gerador e firewall no mesmo hipervisor: a vazão absoluta é limitada pela CPU do host.</li>
+<li>PF-on-Linux não sustenta carga ilimitada: acima de ~1 Gbit/s o backlog esgota a memória do
+guest e o kernel entra em pânico (<code>docs/pt-BR/caveats.md</code> §13). Por isso a carga é
+limitada em todas as células.</li>
+<li>IPv6 verificado apenas funcionalmente.</li>
+</ul>
+
+<h2>Dados</h2>
+<ul>
+<li><a href="../data/results.csv">results.csv</a> — amostras brutas (uma linha por métrica)</li>
+<li><a href="../data/summary.json">summary.json</a> — mediana, dispersão e amostras</li>
+<li><a href="../data/meta.json">meta.json</a> — commit, run e contagem de linhas</li>
+<li><a href="../../benchmark.pdf">benchmark.pdf</a> — versão A4 para leitura offline</li>
+</ul>
+
+<h2>Reprodução</h2>
+<pre><code>./bench/lab/provision.sh     # cria as VMs e instala os backends
+./bench/run.sh               # varredura
+python3 bench/tools/report.py  # regenera MD, site e PDF</code></pre>
+</body></html>

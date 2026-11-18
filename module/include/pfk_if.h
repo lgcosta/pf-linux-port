@@ -162,7 +162,7 @@ void pfk_if_refresh(struct pfk_ifnet *ifp);
 struct pfk_ifnet *pfk_if_first(void);
 struct pfk_ifnet *pfk_if_next(struct pfk_ifnet *ifp);
 struct pfk_ifnet *pfk_if_next_from(int *idp);
-struct net_device *ip_rt_get_default_dev(struct net *net);
+int ip_rt_get_default_ifindex(struct net *net);
 
 /* Notification for PF engine (pfi attach/detach), called under NET_LOCK.
  * PFLINUX: the event carries a *kind*, not a boolean:

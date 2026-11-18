@@ -1,0 +1,11 @@
+version: 2
+ethernets:
+  mgmt:
+    match: {macaddress: "52:54:00:0b:01:01"}
+    dhcp4: true
+  bench0:
+    match: {macaddress: "52:54:00:0b:02:01"}
+    addresses: [10.0.0.2/24]
+    routes:
+      - {to: 10.0.1.0/24, via: 10.0.0.1}
+      - {to: 10.0.0.0/24, via: 10.0.0.1}

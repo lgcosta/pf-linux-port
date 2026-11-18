@@ -176,6 +176,8 @@ pfk_if_addr_fingerprint(struct net_device *dev)
 	struct in_ifaddr *ifa4;
 	struct inet6_ifaddr *ifa6;
 
+	/* PFLINUX: __in_dev_get_rcu() requires the RCU read side - the
+	 * address lists are freed with an RCU grace period. */
 	rcu_read_lock();
 	idev = __in_dev_get_rcu(dev);
 	if (idev) {
@@ -367,11 +369,13 @@ pfk_netdev_event(struct notifier_block *nb, unsigned long ev, void *ptr)
 		ifp = pfk_ifp_bydev(dev);
 		if (ifp)
 			pfk_if_refresh(ifp);
-		pfk_egress_refresh();
 		break;
 	}
 	}
-	pfk_egress_refresh();
+	/* PFLINUX: no egress refresh here - this notifier runs under
+	 * rtnl_lock and the FIB lookup behind it would take rtnl again
+	 * (self-deadlock).  The address poll (pfk_if_addr_poll_work) refreshes
+	 * the egress interface from the workqueue instead, within a second. */
 	return NOTIFY_DONE;
 }
 
@@ -491,19 +495,19 @@ void
 pfk_egress_refresh(void)
 {
 	struct pfk_ifnet *ifp = NULL, *old = pfk_egress;
-	struct net_device *dev;
+	int idx;
 
-	/* PFLINUX: default route lookup for 0.0.0.0 via FIB */
-	rcu_read_lock();
-	dev = ip_rt_get_default_dev(&init_net);	/* helper, P1 export */
-	rcu_read_unlock();
-	ifp = pfk_ifp_bydev(dev);
-	/* ip_rt_get_default_dev() hands out a reference; the idr holds its own
-	 * lifetime for the pfk_ifnet, so drop it here (this runs once a second
-	 * from the address poll - an unbalanced dev_hold() would keep the
-	 * net_device alive for good). */
-	if (dev != NULL)
-		dev_put(dev);
+	/* PFLINUX: default route lookup for 0.0.0.0 via FIB.  No RCU read
+	 * side here: the dst the helper returns is released inside it, and
+	 * ip_route_output_key() may sleep (it allocates), so a sleeping lock
+	 * would be needed anyway - this runs from the pfk_if workqueue. */
+	/* PFLINUX: the FIB lookup can take rtnl, so it must not run under
+	 * rtnl_lock - which is exactly how register_netdevice_notifier()
+	 * calls its notifiers.  That is why the notifier path no longer
+	 * refreshes the egress interface (the address poll does it instead).
+	 */
+	idx = ip_rt_get_default_ifindex(&init_net);	/* helper, P1 export */
+	ifp = idx ? pfk_ifp_byindex(idx) : NULL;
 	/* the old interface must not keep the BSD IFFX_EGRESS flag when the
 	 * default route moved to another one */
 	if (old != NULL && old != ifp)
@@ -591,7 +595,11 @@ pfk_if_init(void)
 		}
 	}
 	rtnl_unlock();
-	pfk_egress_refresh();
+
+	/* PFLINUX: the egress interface is resolved by the address poll
+	 * (process context, no rtnl held) - a FIB lookup during module
+	 * init deadlocks: register_netdevice_notifier() calls its
+	 * notifiers under rtnl_lock and the lookup wants rtnl itself. */
 
 	/* watch the interfaces' addresses (no in-module notification exists) */
 	pfk_if_addr_polling = true;

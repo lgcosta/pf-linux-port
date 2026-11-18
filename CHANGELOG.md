@@ -50,6 +50,40 @@ the state-match path are protected by the **refcount**: the state reference
 comment now states this, and `caveats.md` §3 spells out what is covered and
 what the narrow residual is (the path where no state was created).
 
+### Benchmark vs nftables / iptables (and the module fixes it forced)
+
+`bench/` adds a reproducible comparison of the port against **nftables**,
+**iptables-nft** and **iptables-legacy** on one isolated bridge
+(`bench-kedge -> bench-fw -> bench-srv`), with the firewall booting the
+project's 7.3.4 kernel rebuilt with `NF_TABLES`, `NFT_*` and
+`IP_NF_IPTABLES_LEGACY` so all four backends run on the same kernel and VM.
+
+- `bench/lab/provision.sh` builds the lab; `bench/run.sh` + `bench/lab/bench-on-deb.sh`
+  run the sweep (stateless, stateful, NAT, rule scale, reload under traffic,
+  unbounded ceiling); `bench/tools/report.py` and `bench/tools/make_pdf.py`
+  render the Markdown report, the static site and the A4 PDF from the *same*
+  CSV.
+- Report: `docs/pt-BR/benchmark.md` (with the EN executive summary),
+  `docs/en/benchmark.md`, `bench/report/site/index.html`,
+  `bench/report/benchmark.pdf`, raw samples in `bench/report/data/`.
+
+Two port defects surfaced while building it and are fixed here:
+
+- **`insmod` deadlocked on a kernel where the default route needs the FIB.**
+  `pfk_egress_refresh()` did a route lookup from the netdevice notifier —
+  and `register_netdevice_notifier()` calls its notifiers *under*
+  `rtnl_lock()`, which the lookup takes again (self-deadlock; the guest
+  hung on `insmod`). The egress interface is now resolved from the address
+  poll (workqueue, no rtnl held, only the interface *index* is kept).
+- `ip_rt_get_default_dev()` returned a `net_device *` that outlived its
+  `dst_entry`; the helper now returns the interface index and releases the
+  route before the caller uses it.
+
+Known measurement limit, documented in the report: PF-on-Linux is not
+measurable under unbounded load — its workqueue backlog exhausts the guest
+above roughly 1 Gbit/s (see caveats §13) — so the ceiling scenario runs on
+the native backends only.
+
 ### Debian 13 implementation manual
 
 `docs/en/debian13.md` + `docs/pt-BR/debian13.md` — the complete from-zero

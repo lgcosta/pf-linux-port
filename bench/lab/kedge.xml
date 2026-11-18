@@ -1,0 +1,22 @@
+<domain type='kvm'>
+  <name>bench-kedge</name>
+  <memory unit='MiB'>2048</memory>
+  <vcpu>2</vcpu>
+  <cpu mode='host-passthrough' check='partial'/>
+  <os><type arch='x86_64' machine='q35'>hvm</type><boot dev='hd'/><kernel>/var/lib/pflab/boot/bench-bzImage</kernel><cmdline>root=/dev/vda2 ro console=ttyS0,115200n8</cmdline></os>
+  <features><acpi/><apic/></features>
+  <clock offset='utc'/>
+  <on_poweroff>destroy</on_poweroff><on_reboot>restart</on_reboot><on_crash>destroy</on_crash>
+  <devices>
+    <disk type='file' device='disk'><driver name='qemu' type='qcow2'/>
+      <source file='/var/lib/libvirt/images/bench-kedge.qcow2'/><target dev='vda' bus='virtio'/></disk>
+    <disk type='file' device='cdrom'><driver name='qemu' type='raw'/>
+      <source file='/var/lib/libvirt/pflab/seeds/bench-kedge/seed.iso'/><target dev='sda' bus='sata'/><readonly/></disk>
+    <interface type='network'><mac address='52:54:00:0b:01:01'/>
+      <source network='default'/><model type='virtio'/></interface>
+    <interface type='network'><mac address='52:54:00:0b:02:01'/>
+      <source network='bench-net'/><model type='virtio'/></interface>
+    <serial type='file'><source path='/var/log/libvirt/bench-kedge-console.log'/><target type='isa-serial' port='0'><model name='isa-serial'/></target></serial>
+    <memballoon model='virtio'/>
+  </devices>
+</domain>

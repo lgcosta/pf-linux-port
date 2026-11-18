@@ -63,6 +63,10 @@ Details, per-phase breakdown and the YouTube description text:
 
 ## Quick start
 
+Benchmark vs the native backends (nftables, iptables-nft, iptables-legacy):
+[`docs/en/benchmark.md`](docs/en/benchmark.md) ·
+[`bench/`](bench/) · report [`bench/report/site/index.html`](bench/report/site/index.html).
+
 Full recipe: [`docs/en/install.md`](docs/en/install.md). **Debian 13 (trixie)
 from zero** (host prep → kernel → module → tools → lab → stress):
 [`docs/en/debian13.md`](docs/en/debian13.md). Short version

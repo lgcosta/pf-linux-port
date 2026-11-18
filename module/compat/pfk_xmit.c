@@ -214,20 +214,32 @@ if_enqueue(struct pfk_ifnet *ifp, struct mbuf *m)
 	return ENOBUFS;
 }
 
-/* default-route egress device helper for pfk_egress_refresh() */
-struct net_device *
-ip_rt_get_default_dev(struct net *net)
+/*
+ * Default-route egress *interface index* for pfk_egress_refresh().
+ *
+ * PFLINUX: only the index is returned, never the device pointer: the route
+ * is released before the caller uses the value, so the device must not be
+ * touched afterwards.  The caller must run this in process context and
+ * without rtnl held - a FIB lookup can take rtnl itself, and
+ * register_netdevice_notifier() calls its notifiers *under* rtnl_lock
+ * (deadlock: see pfk_netdev_event()).
+ */
+int
+ip_rt_get_default_ifindex(struct net *net)
 {
-	struct dst_entry *d = pfk_route4(htonl(0x08080808), 0, 0);
-	struct net_device *dev = NULL;
+	struct flowi4 fl4 = { };
+	struct rtable *rt;
+	int idx = 0;
 
-	if (d) {
-		dev = d->dev;
-		if (dev)
-			dev_hold(dev);
-		dst_release(d);
-	}
-	return dev;
+	fl4.daddr = htonl(0x08080808);
+	fl4.flowi4_oif = 0;
+	rt = ip_route_output_key(net, &fl4);
+	if (IS_ERR(rt))
+		return (0);
+	if (rt->dst.dev != NULL)
+		idx = rt->dst.dev->ifindex;
+	ip_rt_put(rt);
+	return (idx);
 }
 
 /* ---------------- return errors ---------------- */

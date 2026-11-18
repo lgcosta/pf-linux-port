@@ -1,0 +1,72 @@
+scenario,backend,rep,metric,value,unit,offered
+stateless,baseline,1,fw_cpu_ticks,317,ticks,cumulative user+softirq
+stateless,baseline,1,tcp_gbit,0.401,Gbit/s,tcp -P4 -b100M -t5
+stateless,baseline,1,latency_p50,0.187,ms,ping 200x10ms
+stateless,baseline,1,latency_p95,0.239,ms,ping 200x10ms
+stateless,baseline,1,latency_p99,0.289,ms,ping 200x10ms
+stateless,baseline,1,udp_pps,17856,pps,udp -b200M -l1400 -t5
+stateless,baseline,1,udp_loss,0,percent,udp -b200M -l1400 -t5
+stateless,nft,1,fw_cpu_ticks,329,ticks,cumulative user+softirq
+stateless,nft,1,tcp_gbit,0.401,Gbit/s,tcp -P4 -b100M -t5
+stateless,nft,1,latency_p50,0.187,ms,ping 200x10ms
+stateless,nft,1,latency_p95,0.243,ms,ping 200x10ms
+stateless,nft,1,latency_p99,0.287,ms,ping 200x10ms
+stateless,nft,1,udp_pps,17856,pps,udp -b200M -l1400 -t5
+stateless,nft,1,udp_loss,0,percent,udp -b200M -l1400 -t5
+stateless,ipt-nft,1,fw_cpu_ticks,342,ticks,cumulative user+softirq
+stateless,ipt-nft,1,tcp_gbit,0.401,Gbit/s,tcp -P4 -b100M -t5
+stateless,ipt-nft,1,latency_p50,0.244,ms,ping 200x10ms
+stateless,ipt-nft,1,latency_p95,0.380,ms,ping 200x10ms
+stateless,ipt-nft,1,latency_p99,0.432,ms,ping 200x10ms
+stateless,ipt-nft,1,udp_pps,17856,pps,udp -b200M -l1400 -t5
+stateless,ipt-nft,1,udp_loss,0,percent,udp -b200M -l1400 -t5
+stateless,ipt-legacy,1,fw_cpu_ticks,357,ticks,cumulative user+softirq
+stateless,ipt-legacy,1,tcp_gbit,0.400,Gbit/s,tcp -P4 -b100M -t5
+stateless,ipt-legacy,1,latency_p50,0.187,ms,ping 200x10ms
+stateless,ipt-legacy,1,latency_p95,0.233,ms,ping 200x10ms
+stateless,ipt-legacy,1,latency_p99,0.291,ms,ping 200x10ms
+stateless,ipt-legacy,1,udp_pps,17856,pps,udp -b200M -l1400 -t5
+stateless,ipt-legacy,1,udp_loss,0,percent,udp -b200M -l1400 -t5
+stateless,ipt-legacy,2,fw_cpu_ticks,369,ticks,cumulative user+softirq
+stateless,ipt-legacy,2,tcp_gbit,0.401,Gbit/s,tcp -P4 -b100M -t5
+stateless,ipt-legacy,2,latency_p50,0.187,ms,ping 200x10ms
+stateless,ipt-legacy,2,latency_p95,0.251,ms,ping 200x10ms
+stateless,ipt-legacy,2,latency_p99,0.269,ms,ping 200x10ms
+stateless,ipt-legacy,2,udp_pps,17856,pps,udp -b200M -l1400 -t5
+stateless,ipt-legacy,2,udp_loss,0,percent,udp -b200M -l1400 -t5
+stateless,ipt-nft,2,fw_cpu_ticks,382,ticks,cumulative user+softirq
+stateless,ipt-nft,2,tcp_gbit,0.400,Gbit/s,tcp -P4 -b100M -t5
+stateless,ipt-nft,2,latency_p50,0.231,ms,ping 200x10ms
+stateless,ipt-nft,2,latency_p95,0.373,ms,ping 200x10ms
+stateless,ipt-nft,2,latency_p99,0.473,ms,ping 200x10ms
+stateless,ipt-nft,2,udp_pps,17856,pps,udp -b200M -l1400 -t5
+stateless,ipt-nft,2,udp_loss,0,percent,udp -b200M -l1400 -t5
+stateless,nft,2,fw_cpu_ticks,394,ticks,cumulative user+softirq
+stateless,nft,2,tcp_gbit,0.401,Gbit/s,tcp -P4 -b100M -t5
+stateless,nft,2,latency_p50,0.217,ms,ping 200x10ms
+stateless,nft,2,latency_p95,0.351,ms,ping 200x10ms
+stateless,nft,2,latency_p99,0.431,ms,ping 200x10ms
+stateless,nft,2,udp_pps,17856,pps,udp -b200M -l1400 -t5
+stateless,nft,2,udp_loss,0,percent,udp -b200M -l1400 -t5
+stateless,baseline,2,fw_cpu_ticks,401,ticks,cumulative user+softirq
+stateless,baseline,2,tcp_gbit,0.401,Gbit/s,tcp -P4 -b100M -t5
+stateless,baseline,2,latency_p50,0.181,ms,ping 200x10ms
+stateless,baseline,2,latency_p95,0.201,ms,ping 200x10ms
+stateless,baseline,2,latency_p99,0.231,ms,ping 200x10ms
+stateless,baseline,2,udp_pps,17856,pps,udp -b200M -l1400 -t5
+stateless,baseline,2,udp_loss,0,percent,udp -b200M -l1400 -t5
+ceiling,baseline,1,tcp_gbit,18.331,Gbit/s,unbounded -P4 -t5
+ceiling,nft,1,tcp_gbit,18.107,Gbit/s,unbounded -P4 -t5
+ceiling,ipt-nft,1,tcp_gbit,18.111,Gbit/s,unbounded -P4 -t5
+ceiling,ipt-legacy,1,tcp_gbit,18.761,Gbit/s,unbounded -P4 -t5
+ceiling,ipt-legacy,2,tcp_gbit,18.774,Gbit/s,unbounded -P4 -t5
+ceiling,ipt-nft,2,tcp_gbit,18.588,Gbit/s,unbounded -P4 -t5
+ceiling,nft,2,tcp_gbit,18.219,Gbit/s,unbounded -P4 -t5
+ceiling,baseline,2,tcp_gbit,18.629,Gbit/s,unbounded -P4 -t5
+stateless,pf,1,fw_cpu_ticks,329,ticks,cumulative user+softirq
+stateless,pf,1,tcp_gbit,0.401,Gbit/s,tcp -P4 -b100M -t5
+stateless,pf,1,latency_p50,0.247,ms,ping 200x10ms
+stateless,pf,1,latency_p95,0.466,ms,ping 200x10ms
+stateless,pf,1,latency_p99,0.539,ms,ping 200x10ms
+stateless,pf,1,udp_pps,17856,pps,udp -b200M -l1400 -t5
+stateless,pf,1,udp_loss,0,percent,udp -b200M -l1400 -t5

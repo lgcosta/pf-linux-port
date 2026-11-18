@@ -1,0 +1,5 @@
+backend,feature,result,note
+pf,ipv4_filter,pass,ping blocked through FORWARD
+pf,stateful,pass,new flow dropped
+pf,snat,limited,no translated entry seen (conntrack=0)
+pf,addr_set,pass,member address blocked from a set/table
