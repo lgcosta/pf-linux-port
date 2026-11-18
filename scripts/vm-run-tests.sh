@@ -4,8 +4,16 @@ set -uo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 DEB="${DEB:-root@192.168.1.242}"
 LOGD="$REPO/out/test-logs"; mkdir -p "$LOGD"
-PF0_IP=192.168.122.8
-SSH="ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8 -i /root/.ssh/pflab_ed root@$PF0_IP"
+# pf0's management address is a DHCP lease on the shared libvirt "default"
+# network: it moves whenever other VMs take the old one.  Resolve it from
+# the hypervisor instead of pinning a lease that may not be ours any more.
+PF0_IP=${PF0_IP:-$(ssh -o BatchMode=yes -o ConnectTimeout=8 "$DEB" \
+	"virsh domifaddr pftest-pf0 2>/dev/null | awk '/ipv4/ {print \$4}'" |
+	cut -d/ -f1 | tail -1)}
+[ -n "$PF0_IP" ] || { echo "cannot resolve pf0's management address" >&2; exit 1; }
+# the guest is recreated by vm-create.sh, so its host key changes with it:
+# do not pin it (the same hop in tests/vm/lib.sh does the same)
+SSH="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=8 -i /root/.ssh/pflab_ed root@$PF0_IP"
 
 reset_pf0() {
 	ssh "$DEB" "virsh destroy pftest-pf0 >/dev/null 2>&1; virsh start pftest-pf0 >/dev/null"
