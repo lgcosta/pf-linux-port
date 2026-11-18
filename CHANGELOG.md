@@ -2,6 +2,54 @@
 
 ## Unreleased
 
+### Lab hygiene fixes (found while reproducing the issues)
+
+- The gate helpers pinned pf0's management address to `192.168.122.8`. That
+  address is a DHCP lease on the **shared** libvirt `default` network, so it
+  moves whenever other VMs (e.g. the NewFirewall appliance) come and go — the
+  gates then failed with "No route to host" for a reason that had nothing to
+  do with PF. `tests/vm/lib.sh` and `scripts/vm-run-tests.sh` now resolve the
+  address from the hypervisor (`virsh domifaddr`).
+- The guest hops used `StrictHostKeyChecking=accept-new`, which *fails* when
+  the host key changed — and the guests are recreated by `vm-create.sh`, so
+  their keys change on every lab rebuild. The guest hops now use
+  `StrictHostKeyChecking=no` with a throwaway known-hosts file, like
+  `scripts/lab-lib.sh` already did for its own hops.
+
+### Fixes for the NewFirewall integration issues
+
+**Issue #2 — dynamic address pools (`nat-to (iface)`) follow the interface.**
+Two defects, both reproduced in the lab and now fixed:
+
+- The table behind a dynamic pool was rebuilt when an interface was
+  attached or a group changed, but **not** when an address was added or
+  removed — Linux exports no IP-address notifier to modules
+  (`inetaddr_chain` is private to the network core, `NETDEV_CHANGEADDR`
+  covers MAC changes only). A ruleset applied before the WAN address
+  existed therefore kept an **empty** pool (no translation at all) and one
+  applied before a DHCP change kept the **old** address, until the next
+  ruleset reload — the boot race reported from the appliance. The compat
+  layer now polls a cheap address fingerprint once a second and re-publishes
+  the affected pools (`pfk_if_addr_poll_work()` → `pfi_kif_addr_refresh()`).
+- The emulated **`egress`** group resolved to *nothing*, so `nat-to (egress)`
+  never translated at all. It now resolves to the default-route interface —
+  what OpenBSD's group holds.
+- Gate `17-dynaddr.sh` proves it: no translation while the interface has no
+  address, translation **without a ruleset reload** within a second of the
+  address landing, and `nat-to (egress)` resolving to the default-route
+  address.
+
+**Issue #1 — the state-match lifetime assumption.** `pf_lock`/`pf_state_lock`
+are OpenBSD's *own* locks (upstream defines `PF_LOCK()` as
+`rw_enter_write(&pf_lock)`), and upstream's `pf_test()` never takes the
+global `NET_LOCK` either — the comment in `pf.c` claiming otherwise is
+inherited, stale upstream text. The rule, anchor and ruleset collected by
+the state-match path are protected by the **refcount**: the state reference
+(`pf_state_ref()`) keeps `states_cur` on the rule and anchor, and
+`pf_rm_rule()` refuses to free a rule while `states_cur > 0`. The stale
+comment now states this, and `caveats.md` §3 spells out what is covered and
+what the narrow residual is (the path where no state was created).
+
 ### Debian 13 implementation manual
 
 `docs/en/debian13.md` + `docs/pt-BR/debian13.md` — the complete from-zero

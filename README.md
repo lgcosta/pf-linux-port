@@ -8,7 +8,7 @@ the real OpenBSD `pfctl` over the `/dev/pf` ioctl ABI.
 **Status:** the filter core, stateful filtering, tables, anchors, NAT
 (`nat-to`/`rdr-to`/`binat-to`), forced routing (`route-to`/`dup-to`/`reply-to`),
 pools, `divert`, `pflog` and the OpenBSD 8.0 **queues (HFSC)** are **verified
-in a real libvirt lab** — 16/16 gates green. What is still pending is stated
+in a real libvirt lab** — 17/17 gates green. What is still pending is stated
 per feature in [`docs/en/feature-matrix.md`](docs/en/feature-matrix.md).
 
 Screencasts (EN + PT, narrated): [`docs/en/screencast.md`](docs/en/screencast.md).
@@ -25,7 +25,7 @@ Design: [`docs/superpowers/specs/2026-11-11-pf-linux-port-design.md`](docs/super
 | M3 | NAT (`nat-to`/`rdr-to`/`binat-to`), scrub | **done** — gates 05/06/07/09 (incl. 2 MB integrity through a redirect, min-ttl/max-mss measured) |
 | M4 | route-to/dup-to/reply-to, pools, divert e2e, pflog | **done** — divert (11), pflog (12), route-to/dup-to (08), pools (10), reply-to (13) verified |
 | M5 | queues: HFSC back end in the data path | **done (mechanical)** — gate 15: queues load, hfsc attaches, `pfctl -s queue -v` reports class stats, a 2 MB queued flow is counted by the class. `bandwidth` = HFSC linkshare (guarantee, not cap; 8.0 has no upperlimit syntax) |
-| M6 | docs complete, patchset tidy, full suite green, tagged release | **done** — docs EN+PT-BR, 16/16 suite green, tagged (`v1.0.0`) |
+| M6 | docs complete, patchset tidy, full suite green, tagged release | **done** — docs EN+PT-BR, 17/17 suite green, tagged (`v1.0.0`) |
 
 ## What you get
 
@@ -95,7 +95,7 @@ Documentação em português: [`README.pt-BR.md`](README.pt-BR.md) e
 - `scripts/` — fetch/build/patch/VM automation, plus `scripts/screencast/` for the videos
 - `scripts/debian13/` — Debian 13 host preparation (`prepare-host.sh`)
 - `scripts/stress/` — stress runner (`run-stress.sh`) + report writer
-- `tests/vm/` — VM suite: 16 gates (`tests/vm/NN-*.sh`) + `lib.sh`
+- `tests/vm/` — VM suite: 17 gates (`tests/vm/NN-*.sh`) + `lib.sh`
 - `docs/en/` + `docs/pt-BR/` — full bilingual documentation
 - `docs/superpowers/` — design spec + implementation plan
 

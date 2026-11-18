@@ -8553,9 +8553,27 @@ pf_test(sa_family_t af, int fwdir, struct pfk_ifnet *ifp, struct mbuf **m0)
 		PF_UNLOCK();
 
 	/*
-	 * At the moment, we rely on NET_LOCK() to prevent removal of items
-	 * we've collected above ('r', 'anchor' and 'ruleset').  They'll have
-	 * to be refcounted when NET_LOCK() is gone.
+	 * PFLINUX: the items collected above ('r', 'anchor' and 'ruleset')
+	 * stay valid without a global network lock:
+	 *
+	 *   - on the state-match path we hold a reference on the state
+	 *     (pf_state_ref(), released at the end of pf_test()), and the
+	 *     state keeps 'states_cur' on the rule, on the anchor and on
+	 *     the matched rules; pf_rm_rule() refuses to free a rule while
+	 *     states_cur > 0, so the rule, its anchor and its ruleset
+	 *     outlive our reference;
+	 *
+	 *   - on the path where no state was created the rule was collected
+	 *     under pf_lock but is read after pf_lock is dropped, and such
+	 *     a rule (states_cur == 0) can be freed by a concurrent reload
+	 *     in that window.  That residual is the documented M2 deviation
+	 *     (see docs/en/caveats.md).
+	 *
+	 * Note that pf_lock/pf_state_lock are OpenBSD's own locks (pfvar_priv.h
+	 * defines PF_LOCK() as rw_enter_write(&pf_lock)), not a substitute
+	 * for the global network lock; this comment is inherited from upstream
+	 * and describes a state of the code that no longer holds upstream
+	 * either.
 	 */
 
 done:

@@ -103,7 +103,7 @@ tamanho embutido na codificação `_IOR/_IOW` OpenBSD e despacha para o
 | M3 | NAT (`nat-to`/`rdr-to`/`binat-to`), scrub, pflog | **pronto** — gates 05/06/07/09 (incl. integridade de 2 MB via redirect) e pflog gate 12 |
 | M4 | route-to/dup-to/reply-to, pools, divert e2e | **pronto** — gates 08/10/13 e divert gate 11 |
 | M5 | filas: back ends ifq (hfsc/fq_codel) | **concluído (mecânico)** — gate 15: o hfsc é anexado, `pfctl -s queue -v` mostra as stats das classes, um fluxo de 2 MB pela fila é contado pela classe. `bandwidth` = linkshare do HFSC (garantia sob contenção, não teto) |
-| M6 | docs completas, patchset limpo, suíte verde, releases com tag | **concluído** — docs EN+PT-BR, suíte 16/16 verde, tag `v1.0.0` |
+| M6 | docs completas, patchset limpo, suíte verde, releases com tag | **concluído** — docs EN+PT-BR, suíte 17/17 verde, tag `v1.0.0` |
 
 ## Próximas leituras
 

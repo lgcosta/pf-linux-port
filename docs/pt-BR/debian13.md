@@ -258,7 +258,7 @@ em `/opt/pf/`.
 
 ---
 
-## 7. Passo 7 — a suíte de 16 gates
+## 7. Passo 7 — a suíte de 17 gates
 
 ```sh
 ./scripts/vm-run-tests.sh          # ou: make test
@@ -268,7 +268,7 @@ O runner reinicia a `pf0` antes de cada gate (estado limpo), re-deploya o
 módulo e as ferramentas, e roda o gate a partir do build host. Saída esperada:
 
 ```
-PASS=16 FAIL=0
+PASS=17 FAIL=0
 ```
 
 Logs por gate em `out/test-logs/<gate>.sh.log`.
@@ -441,7 +441,7 @@ dmesg | grep pfk                           # "pfk: netfilter hooks registered (1
 pfctl -sr; pfctl -s states
 
 # 6. suíte completa
-./scripts/vm-run-tests.sh                  # PASS=16 FAIL=0
+./scripts/vm-run-tests.sh                  # PASS=17 FAIL=0
 
 # 7. stress
 ./scripts/stress/run-stress.sh             # STRESS RESULT: PASS

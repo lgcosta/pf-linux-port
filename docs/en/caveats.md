@@ -45,16 +45,41 @@ bits and let a packet **skip** a PF pass. Practical rule on a PF-on-Linux
 host: do not use fwmark mangling on the same traffic; if you must, mask the
 PF tag bits out of your mark space.
 
-### 3. No NET-lock on the data path (M2 interim)
+### 3. No NET-lock on the data path (M2 interim) — and what actually protects the rule
 
-`pf_test()` currently runs **without** the compat NET read lock (comment in
+`pf_test()` runs **without** the compat NET read lock (comment in
 `pfk_hooks.c`): with the workqueue model, a parked control writer (ruleset
 change, purge ioctl) starved the packet side badly enough to be
 counter-productive. Rule-set mutation and packet walk therefore run
 concurrently, protected by what upstream `pf.c` itself uses (PF_LOCK/RCU-ish
 patterns) — a deliberate interim deviation being reworked with the lock
-model in M5+. Until then: expect correctness under steady state, not under
-aggressive concurrent reload; the reload-under-traffic soak is an open gate.
+model in M5+.
+
+**What protects the rule, anchor and ruleset collected by the state-match
+path** (the question raised in issue #1) — the answer is the refcount, not
+the network lock:
+
+- `pf_lock`/`pf_state_lock` are **OpenBSD's own locks**: upstream
+  `pfvar_priv.h` defines `PF_LOCK()` as `rw_enter_write(&pf_lock)` and
+  `PF_UNLOCK()` as `rw_exit_write(&pf_lock)`, byte-identical to the port.
+  Upstream's `pf_test()` never takes the global `NET_LOCK` either — the
+  comment in `pf.c` that says otherwise is inherited, stale upstream text.
+- On the state-match path the engine holds a reference on the state
+  (`pf_state_ref()`, released at the end of `pf_test()`); the state keeps
+  `states_cur` on the rule, on the anchor and on the matched rules, and
+  `pf_rm_rule()` refuses to free a rule while `states_cur > 0`. The rule,
+  its anchor and its ruleset therefore outlive the reference — no network
+  lock needed.
+- The residual: on the path where **no state was created**, the rule was
+  collected under `pf_lock` but is read after `pf_lock` is dropped, and such
+  a rule (`states_cur == 0`) can be freed by a concurrent reload in that
+  window. That is the part of the upstream assumption that does not hold
+  here; the *contents* of a rule may also change under a concurrent reload.
+
+So: correctness under steady state and under reload-under-traffic is
+covered by the refcount (the reload-under-traffic soak is gate
+`14-soak.sh`, the stress gate reloads a 202-rule ruleset 200 times under
+load); the narrow window above is the residual deviation.
 
 ### 4. Fail-open under memory pressure
 
@@ -224,6 +249,43 @@ Practical consequences:
 What would fix it is a real fast path (evaluate `pf_test()` inline in
 softirq, as OpenBSD does) or a bounded queue with a drop policy — both are
 design changes beyond this port's scope.
+
+### 14. Dynamic address pools: what they resolve to and how fast
+
+`nat-to (eth2)`, `rdr-to (eth2)` and the other *dynamic* pool targets are
+resolved by the kernel from the interface's addresses (the rule carries
+`PF_ADDR_DYNIFTL`, not a frozen address list). Two things about that are
+worth stating plainly:
+
+- **What the pool resolves to.** For a named interface it is that
+  interface's current addresses. For the OpenBSD **`egress`** group — which
+  Linux does not have — the port resolves it to the **default-route
+  interface** (`pfk_egress_if()`), which is what OpenBSD's group holds.
+  Before the fix the emulated group resolved to *nothing*, so
+  `nat-to (egress)` never translated at all.
+- **How fast it follows the interface.** The table behind a dynamic pool was
+  rebuilt when an interface was attached or a group changed, but **not** when
+  an address was added or removed: Linux exports no IP-address notifier to
+  modules (`inetaddr_chain` is private to the network core and
+  `NETDEV_CHANGEADDR` only covers MAC changes). The compat layer therefore
+  polls a cheap address fingerprint once a second
+  (`pfk_if_addr_poll_work()`) and re-publishes the affected pools
+  (`pfi_kif_addr_refresh()`).
+
+Consequences to design around:
+
+- Between the moment an address lands and the next poll (**up to ~1 s**) the
+  pool still holds the previous value: empty if the interface had no address
+  when the ruleset was applied (the boot race of issue #2), or the *old*
+  address after a DHCP change. A ruleset that must translate the very first
+  packet after the address appears should be re-applied as well.
+- The pool follows the interface, not the other way round: an address that
+  moves is picked up within the same ~1 s.
+
+Gate `17-dynaddr.sh` proves all of it: no translation while the interface
+has no address, translation **without a ruleset reload** within a second of
+the address landing, and `nat-to (egress)` resolving to the default-route
+address.
 
 ## What is *not* a caveat
 

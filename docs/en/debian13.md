@@ -259,7 +259,7 @@ Expected: `7.3.4`, the `pf` module loaded, and `pf.ko`/`pfctl`/`pdivert`/
 
 ---
 
-## 7. Step 7 — the 16-gate suite
+## 7. Step 7 — the 17-gate suite
 
 ```sh
 ./scripts/vm-run-tests.sh          # or: make test
@@ -269,7 +269,7 @@ The runner restarts `pf0` before every gate (clean state), re-deploys the
 module and the tools, and runs the gate from the build host. Expected output:
 
 ```
-PASS=16 FAIL=0
+PASS=17 FAIL=0
 ```
 
 Per-gate logs land in `out/test-logs/<gate>.sh.log`.
@@ -444,7 +444,7 @@ dmesg | grep pfk                           # "pfk: netfilter hooks registered (1
 pfctl -sr; pfctl -s states
 
 # 6. the full suite
-./scripts/vm-run-tests.sh                  # PASS=16 FAIL=0
+./scripts/vm-run-tests.sh                  # PASS=17 FAIL=0
 
 # 7. stress
 ./scripts/stress/run-stress.sh             # STRESS RESULT: PASS

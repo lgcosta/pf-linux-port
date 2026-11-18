@@ -8,7 +8,7 @@ controlado pelo `pfctl` real do OpenBSD via a ABI ioctl de `/dev/pf`.
 **Status:** o núcleo de filtragem, a filtragem stateful, tabelas, anchors, NAT
 (`nat-to`/`rdr-to`/`binat-to`), roteamento forçado (`route-to`/`dup-to`/
 `reply-to`), pools, `divert`, `pflog` e as **filas do OpenBSD 8.0 (HFSC)** estão
-**verificados num lab libvirt real** — 16/16 gates verdes. O que ainda está
+**verificados num lab libvirt real** — 17/17 gates verdes. O que ainda está
 pendente está dito por feature em
 [`docs/pt-BR/feature-matrix.md`](docs/pt-BR/feature-matrix.md).
 
@@ -26,7 +26,7 @@ Design: [`docs/superpowers/specs/2026-11-11-pf-linux-port-design.md`](docs/super
 | M3 | NAT (`nat-to`/`rdr-to`/`binat-to`), scrub | **concluído** — gates 05/06/07/09 (incl. 2 MB íntegros através de um redirect, min-ttl/max-mss medidos) |
 | M4 | route-to/dup-to/reply-to, pools, divert e2e, pflog | **concluído** — divert (11), pflog (12), route-to/dup-to (08), pools (10), reply-to (13) verificados |
 | M5 | filas: back end HFSC no caminho de dados | **concluído (mecânico)** — gate 15: as filas carregam, o hfsc é anexado, `pfctl -s queue -v` mostra as estatísticas das classes, e um fluxo de 2 MB pela fila é contado pela classe. `bandwidth` = linkshare do HFSC (garantia, não teto; o 8.0 não tem sintaxe de upperlimit) |
-| M6 | docs completas, patchset arrumado, suíte inteira verde, release com tag | **concluído** — docs EN+PT-BR, 16/16 da suíte verdes, tag `v1.0.0` |
+| M6 | docs completas, patchset arrumado, suíte inteira verde, release com tag | **concluído** — docs EN+PT-BR, 17/17 da suíte verdes, tag `v1.0.0` |
 
 ## O que você obtém
 
@@ -97,7 +97,7 @@ English documentation: [`README.md`](README.md) e
 - `scripts/` — automação de fetch/build/patch/VM, mais `scripts/screencast/` para os vídeos
 - `scripts/debian13/` — preparação do host Debian 13 (`prepare-host.sh`)
 - `scripts/stress/` — runner do stress (`run-stress.sh`) + gerador de relatório
-- `tests/vm/` — suíte em VM: 16 gates (`tests/vm/NN-*.sh`) + `lib.sh`
+- `tests/vm/` — suíte em VM: 17 gates (`tests/vm/NN-*.sh`) + `lib.sh`
 - `docs/en/` + `docs/pt-BR/` — documentação completa bilíngue
 - `docs/superpowers/` — design + plano de implementação
 

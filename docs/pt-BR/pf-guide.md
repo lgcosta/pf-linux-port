@@ -6,7 +6,7 @@ Este é o guia do "o que dá para rodar hoje". Ele segue a
 [matriz de features](feature-matrix.md): o núcleo de filtragem
 (pass/block/quick/keep state/tabelas/anchors), a família de NAT, o scrub, o
 roteamento forçado, os pools, o `divert`, o `pflog` e as filas do OpenBSD
-8.0 têm todos **evidência em VM** — os 16 gates do lab estão verdes. O que
+8.0 têm todos **evidência em VM** — os 17 gates do lab estão verdes. O que
 *não* tem gate está listado explicitamente abaixo. Instalação/build ficam em
 [install.md](install.md) e [build.md](build.md).
 

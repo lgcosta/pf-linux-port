@@ -46,17 +46,41 @@ acidentalmente ligar esses bits e deixar o pacote **pular** um passe do PF.
 Regra prática num host com PF-on-Linux: não use mangling de fwmark no mesmo
 tráfego; se precisar, mascare os bits do tag do PF no seu espaço de mark.
 
-### 3. Sem lock NET no caminho de dados (interino do M2)
+### 3. Sem NET-lock no caminho de dados (interino do M2) — o que protege a regra
 
-O `pf_test()` roda hoje **sem** a lock de leitura NET da compat (comentário
-em `pfk_hooks.c`): com o modelo de workqueue, um escritor de controle
-parqueado (mudança de ruleset, ioctl de purge) esfomeava o lado dos pacotes
-a ponto de ser contraproducente. A mutação do ruleset e a caminhada de
-pacotes rodam, portanto, concorrentemente, protegidas pelo que o próprio
-`pf.c` do upstream usa (PF_LOCK/padrões tipo RCU) — um desvio interino
-deliberado, sendo retrabalhado junto com o modelo de locks no M5+. Até lá:
-espere correção em regime estável, não sob reload concorrente agressivo; o
-soak de reload sob tráfego é um gate aberto.
+O `pf_test()` roda **sem** a lock de rede do compat (comentário em
+`pfk_hooks.c`): com o modelo de workqueue, um escritor de controle parado
+(mudança de ruleset, ioctl de purge) deixava o lado de pacotes starving
+pior demais para ser produtivo. A mutação do ruleset e o passeio de pacotes
+rodam, portanto, concorrentemente, protegidos pelo que o próprio `pf.c`
+upstream usa (PF_LOCK/ padrões tipo RCU) — um desvio interino deliberado, que
+está sendo refeito com o modelo de locks no M5+.
+
+**O que protege a regra, a âncora e o ruleset coletados pelo caminho de
+state-match** (a pergunta do issue #1) — a resposta é o refcount, não a lock
+de rede:
+
+- `pf_lock`/`pf_state_lock` são **as próprias locks do OpenBSD**: o
+  `pfvar_priv.h` upstream define `PF_LOCK()` como `rw_enter_write(&pf_lock)`
+  e `PF_UNLOCK()` como `rw_exit_write(&pf_lock)`, byte a byte igual ao port.
+  O `pf_test()` upstream também nunca toma a `NET_LOCK` global — o comentário
+  em `pf.c` que diz o contrário é texto upstream herdado e desatualizado.
+- No caminho de state-match o motor segura uma referência do estado
+  (`pf_state_ref()`, liberada no fim de `pf_test()`); o estado mantém
+  `states_cur` sobre a regra, a âncora e as regras casadas, e `pf_rm_rule()`
+  se recusa a liberar uma regra enquanto `states_cur > 0`. A regra, sua
+  âncora e seu ruleset portanto sobrevivem à referência — sem lock de rede.
+- O resíduo: no caminho em que **nenhum estado foi criado**, a regra foi
+  coletada sob `pf_lock` mas é lida depois de `pf_lock` ser solta, e uma
+  regra dessas (`states_cur == 0`) pode ser liberada por um reload
+  concorrente nessa janela. É essa a parte da suposição upstream que não se
+  sustenta aqui; o *conteúdo* de uma regra também pode mudar durante um
+  reload concorrente.
+
+Ou seja: a correção em regime permanente e sob reload-com-tráfego está
+coberta pelo refcount (o soak de reload sob tráfego é o gate `14-soak.sh`; o
+gate de stress recarrega um ruleset de 202 regras 200 vezes sob carga); a
+janela estreita acima é o desvio residual.
 
 ### 4. Fail-open sob pressão de memória
 
@@ -229,6 +253,43 @@ Consequências práticas:
 O que resolveria isso é um fast path de verdade (avaliar `pf_test()` inline em
 softirq, como o OpenBSD faz) ou uma fila limitada com política de drop — as
 duas são mudanças de design fora do escopo deste port.
+
+### 14. Pools de endereço dinâmico: o que resolvem e em quanto tempo
+
+`nat-to (eth2)`, `rdr-to (eth2)` e os outros alvos *dinâmicos* são resolvidos
+pelo kernel a partir dos endereços da interface (a regra carrega
+`PF_ADDR_DYNIFTL`, não uma lista congelada). Duas coisas sobre isso valem
+dizer com clareza:
+
+- **Para o que o pool resolve.** Para uma interface nomeada, são os endereços
+  atuais dela. Para o grupo **`egress`** do OpenBSD — que o Linux não tem — o
+  port resolve para a **interface da rota padrão** (`pfk_egress_if()`), que é
+  o que o grupo do OpenBSD contém. Antes da correção o grupo emulado
+  resolvia para *nada*, então `nat-to (egress)` nunca traduzia.
+- **Em quanto tempo ele acompanha a interface.** A tabela por trás de um pool
+  dinâmico era refeita quando uma interface era anexada ou um grupo mudava,
+  mas **não** quando um endereço era adicionado ou removido: o Linux não
+  exporta notificador de endereço IP para módulos (`inetaddr_chain` é privado
+  do core de rede e `NETDEV_CHANGEADDR` cobre só endereço MAC). O compat
+  layer passou a fazer *poll* de uma impressão digital barata dos endereços a
+  cada segundo (`pfk_if_addr_poll_work()`) e a republicar os pools afetados
+  (`pfi_kif_addr_refresh()`).
+
+Consequências de projeto:
+
+- Entre o momento em que o endereço aparece e o próximo poll (**até ~1 s**),
+  o pool ainda tem o valor anterior: vazio se a interface não tinha endereço
+  quando o ruleset foi aplicado (a corrida de boot do issue #2), ou o
+  endereço *antigo* depois de uma troca de DHCP. Um ruleset que precise
+  traduzir o primeiro pacote logo após o endereço aparecer deve ser
+  reaplicado também.
+- O pool acompanha a interface, e não o contrário: um endereço que muda de
+  lugar é absorvido no mesmo ~1 s.
+
+O gate `17-dynaddr.sh` prova tudo isso: sem tradução enquanto a interface
+não tem endereço, tradução **sem recarregar o ruleset** dentro de um segundo
+de o endereço aparecer, e `nat-to (egress)` resolvendo para o endereço da
+rota padrão.
 
 ## O que *não* é ressalva
 

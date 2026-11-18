@@ -97,7 +97,7 @@ code: the packet either arrives, is dropped, or is translated, and the proof
 is read back from the firewall's own counters, state table, capture files or
 peer.
 
-The full list is in §6 (16 gates, all green). Each gate is a shell script in
+The full list is in §6 (17 gates, all green). Each gate is a shell script in
 `tests/vm/` that talks to the VMs through deb with nested ssh, using the
 helpers in `tests/vm/lib.sh` (`pf0`, `cli`, `srv`, `gw2`, `pfput`, `pfload`,
 `ok`, `bad`). `scripts/vm-run-tests.sh` runs them in order and captures
@@ -121,9 +121,9 @@ numeric pass/fail target. Report and raw log land in
 
 ## 6. Current suite status (2026-11-12)
 
-**16/16 gates green.** A full clean run (`./scripts/vm-run-tests.sh`, ~13 min)
+**17/17 gates green.** A full clean run (`./scripts/vm-run-tests.sh`, ~13 min)
 recreates and reboots `pftest-pf0` before every gate, redeploys the module
-and the tools, and ends with `PASS=16 FAIL=0`. The captured logs live in
+and the tools, and ends with `PASS=17 FAIL=0`. The captured logs live in
 `out/test-logs/<gate>.sh.log`.
 
 | Gate | What it proves now |
@@ -144,6 +144,7 @@ and the tools, and ends with `PASS=16 FAIL=0`. The captured logs live in
 | `14-soak.sh` | ruleset reload under traffic, `rmmod` cycle, leak check |
 | `15-queue.sh` | hfsc queues: attach, class statistics, a 2 MB queued flow counted by the class |
 | `16-stress.sh` | stress: throughput baseline vs. PF, state/rule/table churn with leak checks, 2 MB through NAT under a saturating stream, dmesg health (run by `scripts/stress/run-stress.sh`, which writes a report) |
+| `17-dynaddr.sh` | dynamic address pools: no translation while the interface has no address, the pool re-published (no ruleset reload) within a second of the address landing, and `nat-to (egress)` resolving to the default-route address |
 
 The screencasts ([screencast.md](screencast.md)) show most of these gates
 being run, with the lab's network diagram drawn over the terminal.

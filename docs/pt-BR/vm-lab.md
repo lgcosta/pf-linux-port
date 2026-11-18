@@ -102,7 +102,7 @@ de saída: o pacote chega, é descartado ou é traduzido, e a prova é lida de
 volta nos contadores do próprio firewall, na tabela de estados, em capturas de
 pacote ou no par.
 
-A lista completa está na §6 (16 gates, todos verdes). Cada gate é um script
+A lista completa está na §6 (17 gates, todos verdes). Cada gate é um script
 shell em `tests/vm/` que fala com as VMs através do deb com ssh aninhado,
 usando os helpers de `tests/vm/lib.sh` (`pf0`, `cli`, `srv`, `gw2`, `pfput`,
 `pfload`, `ok`, `bad`). O `scripts/vm-run-tests.sh` roda tudo em ordem e
@@ -127,10 +127,10 @@ numérica de pass/fail. O relatório e o log bruto ficam em
 
 ## 6. Status atual da suíte (2026-11-12)
 
-**16/16 gates verdes.** Uma rodada completa e limpa
+**17/17 gates verdes.** Uma rodada completa e limpa
 (`./scripts/vm-run-tests.sh`, ~13 min) recria e reinicia o `pftest-pf0` antes
 de cada gate, reimplanta o módulo e as ferramentas, e termina com
-`PASS=16 FAIL=0`. Os logs capturados ficam em
+`PASS=17 FAIL=0`. Os logs capturados ficam em
 `out/test-logs/<gate>.sh.log`.
 
 | Gate | O que prova hoje |
@@ -151,6 +151,7 @@ de cada gate, reimplanta o módulo e as ferramentas, e termina com
 | `14-soak.sh` | reload de ruleset sob tráfego, ciclo de `rmmod`, checagem de vazamento |
 | `15-queue.sh` | filas hfsc: anexação, estatísticas da classe, um fluxo de 2 MB contado pela classe |
 | `16-stress.sh` | stress: vazão baseline vs. PF, churn de estados/regras/tabelas com verificação de vazamento, 2 MB por NAT sob stream saturante, saúde do dmesg (rodado por `scripts/stress/run-stress.sh`, que grava um relatório) |
+| `17-dynaddr.sh` | pools de endereço dinâmico: sem tradução enquanto a interface não tem endereço, pool republicado (sem recarregar o ruleset) em até um segundo de o endereço aparecer, e `nat-to (egress)` resolvendo para o endereço da rota padrão |
 
 Os screencasts ([screencast.md](screencast.md)) mostram boa parte desses
 gates sendo executados, com o diagrama de rede do lab desenhado sobre o
