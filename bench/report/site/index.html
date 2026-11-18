@@ -13,19 +13,21 @@ code{background:var(--surface);border:1px solid var(--border);padding:.1rem .3re
 .muted{color:var(--muted)} .note{border-left:3px solid var(--accent);padding-left:.8rem;margin:1rem 0}
 </style></head><body>
 <h1>PF-on-Linux — benchmark vs nftables, iptables-nft e iptables-legacy</h1>
-<p class="muted">Commit <code>16c7c64</code> · com alterações locais ·
-run <code>run-20261118</code> · gerado em 2026-11-18 15:26 UTC</p>
+<p class="muted">Commit <code>425da21</code> · com alterações locais ·
+run <code>run-20261118</code> · gerado em 2026-11-18 15:30 UTC</p>
 
 <h2>Resumo executivo</h2>
-<div class="note"><p><strong>EN.</strong> At an offered 400 Mbit/s the native backends deliver
-the offered rate (nftables 0.40 Gbit/s) while PF-on-Linux delivers 0.40 Gbit/s;
-unbounded, the no-filter baseline reaches 0.40 Gbit/s. PF clears every functional
-scenario with the same observable result as the native backends, but its single-ordered-workqueue
-data path cannot reach line rate — above ~1 Gbit/s the backlog exhausts the guest.
+<div class="note"><p><strong>EN.</strong> At the 400 Mbit/s offered load every backend
+delivers the offered rate (nftables 0.40 Gbit/s,
+PF-on-Linux 0.40 Gbit/s); unbounded, nftables reaches 18.16 Gbit/s and the
+no-filter baseline 18.48 Gbit/s, while PF-on-Linux is not measurable there — a single
+ordered workqueue, and above ~1 Gbit/s the backlog exhausts the guest. Functionally the port
+passed every row the harness completed (IPv4 filtering, stateful filtering, address sets);
+SNAT reads <em>limited</em> and the netfilter rows were not measured.
 </p></div>
-<p>O port cobre filtragem (com e sem estado), NAT de origem, escala de regras e recarga sob
-tráfego com o mesmo resultado observável dos backends nativos. A diferença mensurável está no
-caminho de dados: cada pacote atravessa uma workqueue ordenada única.</p>
+<p>Com carga oferecida de 400 Mbit/s todos os backends entregam a taxa oferecida. O que separa
+PF-on-Linux dos nativos é o caminho de dados (uma workqueue ordenada única) e o custo de CPU por
+pacote, visível na latência p99 e no cenário de teto, onde só os nativos foram medidos.</p>
 
 <h2>Tabela — vazão entregue / tempo de aplicação</h2>
 <table><thead><tr><th>Cenário</th><th>baseline (sem filtro)</th><th>PF-on-Linux</th><th>nftables</th><th>iptables-nft</th><th>iptables-legacy</th></tr></thead>

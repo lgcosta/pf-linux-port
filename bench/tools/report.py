@@ -139,9 +139,10 @@ def main():
     run_dir = os.path.dirname(csv_path)
     rows = load(csv_path)
     summary = summarize(rows)
-    pf_t = med(summary, "stateless", "pf", "tcp_gbit")
-    base_t = med(summary, "stateless", "baseline", "tcp_gbit")
+    pf_t = med(summary, "stateless", "pf", "tcp_gbit")   # delivered load
+    base_t = med(summary, "ceiling", "baseline", "tcp_gbit")  # line rate
     nft_t = med(summary, "stateless", "nft", "tcp_gbit")
+    nft_line_t = med(summary, "ceiling", "nft", "tcp_gbit")
 
     # ship the data with the deliverables
     site_data = os.path.join(BENCH, "report", "data")
@@ -332,15 +333,17 @@ code{{background:var(--surface);border:1px solid var(--border);padding:.1rem .3r
 run <code>{os.path.basename(run_dir)}</code> · gerado em {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}</p>
 
 <h2>Resumo executivo</h2>
-<div class="note"><p><strong>EN.</strong> At an offered 400 Mbit/s the native backends deliver
-the offered rate (nftables {fmt(nft_t)} Gbit/s) while PF-on-Linux delivers {fmt(pf_t)} Gbit/s;
-unbounded, the no-filter baseline reaches {fmt(base_t)} Gbit/s. PF clears every functional
-scenario with the same observable result as the native backends, but its single-ordered-workqueue
-data path cannot reach line rate — above ~1 Gbit/s the backlog exhausts the guest.
+<div class="note"><p><strong>EN.</strong> At the 400 Mbit/s offered load every backend
+delivers the offered rate (nftables {fmt(med(summary, 'stateless', 'nft', 'tcp_gbit'))} Gbit/s,
+PF-on-Linux {fmt(pf_t)} Gbit/s); unbounded, nftables reaches {fmt(nft_line_t)} Gbit/s and the
+no-filter baseline {fmt(base_t)} Gbit/s, while PF-on-Linux is not measurable there — a single
+ordered workqueue, and above ~1 Gbit/s the backlog exhausts the guest. Functionally the port
+passed every row the harness completed (IPv4 filtering, stateful filtering, address sets);
+SNAT reads <em>limited</em> and the netfilter rows were not measured.
 </p></div>
-<p>O port cobre filtragem (com e sem estado), NAT de origem, escala de regras e recarga sob
-tráfego com o mesmo resultado observável dos backends nativos. A diferença mensurável está no
-caminho de dados: cada pacote atravessa uma workqueue ordenada única.</p>
+<p>Com carga oferecida de 400 Mbit/s todos os backends entregam a taxa oferecida. O que separa
+PF-on-Linux dos nativos é o caminho de dados (uma workqueue ordenada única) e o custo de CPU por
+pacote, visível na latência p99 e no cenário de teto, onde só os nativos foram medidos.</p>
 
 <h2>Tabela — vazão entregue / tempo de aplicação</h2>
 <table><thead><tr><th>Cenário</th>{"".join(f"<th>{LABEL[b]}</th>" for b in BACKENDS)}</tr></thead>

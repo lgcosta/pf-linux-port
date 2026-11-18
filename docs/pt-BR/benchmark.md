@@ -1,6 +1,6 @@
 # Benchmark: PF-on-Linux vs nftables, iptables-nft e iptables-legacy
 
-Commit avaliado: `16c7c64` (com alterações locais) · dados: `bench/report/data/run-20261118/results.csv` · gerado em 2026-11-18 15:26 UTC.
+Commit avaliado: `425da21` (com alterações locais) · dados: `bench/report/data/run-20261118/results.csv` · gerado em 2026-11-18 15:30 UTC.
 
 ## Resumo executivo (EN)
 
