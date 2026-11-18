@@ -1,2 +1,0 @@
-scenario,backend,rep,metric,value,unit,offered
-stateless,baseline,1,fw_cpu_ticks,,ticks,cumulative /proc/stat
