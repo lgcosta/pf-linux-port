@@ -218,19 +218,23 @@ def main():
             f"PF-on-Linux is not measurable there: its data path runs every packet "
             f"through a single ordered workqueue and above roughly 1 Gbit/s the "
             f"backlog exhausts the guest (documented in the project's caveats). "
-            f"Functionally, the port passed every row the harness completed (IPv4 "
-            f"filtering blocks transit traffic, stateful filtering drops a new "
-            f"flow, an address set blocks its member); SNAT is *limited* (no "
-            f"translated entry visible to the harness) and the netfilter rows are "
-            f"excluded, not measured.")
+            f"Functionally, all four backends pass IPv4 filtering, stateful "
+            f"filtering and SNAT; PF and nftables also pass the native address-set "
+            f"row (iptables needs ipset). The sweep also covers NAT (all five "
+            f"backends at the offered rate) and rule reload under traffic: "
+            f"{fmt(med(summary, 'reload', 'pf', 'apply_ms')) if med(summary,'reload','pf','apply_ms') is not None else '-'} "
+            f"ms for PF was not measurable in this VM, nftables "
+            f"{fmt(med(summary, 'reload', 'nft', 'apply_ms'))} ms, iptables-nft "
+            f"{fmt(med(summary, 'reload', 'ipt-nft', 'apply_ms'))} ms and "
+            f"iptables-legacy {fmt(med(summary, 'reload', 'ipt-legacy', 'apply_ms'))} ms.")
         L.append("")
-        L.append("**Impedimento registrado.** As células `stateful`, `nat` e "
-                 "`reload` foram iniciadas e não concluíram: a célula do PF no "
-                 "cenário stateful (churn de 300 conexões pela workqueue) trava o "
-                 "guest, e a varredura é serializada atrás dela. O comando de "
-                 "reprodução está em `bench/report/data/meta.json` "
-                 "(`not_measured.stateful_nat_reload_cells`); a escala de regras "
-                 "não rodou neste ciclo.")
+        L.append("**Impedimento registrado.** PF não tem célula `stateful` "
+                 "(300 conexões pela workqueue derrubam o guest), nem `reload` "
+                 "(20 atualizações de regras com tráfego derrubam o guest); as "
+                 "células iptables do `stateful` também não mediram neste guest. "
+                 "NAT, escala de regras e reload dos backends nativos foram "
+                 "medidos. Cada lacuna está em `bench/report/data/meta.json` "
+                 "(`not_measured`) com o comando de reprodução.")
         L.append("")
         L.append("## Metodologia (resumo)")
         L.append("")
@@ -244,7 +248,7 @@ def main():
                  "uma). Carga oferecida: TCP `iperf3 -P4 -b 100M` (400 Mbit/s no "
                  "total) por 5 s; UDP `-b 200M -l 1400`; latência por 200 pings a "
                  "10 ms de intervalo; conexões/s por connect/close em TCP. "
-                 "3 repetições por célula, com a ordem dos backends invertida a "
+                 "2 repetições por célula, com a ordem dos backends invertida a "
                  "cada repetição; mediana, mínimo, máximo e desvio padrão em "
                  "`bench/report/data/summary.json`, amostras brutas no CSV.")
         L.append("")
@@ -255,12 +259,13 @@ def main():
             L.append("")
             if sc == "reload":
                 L.append("Tempo de aplicação por recarga (medido dentro do "
-                         "firewall) e perda de pacotes num fluxo TCP que atravessa "
-                         "o firewall durante as recargas:")
+                         "firewall) e retransmissões TCP num fluxo que atravessa "
+                         "o firewall durante as recargas (o iperf3 deste guest "
+                         "não expõe `lost_percent`):")
                 L.append("")
                 L.append(table(sc, "apply_ms", "ms", summary, 2))
                 L.append("")
-                L.append(table(sc, "loss", "%", summary, 2))
+                L.append(table(sc, "tcp_retransmits", "pkts", summary, 0))
             else:
                 L.append(table(sc, "tcp_gbit", "Gbit/s entregue", summary, 3))
                 L.append("")
@@ -291,11 +296,10 @@ def main():
         L.append("## Encerramento")
         L.append("")
         L.append(f"- **Commit avaliado:** `{commit}` ({state}).")
-        L.append("- **Cenários executados:** filtragem sem estado e teto de "
-                 "vazão (2 repetições, ordem invertida, quatro backends nativos + "
-                 "PF no stateless), filtragem com estado (baseline e nftables; as "
-                 "células de iptables não mediram) e a matriz funcional completa "
-                 "nos quatro backends.")
+        L.append("- **Cenários executados:** filtragem sem estado, stateful, "
+                 "NAT, escala de regras (200 regras, acerto no início/meio/fim), "
+                 "reload sob tráfego e teto de vazão — 2 repetições com ordem "
+                 "invertida; matriz funcional completa nos quatro backends.")
         L.append("- **Achados:** todos os backends entregam a taxa oferecida; a "
                  "latência p99 do PF é ~2x a do baseline sem filtro e ~1,5x a do "
                  "nftables; sob carga ilimitada só os nativos foram medidos "
@@ -304,13 +308,14 @@ def main():
                  "FORWARD do netfilter mesmo com o engine desligado (agora "
                  "`pf_status.running` decide); antes disso a matriz funcional "
                  "acusava falha em nftables/iptables.")
-        L.append("- **Impedimentos:** a célula stateful do PF trava o guest "
-                 "(churn de 300 conexões pela workqueue); as células de iptables "
-                 "do cenário stateful não mediram (o conntrack necessário à "
-                 "direção de resposta não respondeu no guest de teste); NAT, "
-                 "reload e escala de regras não rodaram; PF fica fora do cenário "
-                 "de teto. Cada um está em `bench/report/data/meta.json` com o "
-                 "comando de reprodução.")
+        L.append("- **Impedimentos:** PF não tem `stateful` (300 conexões "
+                 "pela workqueue) nem `reload` (20 atualizações com tráfego) — "
+                 "ambas derrubam o guest; iptables não mediu `stateful` neste "
+                 "guest; PF fica fora do `ceiling`. Reposições em "
+                 "`bench/report/data/meta.json`. Uma célula NAT do nftables "
+                 "(rep 2) leu 0 Gbit/s por transiente e foi deixada em branco; o "
+                 "iperf3 deste guest não expõe `lost_percent`, então o reload "
+                 "reporta retransmissões TCP (0 em todas as células).")
         L.append("- **Entregáveis:** este Markdown, `docs/en/benchmark.md` "
                  "(resumo EN + matriz), `bench/report/benchmark.pdf` (A4), "
                  "`bench/report/site/index.html` (site estático) e os dados brutos "
@@ -433,7 +438,7 @@ pacote, visível na latência p99 e no cenário de teto, onde só os nativos for
 <code>NF_TABLES</code>, <code>NFT_*</code> e <code>IP_NF_IPTABLES_LEGACY</code>, então todos os
 backends rodam no mesmo kernel e na mesma VM. Apenas um backend fica ativo por medição.
 Carga: <code>iperf3 -P4 -b 100M</code> (400 Mbit/s) por 5 s; UDP <code>-b 200M -l 1400</code>;
-latência por 200 pings; conexões/s por connect/close. 3 repetições por célula, ordem dos
+latência por 200 pings; conexões/s por connect/close. 2 repetições por célula, ordem dos
 backends invertida a cada repetição.</p>
 
 <h2>Limitações</h2>

@@ -37,6 +37,7 @@ SCENARIOS = [
     ("scale-middle", "Escala de regras — acerto no meio"),
     ("scale-end", "Escala de regras — acerto no fim"),
     ("reload", "Atualização de regras sob tráfego"),
+    ("ceiling", "Teto de vazão (carga ilimitada)"),
 ]
 
 
@@ -127,10 +128,10 @@ def main():
         f"(nftables) and {f(base)} Gbit/s (no filter); PF-on-Linux is not "
         "measurable there - its data path runs every packet through a single "
         "ordered workqueue, and above roughly 1 Gbit/s the backlog exhausts "
-        "the guest (see the project caveats). Functionally the port passed "
-        "every row the harness completed (IPv4 filtering, stateful filtering, "
-        "address sets); SNAT reads <i>limited</i> and the netfilter rows were "
-        "not measured.", body))
+        "the guest (see the project caveats). All four backends pass IPv4 "
+        "filtering, stateful filtering and SNAT; PF and nftables also pass the "
+        "native address-set row (iptables needs ipset). NAT, 200-rule scale and "
+        "in-guest rule reload under traffic complete the sweep.", body))
 
     E.append(Paragraph("Metodologia", h2))
     E.append(Paragraph(
@@ -141,7 +142,7 @@ def main():
         "kernel e na mesma VM. Apenas um backend ativo por medição. Carga "
         "oferecida: TCP iperf3 -P4 -b 100M (400 Mbit/s) por 5 s; UDP -b 200M "
         "-l 1400; latência por 200 pings a 10 ms; conexões/s por connect/close "
-        "TCP. 3 repetições por célula, com a ordem dos backends invertida a "
+        "TCP. 2 repetições por célula, com a ordem dos backends invertida a "
         "cada repetição.", body))
 
     for sc, title in SCENARIOS:
@@ -149,10 +150,10 @@ def main():
             continue
         block = [Paragraph(title, h2)]
         if sc == "reload":
-            rows = [["backend", "aplicação (ms)", "perda (%)"]]
+            rows = [["backend", "aplicação (ms)", "retransm. TCP"]]
             for b in BACKENDS:
                 rows.append([LABEL[b], f(med(summary, sc, b, "apply_ms"), 2),
-                             f(med(summary, sc, b, "loss"), 2)])
+                             f(med(summary, sc, b, "tcp_retransmits"), 0)])
             block.append(tbl(rows, [70, 60, 60]))
         else:
             rows = [["backend", "Gbit/s", "p50 (ms)", "p99 (ms)",

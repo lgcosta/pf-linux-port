@@ -1,6 +1,6 @@
 # Benchmark: PF-on-Linux vs nftables / iptables
 
-Commit `3ef4491` (local changes present). The full report (pt-BR) lives in [`docs/pt-BR/benchmark.md`](../pt-BR/benchmark.md); the site is [`bench/report/site/index.html`](../../bench/report/site/index.html) and the PDF [`bench/report/benchmark.pdf`](../../bench/report/benchmark.pdf).
+Commit `a735839` (local changes present). The full report (pt-BR) lives in [`docs/pt-BR/benchmark.md`](../pt-BR/benchmark.md); the site is [`bench/report/site/index.html`](../../bench/report/site/index.html) and the PDF [`bench/report/benchmark.pdf`](../../bench/report/benchmark.pdf).
 
 ## Executive summary
 

@@ -225,11 +225,45 @@ apply_file() { # apply_file <backend> <file>
 	local be="$1" f="$2"
 	quiet_all; prepare_fw
 	case "$be" in
+	ipt-*) load_ct ;;
 	pf)  push "$FW" /tmp/r.conf "$f"; g "$FW" 'rmmod pf 2>/dev/null; insmod /opt/pf/pf.ko 2>/dev/null; /opt/pf/pfctl -e >/dev/null 2>&1; /opt/pf/pfctl -f /tmp/r.conf >/dev/null 2>&1 || echo LOADFAIL' ;;
 	nft) push "$FW" /tmp/r.rules "$f"; g "$FW" 'nft -f /tmp/r.rules >/dev/null 2>&1 || echo LOADFAIL' ;;
 	ipt-nft) push "$FW" /tmp/r.rules "$f"; g "$FW" 'iptables-nft-restore < /tmp/r.rules >/dev/null 2>&1 || echo LOADFAIL' ;;
 	ipt-legacy) push "$FW" /tmp/r.rules "$f"; g "$FW" 'iptables-legacy-restore < /tmp/r.rules >/dev/null 2>&1 || echo LOADFAIL' ;;
 	esac
+}
+
+reload_ms() { # reload_ms <backend> <scenario>: measure N in-guest rule loads
+	# Run the loop INSIDE the firewall: doing it from the harness adds two SSH
+	# round-trips per load (~300 ms) and buries the number being measured.
+	local be="$1" sc="$2" f cmd s
+	[ -f "$RULES/$sc-pf.conf" ] || [ -f "$RULES/$sc-nft.rules" ] || sc=stateless
+	case "$be" in
+	baseline) cmd=':' ;;
+	pf)        f="$RULES/$sc-pf.conf"; push "$FW" /tmp/r.conf "$f"
+	           cmd='/opt/pf/pfctl -f /tmp/r.conf' ;;
+	nft)       f="$RULES/$sc-nft.rules"; push "$FW" /tmp/r.rules "$f"
+	           cmd='nft -f /tmp/r.rules' ;;
+	ipt-nft)   f="$RULES/$sc-ipt.rules"; push "$FW" /tmp/r.rules "$f"
+	           cmd='iptables-nft-restore < /tmp/r.rules' ;;
+	ipt-legacy) f="$RULES/$sc-ipt.rules"; push "$FW" /tmp/r.rules "$f"
+	           cmd='iptables-legacy-restore < /tmp/r.rules' ;;
+	esac
+	s=$(mktemp)
+	cat > "$s" <<SCRIPT
+#!/bin/sh
+t0=\$(awk '{print \$1}' /proc/uptime)
+i=0
+while [ \$i -lt $RELOADS ]; do
+	$cmd >/dev/null 2>&1 || exit 1
+	i=\$((i+1))
+done
+t1=\$(awk '{print \$1}' /proc/uptime)
+awk -v a=\$t0 -v b=\$t1 -v n=$RELOADS 'BEGIN{printf "%.2f", (b-a)*1000/n}'
+SCRIPT
+	push "$FW" /tmp/reload.sh "$s"
+	rm -f "$s"
+	g "$FW" "sh /tmp/reload.sh" 2>/dev/null
 }
 
 # --- main -------------------------------------------------------------------
@@ -266,13 +300,12 @@ for sc in $SCENARIOS; do
 			reload)
 				apply "$be" "$sc" >/dev/null
 				iperf_srv
-				g "$KEDGE" "iperf3 -c $DSRV -t 14 -P 1 -J > /tmp/ipert.json 2>/dev/null &" >/dev/null
+				# background must survive the ssh session ending
+				g "$KEDGE" 'nohup sh -c "iperf3 -c '$DSRV' -t 16 -P 1 -J > /tmp/ipert.json 2>&1" >/dev/null 2>&1 & sleep 1; true' >/dev/null
 				sleep 2
-				t0=$(g "$FW" 'awk "{print \$1}" /proc/uptime')
-				i=0; while [ $i -lt "$RELOADS" ]; do apply "$be" "$sc" >/dev/null; i=$((i+1)); done
-				t1=$(g "$FW" 'awk "{print \$1}" /proc/uptime')
-				emit reload "$be" "$rep" apply_ms "$(awk -v a="$t0" -v b="$t1" -v n="$RELOADS" 'BEGIN{printf "%.1f", (b-a)*1000/n}')" ms "$RELOADS reloads under a TCP stream"
-				sleep 12
+				ms=$(reload_ms "$be" "$sc")
+				emit reload "$be" "$rep" apply_ms "${ms:-}" ms "$RELOADS in-guest reloads under a TCP stream"
+				sleep 18
 				j="$OUT/raw-reload-$be-$rep.json"
 				g "$KEDGE" 'cat /tmp/ipert.json' > "$j"
 				emit reload "$be" "$rep" loss "$(json "$j" lost_percent)" percent "$RELOADS reloads under a TCP stream" ;;

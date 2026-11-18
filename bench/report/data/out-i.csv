@@ -1,0 +1,17 @@
+scenario,backend,rep,metric,value,unit,offered
+reload,baseline,1,apply_ms,0.00,ms,20 in-guest reloads under a TCP stream
+reload,baseline,1,loss,,percent,20 reloads under a TCP stream
+reload,nft,1,apply_ms,5.00,ms,20 in-guest reloads under a TCP stream
+reload,nft,1,loss,,percent,20 reloads under a TCP stream
+reload,ipt-nft,1,apply_ms,8.00,ms,20 in-guest reloads under a TCP stream
+reload,ipt-nft,1,loss,,percent,20 reloads under a TCP stream
+reload,ipt-legacy,1,apply_ms,1.00,ms,20 in-guest reloads under a TCP stream
+reload,ipt-legacy,1,loss,,percent,20 reloads under a TCP stream
+reload,ipt-legacy,2,apply_ms,1.50,ms,20 in-guest reloads under a TCP stream
+reload,ipt-legacy,2,loss,,percent,20 reloads under a TCP stream
+reload,ipt-nft,2,apply_ms,9.50,ms,20 in-guest reloads under a TCP stream
+reload,ipt-nft,2,loss,,percent,20 reloads under a TCP stream
+reload,nft,2,apply_ms,2.00,ms,20 in-guest reloads under a TCP stream
+reload,nft,2,loss,,percent,20 reloads under a TCP stream
+reload,baseline,2,apply_ms,0.00,ms,20 in-guest reloads under a TCP stream
+reload,baseline,2,loss,,percent,20 reloads under a TCP stream

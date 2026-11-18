@@ -94,6 +94,25 @@ measurable under unbounded load — its workqueue backlog exhausts the guest
 above roughly 1 Gbit/s (see caveats §13) — so the ceiling scenario runs on
 the native backends only.
 
+### Benchmark: NAT, rule scale and reload under traffic
+
+The remaining sweep cells now have data (2 repetitions, reversed order per
+rep): NAT at the 400 Mbit/s offered rate for all five backends, 200-rule
+scale with the accept rule at the start/middle/end, and rule reload under a
+TCP stream for the four native backends. PF's reload and stateful cells still
+stall the guest (the ordered workqueue's backlog): both are recorded in
+`bench/report/data/meta.json` with the reproduction command rather than
+published as results.
+
+Harness defects fixed on the way: the built-in policies were left at DROP by
+a previous cell and silently poisoned the next one; iptables stateful cells
+needed conntrack loaded; a blocked ping used to be published as 0.0 ms of
+latency; the reload loop ran from the harness (two SSH round-trips per load,
+~300 ms) and now runs inside the firewall (~1-9 ms per load); this iperf3
+build has no `lost_percent`, so reload reports TCP retransmits (0 in every
+cell). The rule-scale cells use one 100 Mbit/s stream, so their 0.100 Gbit/s
+is exactly the offered load.
+
 ### Debian 13 implementation manual
 
 `docs/en/debian13.md` + `docs/pt-BR/debian13.md` — the complete from-zero

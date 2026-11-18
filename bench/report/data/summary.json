@@ -591,5 +591,578 @@
   "samples": [
    5321.2488
   ]
+ },
+ "nat|baseline|fw_cpu_ticks": {
+  "n": 2,
+  "median": 331.0,
+  "min": 329.0,
+  "max": 333.0,
+  "stdev": 2.8284,
+  "unit": "ticks",
+  "samples": [
+   329.0,
+   333.0
+  ]
+ },
+ "nat|baseline|tcp_gbit": {
+  "n": 2,
+  "median": 0.401,
+  "min": 0.401,
+  "max": 0.401,
+  "stdev": 0.0,
+  "unit": "Gbit/s",
+  "samples": [
+   0.401,
+   0.401
+  ]
+ },
+ "nat|baseline|latency_p50": {
+  "n": 2,
+  "median": 0.1915,
+  "min": 0.185,
+  "max": 0.198,
+  "stdev": 0.0092,
+  "unit": "ms",
+  "samples": [
+   0.185,
+   0.198
+  ]
+ },
+ "nat|baseline|latency_p95": {
+  "n": 2,
+  "median": 0.246,
+  "min": 0.24,
+  "max": 0.252,
+  "stdev": 0.0085,
+  "unit": "ms",
+  "samples": [
+   0.252,
+   0.24
+  ]
+ },
+ "nat|baseline|latency_p99": {
+  "n": 2,
+  "median": 0.2885,
+  "min": 0.276,
+  "max": 0.301,
+  "stdev": 0.0177,
+  "unit": "ms",
+  "samples": [
+   0.301,
+   0.276
+  ]
+ },
+ "nat|pf|fw_cpu_ticks": {
+  "n": 2,
+  "median": 326.0,
+  "min": 319.0,
+  "max": 333.0,
+  "stdev": 9.8995,
+  "unit": "ticks",
+  "samples": [
+   333.0,
+   319.0
+  ]
+ },
+ "nat|pf|tcp_gbit": {
+  "n": 2,
+  "median": 0.401,
+  "min": 0.401,
+  "max": 0.401,
+  "stdev": 0.0,
+  "unit": "Gbit/s",
+  "samples": [
+   0.401,
+   0.401
+  ]
+ },
+ "nat|pf|latency_p50": {
+  "n": 2,
+  "median": 0.2255,
+  "min": 0.219,
+  "max": 0.232,
+  "stdev": 0.0092,
+  "unit": "ms",
+  "samples": [
+   0.232,
+   0.219
+  ]
+ },
+ "nat|pf|latency_p95": {
+  "n": 2,
+  "median": 0.2605,
+  "min": 0.246,
+  "max": 0.275,
+  "stdev": 0.0205,
+  "unit": "ms",
+  "samples": [
+   0.275,
+   0.246
+  ]
+ },
+ "nat|pf|latency_p99": {
+  "n": 2,
+  "median": 0.3225,
+  "min": 0.293,
+  "max": 0.352,
+  "stdev": 0.0417,
+  "unit": "ms",
+  "samples": [
+   0.352,
+   0.293
+  ]
+ },
+ "nat|nft|fw_cpu_ticks": {
+  "n": 2,
+  "median": 401.5,
+  "min": 352.0,
+  "max": 451.0,
+  "stdev": 70.0036,
+  "unit": "ticks",
+  "samples": [
+   352.0,
+   451.0
+  ]
+ },
+ "nat|nft|tcp_gbit": {
+  "n": 1,
+  "median": 0.401,
+  "min": 0.401,
+  "max": 0.401,
+  "stdev": 0.0,
+  "unit": "Gbit/s",
+  "samples": [
+   0.401
+  ]
+ },
+ "nat|nft|latency_p50": {
+  "n": 1,
+  "median": 0.219,
+  "min": 0.219,
+  "max": 0.219,
+  "stdev": 0.0,
+  "unit": "ms",
+  "samples": [
+   0.219
+  ]
+ },
+ "nat|nft|latency_p95": {
+  "n": 1,
+  "median": 0.255,
+  "min": 0.255,
+  "max": 0.255,
+  "stdev": 0.0,
+  "unit": "ms",
+  "samples": [
+   0.255
+  ]
+ },
+ "nat|nft|latency_p99": {
+  "n": 1,
+  "median": 0.384,
+  "min": 0.384,
+  "max": 0.384,
+  "stdev": 0.0,
+  "unit": "ms",
+  "samples": [
+   0.384
+  ]
+ },
+ "nat|ipt-nft|fw_cpu_ticks": {
+  "n": 2,
+  "median": 403.5,
+  "min": 373.0,
+  "max": 434.0,
+  "stdev": 43.1335,
+  "unit": "ticks",
+  "samples": [
+   373.0,
+   434.0
+  ]
+ },
+ "nat|ipt-nft|tcp_gbit": {
+  "n": 2,
+  "median": 0.401,
+  "min": 0.401,
+  "max": 0.401,
+  "stdev": 0.0,
+  "unit": "Gbit/s",
+  "samples": [
+   0.401,
+   0.401
+  ]
+ },
+ "nat|ipt-nft|latency_p50": {
+  "n": 2,
+  "median": 0.227,
+  "min": 0.219,
+  "max": 0.235,
+  "stdev": 0.0113,
+  "unit": "ms",
+  "samples": [
+   0.235,
+   0.219
+  ]
+ },
+ "nat|ipt-nft|latency_p95": {
+  "n": 2,
+  "median": 0.277,
+  "min": 0.264,
+  "max": 0.29,
+  "stdev": 0.0184,
+  "unit": "ms",
+  "samples": [
+   0.29,
+   0.264
+  ]
+ },
+ "nat|ipt-nft|latency_p99": {
+  "n": 2,
+  "median": 0.3815,
+  "min": 0.374,
+  "max": 0.389,
+  "stdev": 0.0106,
+  "unit": "ms",
+  "samples": [
+   0.389,
+   0.374
+  ]
+ },
+ "nat|ipt-legacy|fw_cpu_ticks": {
+  "n": 2,
+  "median": 404.0,
+  "min": 393.0,
+  "max": 415.0,
+  "stdev": 15.5563,
+  "unit": "ticks",
+  "samples": [
+   393.0,
+   415.0
+  ]
+ },
+ "nat|ipt-legacy|tcp_gbit": {
+  "n": 2,
+  "median": 0.4,
+  "min": 0.4,
+  "max": 0.4,
+  "stdev": 0.0,
+  "unit": "Gbit/s",
+  "samples": [
+   0.4,
+   0.4
+  ]
+ },
+ "nat|ipt-legacy|latency_p50": {
+  "n": 2,
+  "median": 0.23,
+  "min": 0.227,
+  "max": 0.233,
+  "stdev": 0.0042,
+  "unit": "ms",
+  "samples": [
+   0.227,
+   0.233
+  ]
+ },
+ "nat|ipt-legacy|latency_p95": {
+  "n": 2,
+  "median": 0.2715,
+  "min": 0.267,
+  "max": 0.276,
+  "stdev": 0.0064,
+  "unit": "ms",
+  "samples": [
+   0.276,
+   0.267
+  ]
+ },
+ "nat|ipt-legacy|latency_p99": {
+  "n": 2,
+  "median": 0.3175,
+  "min": 0.295,
+  "max": 0.34,
+  "stdev": 0.0318,
+  "unit": "ms",
+  "samples": [
+   0.295,
+   0.34
+  ]
+ },
+ "scale-start|baseline|tcp_gbit": {
+  "n": 2,
+  "median": 0.1,
+  "min": 0.1,
+  "max": 0.1,
+  "stdev": 0.0,
+  "unit": "Gbit/s",
+  "samples": [
+   0.1,
+   0.1
+  ]
+ },
+ "scale-middle|baseline|tcp_gbit": {
+  "n": 2,
+  "median": 0.1,
+  "min": 0.1,
+  "max": 0.1,
+  "stdev": 0.0,
+  "unit": "Gbit/s",
+  "samples": [
+   0.1,
+   0.1
+  ]
+ },
+ "scale-end|baseline|tcp_gbit": {
+  "n": 2,
+  "median": 0.1,
+  "min": 0.1,
+  "max": 0.1,
+  "stdev": 0.0,
+  "unit": "Gbit/s",
+  "samples": [
+   0.1,
+   0.1
+  ]
+ },
+ "scale-start|pf|tcp_gbit": {
+  "n": 2,
+  "median": 0.1,
+  "min": 0.1,
+  "max": 0.1,
+  "stdev": 0.0,
+  "unit": "Gbit/s",
+  "samples": [
+   0.1,
+   0.1
+  ]
+ },
+ "scale-middle|pf|tcp_gbit": {
+  "n": 2,
+  "median": 0.1,
+  "min": 0.1,
+  "max": 0.1,
+  "stdev": 0.0,
+  "unit": "Gbit/s",
+  "samples": [
+   0.1,
+   0.1
+  ]
+ },
+ "scale-end|pf|tcp_gbit": {
+  "n": 2,
+  "median": 0.1,
+  "min": 0.1,
+  "max": 0.1,
+  "stdev": 0.0,
+  "unit": "Gbit/s",
+  "samples": [
+   0.1,
+   0.1
+  ]
+ },
+ "scale-start|nft|tcp_gbit": {
+  "n": 2,
+  "median": 0.1,
+  "min": 0.1,
+  "max": 0.1,
+  "stdev": 0.0,
+  "unit": "Gbit/s",
+  "samples": [
+   0.1,
+   0.1
+  ]
+ },
+ "scale-middle|nft|tcp_gbit": {
+  "n": 2,
+  "median": 0.1,
+  "min": 0.1,
+  "max": 0.1,
+  "stdev": 0.0,
+  "unit": "Gbit/s",
+  "samples": [
+   0.1,
+   0.1
+  ]
+ },
+ "scale-end|nft|tcp_gbit": {
+  "n": 2,
+  "median": 0.1,
+  "min": 0.1,
+  "max": 0.1,
+  "stdev": 0.0,
+  "unit": "Gbit/s",
+  "samples": [
+   0.1,
+   0.1
+  ]
+ },
+ "scale-start|ipt-nft|tcp_gbit": {
+  "n": 2,
+  "median": 0.1,
+  "min": 0.1,
+  "max": 0.1,
+  "stdev": 0.0,
+  "unit": "Gbit/s",
+  "samples": [
+   0.1,
+   0.1
+  ]
+ },
+ "scale-middle|ipt-nft|tcp_gbit": {
+  "n": 2,
+  "median": 0.1,
+  "min": 0.1,
+  "max": 0.1,
+  "stdev": 0.0,
+  "unit": "Gbit/s",
+  "samples": [
+   0.1,
+   0.1
+  ]
+ },
+ "scale-end|ipt-nft|tcp_gbit": {
+  "n": 2,
+  "median": 0.1,
+  "min": 0.1,
+  "max": 0.1,
+  "stdev": 0.0,
+  "unit": "Gbit/s",
+  "samples": [
+   0.1,
+   0.1
+  ]
+ },
+ "scale-start|ipt-legacy|tcp_gbit": {
+  "n": 2,
+  "median": 0.1,
+  "min": 0.1,
+  "max": 0.1,
+  "stdev": 0.0,
+  "unit": "Gbit/s",
+  "samples": [
+   0.1,
+   0.1
+  ]
+ },
+ "scale-middle|ipt-legacy|tcp_gbit": {
+  "n": 2,
+  "median": 0.1,
+  "min": 0.1,
+  "max": 0.1,
+  "stdev": 0.0,
+  "unit": "Gbit/s",
+  "samples": [
+   0.1,
+   0.1
+  ]
+ },
+ "scale-end|ipt-legacy|tcp_gbit": {
+  "n": 2,
+  "median": 0.1,
+  "min": 0.1,
+  "max": 0.1,
+  "stdev": 0.0,
+  "unit": "Gbit/s",
+  "samples": [
+   0.1,
+   0.1
+  ]
+ },
+ "reload|baseline|apply_ms": {
+  "n": 3,
+  "median": 0.0,
+  "min": 0.0,
+  "max": 7.5,
+  "stdev": 4.3301,
+  "unit": "ms",
+  "samples": [
+   7.5,
+   0.0,
+   0.0
+  ]
+ },
+ "reload|nft|apply_ms": {
+  "n": 2,
+  "median": 3.5,
+  "min": 2.0,
+  "max": 5.0,
+  "stdev": 2.1213,
+  "unit": "ms",
+  "samples": [
+   5.0,
+   2.0
+  ]
+ },
+ "reload|ipt-nft|apply_ms": {
+  "n": 2,
+  "median": 8.75,
+  "min": 8.0,
+  "max": 9.5,
+  "stdev": 1.0607,
+  "unit": "ms",
+  "samples": [
+   8.0,
+   9.5
+  ]
+ },
+ "reload|ipt-legacy|apply_ms": {
+  "n": 2,
+  "median": 1.25,
+  "min": 1.0,
+  "max": 1.5,
+  "stdev": 0.3536,
+  "unit": "ms",
+  "samples": [
+   1.0,
+   1.5
+  ]
+ },
+ "reload|ipt-nft|tcp_retransmits": {
+  "n": 2,
+  "median": 0.0,
+  "min": 0.0,
+  "max": 0.0,
+  "stdev": 0.0,
+  "unit": "packets",
+  "samples": [
+   0.0,
+   0.0
+  ]
+ },
+ "reload|nft|tcp_retransmits": {
+  "n": 2,
+  "median": 0.0,
+  "min": 0.0,
+  "max": 0.0,
+  "stdev": 0.0,
+  "unit": "packets",
+  "samples": [
+   0.0,
+   0.0
+  ]
+ },
+ "reload|ipt-legacy|tcp_retransmits": {
+  "n": 2,
+  "median": 0.0,
+  "min": 0.0,
+  "max": 0.0,
+  "stdev": 0.0,
+  "unit": "packets",
+  "samples": [
+   0.0,
+   0.0
+  ]
+ },
+ "reload|baseline|tcp_retransmits": {
+  "n": 2,
+  "median": 0.0,
+  "min": 0.0,
+  "max": 0.0,
+  "stdev": 0.0,
+  "unit": "packets",
+  "samples": [
+   0.0,
+   0.0
+  ]
  }
 }

@@ -1,0 +1,83 @@
+scenario,backend,rep,metric,value,unit,offered
+nat,baseline,1,fw_cpu_ticks,329,ticks,cumulative user+softirq
+nat,baseline,1,tcp_gbit,0.401,Gbit/s,tcp -P4 -b100M -t5
+nat,baseline,1,latency_p50,0.185,ms,ping 200x10ms
+nat,baseline,1,latency_p95,0.252,ms,ping 200x10ms
+nat,baseline,1,latency_p99,0.301,ms,ping 200x10ms
+nat,pf,1,fw_cpu_ticks,333,ticks,cumulative user+softirq
+nat,pf,1,tcp_gbit,0.401,Gbit/s,tcp -P4 -b100M -t5
+nat,pf,1,latency_p50,0.232,ms,ping 200x10ms
+nat,pf,1,latency_p95,0.275,ms,ping 200x10ms
+nat,pf,1,latency_p99,0.352,ms,ping 200x10ms
+nat,nft,1,fw_cpu_ticks,352,ticks,cumulative user+softirq
+nat,nft,1,tcp_gbit,0.401,Gbit/s,tcp -P4 -b100M -t5
+nat,nft,1,latency_p50,0.219,ms,ping 200x10ms
+nat,nft,1,latency_p95,0.255,ms,ping 200x10ms
+nat,nft,1,latency_p99,0.384,ms,ping 200x10ms
+nat,ipt-nft,1,fw_cpu_ticks,373,ticks,cumulative user+softirq
+nat,ipt-nft,1,tcp_gbit,0.401,Gbit/s,tcp -P4 -b100M -t5
+nat,ipt-nft,1,latency_p50,0.235,ms,ping 200x10ms
+nat,ipt-nft,1,latency_p95,0.290,ms,ping 200x10ms
+nat,ipt-nft,1,latency_p99,0.389,ms,ping 200x10ms
+nat,ipt-legacy,1,fw_cpu_ticks,393,ticks,cumulative user+softirq
+nat,ipt-legacy,1,tcp_gbit,0.400,Gbit/s,tcp -P4 -b100M -t5
+nat,ipt-legacy,1,latency_p50,0.227,ms,ping 200x10ms
+nat,ipt-legacy,1,latency_p95,0.276,ms,ping 200x10ms
+nat,ipt-legacy,1,latency_p99,0.295,ms,ping 200x10ms
+nat,ipt-legacy,2,fw_cpu_ticks,415,ticks,cumulative user+softirq
+nat,ipt-legacy,2,tcp_gbit,0.400,Gbit/s,tcp -P4 -b100M -t5
+nat,ipt-legacy,2,latency_p50,0.233,ms,ping 200x10ms
+nat,ipt-legacy,2,latency_p95,0.267,ms,ping 200x10ms
+nat,ipt-legacy,2,latency_p99,0.340,ms,ping 200x10ms
+nat,ipt-nft,2,fw_cpu_ticks,434,ticks,cumulative user+softirq
+nat,ipt-nft,2,tcp_gbit,0.401,Gbit/s,tcp -P4 -b100M -t5
+nat,ipt-nft,2,latency_p50,0.219,ms,ping 200x10ms
+nat,ipt-nft,2,latency_p95,0.264,ms,ping 200x10ms
+nat,ipt-nft,2,latency_p99,0.374,ms,ping 200x10ms
+nat,nft,2,fw_cpu_ticks,451,ticks,cumulative user+softirq
+nat,nft,2,tcp_gbit,0.000,Gbit/s,tcp -P4 -b100M -t5
+nat,nft,2,latency_p50,,ms,ping blocked
+nat,nft,2,latency_p95,,ms,ping blocked
+nat,nft,2,latency_p99,,ms,ping blocked
+nat,pf,2,fw_cpu_ticks,319,ticks,cumulative user+softirq
+nat,pf,2,tcp_gbit,0.401,Gbit/s,tcp -P4 -b100M -t5
+nat,pf,2,latency_p50,0.219,ms,ping 200x10ms
+nat,pf,2,latency_p95,0.246,ms,ping 200x10ms
+nat,pf,2,latency_p99,0.293,ms,ping 200x10ms
+nat,baseline,2,fw_cpu_ticks,333,ticks,cumulative user+softirq
+nat,baseline,2,tcp_gbit,0.401,Gbit/s,tcp -P4 -b100M -t5
+nat,baseline,2,latency_p50,0.198,ms,ping 200x10ms
+nat,baseline,2,latency_p95,0.240,ms,ping 200x10ms
+nat,baseline,2,latency_p99,0.276,ms,ping 200x10ms
+scale-start,baseline,1,tcp_gbit,0.100,Gbit/s,200 rules, hit at start
+scale-middle,baseline,1,tcp_gbit,0.100,Gbit/s,200 rules, hit at middle
+scale-end,baseline,1,tcp_gbit,0.100,Gbit/s,200 rules, hit at end
+scale-start,pf,1,tcp_gbit,0.100,Gbit/s,200 rules, hit at start
+scale-middle,pf,1,tcp_gbit,0.100,Gbit/s,200 rules, hit at middle
+scale-end,pf,1,tcp_gbit,0.100,Gbit/s,200 rules, hit at end
+scale-start,nft,1,tcp_gbit,0.100,Gbit/s,200 rules, hit at start
+scale-middle,nft,1,tcp_gbit,0.100,Gbit/s,200 rules, hit at middle
+scale-end,nft,1,tcp_gbit,0.100,Gbit/s,200 rules, hit at end
+scale-start,ipt-nft,1,tcp_gbit,0.100,Gbit/s,200 rules, hit at start
+scale-middle,ipt-nft,1,tcp_gbit,0.100,Gbit/s,200 rules, hit at middle
+scale-end,ipt-nft,1,tcp_gbit,0.100,Gbit/s,200 rules, hit at end
+scale-start,ipt-legacy,1,tcp_gbit,0.100,Gbit/s,200 rules, hit at start
+scale-middle,ipt-legacy,1,tcp_gbit,0.100,Gbit/s,200 rules, hit at middle
+scale-end,ipt-legacy,1,tcp_gbit,0.100,Gbit/s,200 rules, hit at end
+scale-start,ipt-legacy,2,tcp_gbit,0.100,Gbit/s,200 rules, hit at start
+scale-middle,ipt-legacy,2,tcp_gbit,0.100,Gbit/s,200 rules, hit at middle
+scale-end,ipt-legacy,2,tcp_gbit,0.100,Gbit/s,200 rules, hit at end
+scale-start,ipt-nft,2,tcp_gbit,0.100,Gbit/s,200 rules, hit at start
+scale-middle,ipt-nft,2,tcp_gbit,0.100,Gbit/s,200 rules, hit at middle
+scale-end,ipt-nft,2,tcp_gbit,0.100,Gbit/s,200 rules, hit at end
+scale-start,nft,2,tcp_gbit,0.100,Gbit/s,200 rules, hit at start
+scale-middle,nft,2,tcp_gbit,0.100,Gbit/s,200 rules, hit at middle
+scale-end,nft,2,tcp_gbit,0.100,Gbit/s,200 rules, hit at end
+scale-start,pf,2,tcp_gbit,0.100,Gbit/s,200 rules, hit at start
+scale-middle,pf,2,tcp_gbit,0.100,Gbit/s,200 rules, hit at middle
+scale-end,pf,2,tcp_gbit,0.100,Gbit/s,200 rules, hit at end
+scale-start,baseline,2,tcp_gbit,0.100,Gbit/s,200 rules, hit at start
+scale-middle,baseline,2,tcp_gbit,0.100,Gbit/s,200 rules, hit at middle
+scale-end,baseline,2,tcp_gbit,0.100,Gbit/s,200 rules, hit at end
+reload,baseline,1,apply_ms,7.5,ms,20 reloads under a TCP stream
+reload,baseline,1,loss,,percent,20 reloads under a TCP stream
