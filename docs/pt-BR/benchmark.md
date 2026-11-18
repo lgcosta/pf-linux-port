@@ -1,6 +1,6 @@
 # Benchmark: PF-on-Linux vs nftables, iptables-nft e iptables-legacy
 
-Commit avaliado: `9db0662` (com alterações locais) · dados: `bench/report/data/run-20261118/results.csv` · gerado em 2026-11-18 15:39 UTC.
+Commit avaliado: `3ef4491` (com alterações locais) · dados: `bench/report/data/results-merged.csv` · gerado em 2026-11-18 15:50 UTC.
 
 ## Resumo executivo (EN)
 
@@ -44,6 +44,24 @@ Três VMs num bridge isolado (`bench-net`): `bench-kedge` (10.0.0.2) → `bench-
 
 
 
+## Filtragem com estado
+
+| backend | baseline (sem filtro) | PF-on-Linux | nftables | iptables-nft | iptables-legacy |
+|---|---|---|---|---|---|
+| Gbit/s entregue | 0.401 | — | 0.401 | — | — |
+
+| backend | baseline (sem filtro) | PF-on-Linux | nftables | iptables-nft | iptables-legacy |
+|---|---|---|---|---|---|
+| latência p50 (ms) | 0.182 | — | 0.196 | — | — |
+
+| backend | baseline (sem filtro) | PF-on-Linux | nftables | iptables-nft | iptables-legacy |
+|---|---|---|---|---|---|
+| latência p99 (ms) | 0.299 | — | 0.293 | — | — |
+
+| backend | baseline (sem filtro) | PF-on-Linux | nftables | iptables-nft | iptables-legacy |
+|---|---|---|---|---|---|
+| conexões/s | 5411.1 | — | 5321.2 | — | — |
+
 ## Matriz funcional
 
 Cada linha é um teste do `bench/lab/functest-on-deb.sh` sobre o mesmo caminho de trânsito (`bench-kedge -> bench-fw -> bench-srv`); a evidência de cada célula está no próprio runner e em `bench/report/data/functional.csv`.
@@ -65,11 +83,11 @@ Cada linha é um teste do `bench/lab/functest-on-deb.sh` sobre o mesmo caminho d
 - IPv6 foi verificado apenas funcionalmente (a tabela `inet` do nftables e o `ip6tables`), não no benchmark de vazão.
 ## Encerramento
 
-- **Commit avaliado:** `9db0662` (com alterações locais).
-- **Cenários executados:** filtragem sem estado (400 Mbit/s oferecidos) e teto de vazão (carga ilimitada), 2 repetições, ordem dos backends invertida; matriz funcional completa nos quatro backends.
+- **Commit avaliado:** `3ef4491` (com alterações locais).
+- **Cenários executados:** filtragem sem estado e teto de vazão (2 repetições, ordem invertida, quatro backends nativos + PF no stateless), filtragem com estado (baseline e nftables; as células de iptables não mediram) e a matriz funcional completa nos quatro backends.
 - **Achados:** todos os backends entregam a taxa oferecida; a latência p99 do PF é ~2x a do baseline sem filtro e ~1,5x a do nftables; sob carga ilimitada só os nativos foram medidos (18,2-18,8 Gbit/s) — o caminho do PF não chega lá.
 - **Corrigido no caminho:** `pf.ko` carregado escondia a chain FORWARD do netfilter mesmo com o engine desligado (agora `pf_status.running` decide); antes disso a matriz funcional acusava falha em nftables/iptables.
-- **Impedimentos:** células stateful/NAT/reload iniciadas e não concluídas (o churn de 300 conexões trava o guest com PF); escala de regras não rodou; PF fora do cenário de teto.
+- **Impedimentos:** a célula stateful do PF trava o guest (churn de 300 conexões pela workqueue); as células de iptables do cenário stateful não mediram (o conntrack necessário à direção de resposta não respondeu no guest de teste); NAT, reload e escala de regras não rodaram; PF fica fora do cenário de teto. Cada um está em `bench/report/data/meta.json` com o comando de reprodução.
 - **Entregáveis:** este Markdown, `docs/en/benchmark.md` (resumo EN + matriz), `bench/report/benchmark.pdf` (A4), `bench/report/site/index.html` (site estático) e os dados brutos em `bench/report/data/` — todos gerados do mesmo `results.csv`.
 
 ## Reprodução

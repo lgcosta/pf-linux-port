@@ -459,5 +459,137 @@
   "samples": [
    0.0
   ]
+ },
+ "stateful|baseline|fw_cpu_ticks": {
+  "n": 1,
+  "median": 313.0,
+  "min": 313.0,
+  "max": 313.0,
+  "stdev": 0.0,
+  "unit": "ticks",
+  "samples": [
+   313.0
+  ]
+ },
+ "stateful|baseline|tcp_gbit": {
+  "n": 1,
+  "median": 0.401,
+  "min": 0.401,
+  "max": 0.401,
+  "stdev": 0.0,
+  "unit": "Gbit/s",
+  "samples": [
+   0.401
+  ]
+ },
+ "stateful|baseline|latency_p50": {
+  "n": 1,
+  "median": 0.182,
+  "min": 0.182,
+  "max": 0.182,
+  "stdev": 0.0,
+  "unit": "ms",
+  "samples": [
+   0.182
+  ]
+ },
+ "stateful|baseline|latency_p95": {
+  "n": 1,
+  "median": 0.259,
+  "min": 0.259,
+  "max": 0.259,
+  "stdev": 0.0,
+  "unit": "ms",
+  "samples": [
+   0.259
+  ]
+ },
+ "stateful|baseline|latency_p99": {
+  "n": 1,
+  "median": 0.299,
+  "min": 0.299,
+  "max": 0.299,
+  "stdev": 0.0,
+  "unit": "ms",
+  "samples": [
+   0.299
+  ]
+ },
+ "stateful|baseline|conn_per_s": {
+  "n": 1,
+  "median": 5411.0578,
+  "min": 5411.0578,
+  "max": 5411.0578,
+  "stdev": 0.0,
+  "unit": "conn/s",
+  "samples": [
+   5411.0578
+  ]
+ },
+ "stateful|nft|fw_cpu_ticks": {
+  "n": 1,
+  "median": 325.0,
+  "min": 325.0,
+  "max": 325.0,
+  "stdev": 0.0,
+  "unit": "ticks",
+  "samples": [
+   325.0
+  ]
+ },
+ "stateful|nft|tcp_gbit": {
+  "n": 1,
+  "median": 0.401,
+  "min": 0.401,
+  "max": 0.401,
+  "stdev": 0.0,
+  "unit": "Gbit/s",
+  "samples": [
+   0.401
+  ]
+ },
+ "stateful|nft|latency_p50": {
+  "n": 1,
+  "median": 0.196,
+  "min": 0.196,
+  "max": 0.196,
+  "stdev": 0.0,
+  "unit": "ms",
+  "samples": [
+   0.196
+  ]
+ },
+ "stateful|nft|latency_p95": {
+  "n": 1,
+  "median": 0.256,
+  "min": 0.256,
+  "max": 0.256,
+  "stdev": 0.0,
+  "unit": "ms",
+  "samples": [
+   0.256
+  ]
+ },
+ "stateful|nft|latency_p99": {
+  "n": 1,
+  "median": 0.293,
+  "min": 0.293,
+  "max": 0.293,
+  "stdev": 0.0,
+  "unit": "ms",
+  "samples": [
+   0.293
+  ]
+ },
+ "stateful|nft|conn_per_s": {
+  "n": 1,
+  "median": 5321.2488,
+  "min": 5321.2488,
+  "max": 5321.2488,
+  "stdev": 0.0,
+  "unit": "conn/s",
+  "samples": [
+   5321.2488
+  ]
  }
 }

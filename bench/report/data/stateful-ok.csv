@@ -1,0 +1,12 @@
+stateful,baseline,1,fw_cpu_ticks,313,ticks,cumulative user+softirq
+stateful,baseline,1,tcp_gbit,0.401,Gbit/s,tcp -P4 -b100M -t5
+stateful,baseline,1,latency_p50,0.182,ms,ping 200x10ms
+stateful,baseline,1,latency_p95,0.259,ms,ping 200x10ms
+stateful,baseline,1,latency_p99,0.299,ms,ping 200x10ms
+stateful,baseline,1,conn_per_s,5411.057831341502,conn/s,tcp connect/close -t5
+stateful,nft,1,fw_cpu_ticks,325,ticks,cumulative user+softirq
+stateful,nft,1,tcp_gbit,0.401,Gbit/s,tcp -P4 -b100M -t5
+stateful,nft,1,latency_p50,0.196,ms,ping 200x10ms
+stateful,nft,1,latency_p95,0.256,ms,ping 200x10ms
+stateful,nft,1,latency_p99,0.293,ms,ping 200x10ms
+stateful,nft,1,conn_per_s,5321.248772799082,conn/s,tcp connect/close -t5

@@ -291,10 +291,11 @@ def main():
         L.append("## Encerramento")
         L.append("")
         L.append(f"- **Commit avaliado:** `{commit}` ({state}).")
-        L.append("- **Cenários executados:** filtragem sem estado (400 Mbit/s "
-                 "oferecidos) e teto de vazão (carga ilimitada), 2 repetições, "
-                 "ordem dos backends invertida; matriz funcional completa nos "
-                 "quatro backends.")
+        L.append("- **Cenários executados:** filtragem sem estado e teto de "
+                 "vazão (2 repetições, ordem invertida, quatro backends nativos + "
+                 "PF no stateless), filtragem com estado (baseline e nftables; as "
+                 "células de iptables não mediram) e a matriz funcional completa "
+                 "nos quatro backends.")
         L.append("- **Achados:** todos os backends entregam a taxa oferecida; a "
                  "latência p99 do PF é ~2x a do baseline sem filtro e ~1,5x a do "
                  "nftables; sob carga ilimitada só os nativos foram medidos "
@@ -303,9 +304,13 @@ def main():
                  "FORWARD do netfilter mesmo com o engine desligado (agora "
                  "`pf_status.running` decide); antes disso a matriz funcional "
                  "acusava falha em nftables/iptables.")
-        L.append("- **Impedimentos:** células stateful/NAT/reload iniciadas e não "
-                 "concluídas (o churn de 300 conexões trava o guest com PF); "
-                 "escala de regras não rodou; PF fora do cenário de teto.")
+        L.append("- **Impedimentos:** a célula stateful do PF trava o guest "
+                 "(churn de 300 conexões pela workqueue); as células de iptables "
+                 "do cenário stateful não mediram (o conntrack necessário à "
+                 "direção de resposta não respondeu no guest de teste); NAT, "
+                 "reload e escala de regras não rodaram; PF fica fora do cenário "
+                 "de teto. Cada um está em `bench/report/data/meta.json` com o "
+                 "comando de reprodução.")
         L.append("- **Entregáveis:** este Markdown, `docs/en/benchmark.md` "
                  "(resumo EN + matriz), `bench/report/benchmark.pdf` (A4), "
                  "`bench/report/site/index.html` (site estático) e os dados brutos "

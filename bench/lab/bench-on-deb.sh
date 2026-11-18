@@ -59,6 +59,11 @@ json() { # json <file> <key> — last numeric occurrence of <key> in the JSON
 	python3 /root/bench/lab/jsonfield.py "$1" "$2" 2>/dev/null
 }
 
+load_ct() { # iptables stateful rules need conntrack; it is modular
+	g "$FW" 'for m in nf_conntrack nf_defrag_ipv4 nf_defrag_ipv6 xt_conntrack; do
+		modprobe $m 2>/dev/null || true; done; true' >/dev/null
+}
+
 prepare_fw() {
 	local v i
 	for i in 1 2 3; do
@@ -71,9 +76,15 @@ prepare_fw() {
 	return 1
 }
 
-quiet_all() {
+quiet_all() { # remove every ruleset *and* restore the built-in policies:
+	# -F does not touch them, so a DROP policy left by a previous cell would
+	# silently poison every later backend
 	g "$FW" '/opt/pf/pfctl -d >/dev/null 2>&1; /opt/pf/pfctl -f /dev/null >/dev/null 2>&1;
-		nft flush ruleset 2>/dev/null; iptables-nft -F 2>/dev/null; iptables-legacy -F 2>/dev/null; true' >/dev/null
+		nft flush ruleset 2>/dev/null
+		for f in iptables-nft iptables-legacy; do
+			$f -F 2>/dev/null; $f -P INPUT ACCEPT 2>/dev/null
+			$f -P FORWARD ACCEPT 2>/dev/null; $f -P OUTPUT ACCEPT 2>/dev/null
+		done; true' >/dev/null
 }
 
 apply() { # apply <backend> <scenario>
@@ -145,11 +156,17 @@ lat() { # lat <scenario> <backend> <rep>
 	local sc="$1" be="$2" rep="$3"
 	local j="$OUT/raw-$sc-$be-$rep-ping.txt"
 	timeout 40 ssh -i "$KEY" $NK "root@$KEDGE" "ping -i 0.01 -c 200 -W 2 $DSRV 2>/dev/null | sed -n 's/.*time=//; s/ ms//p'" > "$j" 2>/dev/null
-	local p; p=$(sort -n "$j" | awk '{a[NR]=$1} END{if(NR==0){print "0 0 0"; exit} print a[int(NR*0.50)+1], a[int(NR*0.95)+1], a[int(NR*0.99)+1]}')
+	local p; p=$(sort -n "$j" | awk '{a[NR]=$1} END{if(NR==0){print "none"; exit} print a[int(NR*0.50)+1], a[int(NR*0.95)+1], a[int(NR*0.99)+1]}')
+	if [ "$p" = none ]; then # no reply: leave the cell empty, do not publish 0 ms
+		emit "$sc" "$be" "$rep" latency_p50 "" ms "ping blocked"
+		emit "$sc" "$be" "$rep" latency_p95 "" ms "ping blocked"
+		emit "$sc" "$be" "$rep" latency_p99 "" ms "ping blocked"
+		return
+	fi
 	set -- $p
-	emit "$sc" "$be" "$rep" latency_p50 "${1:-0}" ms "ping 200x10ms"
-	emit "$sc" "$be" "$rep" latency_p95 "${2:-0}" ms "ping 200x10ms"
-	emit "$sc" "$be" "$rep" latency_p99 "${3:-0}" ms "ping 200x10ms"
+	emit "$sc" "$be" "$rep" latency_p50 "${1:-}" ms "ping 200x10ms"
+	emit "$sc" "$be" "$rep" latency_p95 "${2:-}" ms "ping 200x10ms"
+	emit "$sc" "$be" "$rep" latency_p99 "${3:-}" ms "ping 200x10ms"
 }
 
 softirq() { # softirq <scenario> <backend> <rep> — firewall CPU time (ticks)
