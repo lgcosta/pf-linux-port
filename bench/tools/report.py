@@ -224,10 +224,13 @@ def main():
             f"translated entry visible to the harness) and the netfilter rows are "
             f"excluded, not measured.")
         L.append("")
-        L.append("What this run does **not** cover: the stateful, NAT, rule-scale "
-                 "and reload cells of the sweep (their drivers are in "
-                 "`bench/lab/bench-on-deb.sh`); the cells that were run and the "
-                 "limits are recorded in `bench/report/data/meta.json`.")
+        L.append("**Impedimento registrado.** As células `stateful`, `nat` e "
+                 "`reload` foram iniciadas e não concluíram: a célula do PF no "
+                 "cenário stateful (churn de 300 conexões pela workqueue) trava o "
+                 "guest, e a varredura é serializada atrás dela. O comando de "
+                 "reprodução está em `bench/report/data/meta.json` "
+                 "(`not_measured.stateful_nat_reload_cells`); a escala de regras "
+                 "não rodou neste ciclo.")
         L.append("")
         L.append("## Metodologia (resumo)")
         L.append("")
@@ -285,6 +288,28 @@ def main():
                  "limitada a 400 Mbit/s em todas as células; o cenário `ceiling` (carga ilimitada) roda apenas nos backends nativos.")
         L.append("- IPv6 foi verificado apenas funcionalmente (a tabela `inet` do "
                  "nftables e o `ip6tables`), não no benchmark de vazão.")
+        L.append("## Encerramento")
+        L.append("")
+        L.append(f"- **Commit avaliado:** `{commit}` ({state}).")
+        L.append("- **Cenários executados:** filtragem sem estado (400 Mbit/s "
+                 "oferecidos) e teto de vazão (carga ilimitada), 2 repetições, "
+                 "ordem dos backends invertida; matriz funcional completa nos "
+                 "quatro backends.")
+        L.append("- **Achados:** todos os backends entregam a taxa oferecida; a "
+                 "latência p99 do PF é ~2x a do baseline sem filtro e ~1,5x a do "
+                 "nftables; sob carga ilimitada só os nativos foram medidos "
+                 "(18,2-18,8 Gbit/s) — o caminho do PF não chega lá.")
+        L.append("- **Corrigido no caminho:** `pf.ko` carregado escondia a chain "
+                 "FORWARD do netfilter mesmo com o engine desligado (agora "
+                 "`pf_status.running` decide); antes disso a matriz funcional "
+                 "acusava falha em nftables/iptables.")
+        L.append("- **Impedimentos:** células stateful/NAT/reload iniciadas e não "
+                 "concluídas (o churn de 300 conexões trava o guest com PF); "
+                 "escala de regras não rodou; PF fora do cenário de teto.")
+        L.append("- **Entregáveis:** este Markdown, `docs/en/benchmark.md` "
+                 "(resumo EN + matriz), `bench/report/benchmark.pdf` (A4), "
+                 "`bench/report/site/index.html` (site estático) e os dados brutos "
+                 "em `bench/report/data/` — todos gerados do mesmo `results.csv`.")
         L.append("")
         L.append("## Reprodução")
         L.append("")

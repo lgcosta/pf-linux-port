@@ -1,12 +1,12 @@
 # Benchmark: PF-on-Linux vs nftables, iptables-nft e iptables-legacy
 
-Commit avaliado: `5e24c91` (com alterações locais) · dados: `bench/report/data/run-20261118/results.csv` · gerado em 2026-11-18 15:37 UTC.
+Commit avaliado: `9db0662` (com alterações locais) · dados: `bench/report/data/run-20261118/results.csv` · gerado em 2026-11-18 15:39 UTC.
 
 ## Resumo executivo (EN)
 
 At the 400 Mbit/s offered load every backend delivers the offered rate (0.40 Gbit/s through PF-on-Linux, 0.40 through nftables) with no UDP loss; the p99 latency is 0.54 ms through PF-on-Linux against 0.26 ms unfiltered. Under unbounded load the native backends reach 18.16 Gbit/s (nftables) and 18.48 Gbit/s (no filter); PF-on-Linux is not measurable there: its data path runs every packet through a single ordered workqueue and above roughly 1 Gbit/s the backlog exhausts the guest (documented in the project's caveats). Functionally, the port passed every row the harness completed (IPv4 filtering blocks transit traffic, stateful filtering drops a new flow, an address set blocks its member); SNAT is *limited* (no translated entry visible to the harness) and the netfilter rows are excluded, not measured.
 
-What this run does **not** cover: the stateful, NAT, rule-scale and reload cells of the sweep (their drivers are in `bench/lab/bench-on-deb.sh`); the cells that were run and the limits are recorded in `bench/report/data/meta.json`.
+**Impedimento registrado.** As células `stateful`, `nat` e `reload` foram iniciadas e não concluíram: a célula do PF no cenário stateful (churn de 300 conexões pela workqueue) trava o guest, e a varredura é serializada atrás dela. O comando de reprodução está em `bench/report/data/meta.json` (`not_measured.stateful_nat_reload_cells`); a escala de regras não rodou neste ciclo.
 
 ## Metodologia (resumo)
 
@@ -63,6 +63,14 @@ Cada linha é um teste do `bench/lab/functest-on-deb.sh` sobre o mesmo caminho d
 - O baseline sem filtro também passa pelo caminho de roteamento do Linux; a diferença para os backends isola o custo do filtro.
 - PF-on-Linux não sustenta carga ilimitada: acima de ~1 Gbit/s o backlog da workqueue esgota a memória do guest e o kernel entra em pânico (ver `docs/pt-BR/caveats.md` §13). Por isso a carga é limitada a 400 Mbit/s em todas as células; o cenário `ceiling` (carga ilimitada) roda apenas nos backends nativos.
 - IPv6 foi verificado apenas funcionalmente (a tabela `inet` do nftables e o `ip6tables`), não no benchmark de vazão.
+## Encerramento
+
+- **Commit avaliado:** `9db0662` (com alterações locais).
+- **Cenários executados:** filtragem sem estado (400 Mbit/s oferecidos) e teto de vazão (carga ilimitada), 2 repetições, ordem dos backends invertida; matriz funcional completa nos quatro backends.
+- **Achados:** todos os backends entregam a taxa oferecida; a latência p99 do PF é ~2x a do baseline sem filtro e ~1,5x a do nftables; sob carga ilimitada só os nativos foram medidos (18,2-18,8 Gbit/s) — o caminho do PF não chega lá.
+- **Corrigido no caminho:** `pf.ko` carregado escondia a chain FORWARD do netfilter mesmo com o engine desligado (agora `pf_status.running` decide); antes disso a matriz funcional acusava falha em nftables/iptables.
+- **Impedimentos:** células stateful/NAT/reload iniciadas e não concluídas (o churn de 300 conexões trava o guest com PF); escala de regras não rodou; PF fora do cenário de teto.
+- **Entregáveis:** este Markdown, `docs/en/benchmark.md` (resumo EN + matriz), `bench/report/benchmark.pdf` (A4), `bench/report/site/index.html` (site estático) e os dados brutos em `bench/report/data/` — todos gerados do mesmo `results.csv`.
 
 ## Reprodução
 
