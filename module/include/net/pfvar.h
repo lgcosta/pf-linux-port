@@ -1907,6 +1907,10 @@ void		 pfi_kif_ref(struct pfi_kif *, enum pfi_kif_refs);
 void		 pfi_kif_unref(struct pfi_kif *, enum pfi_kif_refs);
 int		 pfi_kif_match(struct pfi_kif *, struct pfi_kif *);
 void		 pfi_attach_ifnet(struct pfk_ifnet *);
+/* PFLINUX: re-publish the dynamic address pools after an interface's IP
+ * addresses changed, and after the default-route interface changed. */
+void		 pfi_kif_addr_refresh(struct pfk_ifnet *);
+void		 pfi_egress_refresh(void);
 void		 pfi_detach_ifnet(struct pfk_ifnet *);
 void		 pfi_attach_ifgroup(struct ifg_group *);
 void		 pfi_detach_ifgroup(struct ifg_group *);

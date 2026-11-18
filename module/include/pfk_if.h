@@ -25,6 +25,11 @@ struct pfk_ifnet {
 	struct rcu_head		rcu;
 	struct list_head	link;
 	int			alive;
+	/* PFLINUX: fingerprint of the interface's current IP addresses; the
+	 * kernel exports no IP-address notifier to modules, so the compat
+	 * layer polls this to notice address changes (see
+	 * pfk_if_addr_poll_work()). */
+	u32			if_addr_fp;
 };
 
 #define if_output		pfk_if_output_placeholder
@@ -159,9 +164,22 @@ struct pfk_ifnet *pfk_if_next(struct pfk_ifnet *ifp);
 struct pfk_ifnet *pfk_if_next_from(int *idp);
 struct net_device *ip_rt_get_default_dev(struct net *net);
 
-/* Notification for PF engine (pfi attach/detach), called under NET_LOCK:
- * added=1 new interface (after populate), added=0 interface going away. */
-void pfk_if_set_event_cb(void (*cb)(int added, struct pfk_ifnet *ifp));
+/* Notification for PF engine (pfi attach/detach), called under NET_LOCK.
+ * PFLINUX: the event carries a *kind*, not a boolean:
+ *   PFK_IF_EV_ADD    new interface (after populate)
+ *   PFK_IF_EV_DEL    interface going away
+ *   PFK_IF_EV_ADDR   the interface's IP addresses changed (added/removed/
+ *                    moved) - the PF dynamic-address pools must be
+ *                    re-published, see pfi_kif_addr_refresh()
+ *   PFK_IF_EV_EGRESS the default-route interface (the emulated "egress"
+ *                    group) changed
+ */
+#define PFK_IF_EV_ADD	1
+#define PFK_IF_EV_DEL	2
+#define PFK_IF_EV_ADDR	3
+#define PFK_IF_EV_EGRESS	4
+
+void pfk_if_set_event_cb(void (*cb)(int kind, struct pfk_ifnet *ifp));
 /* Iterate all live interfaces with cb(ifp) under NET_LOCK-read. */
 void pfk_if_iterate(void (*cb)(struct pfk_ifnet *ifp));
 

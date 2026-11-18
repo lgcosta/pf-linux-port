@@ -47,6 +47,13 @@
 
 
 
+/*
+ * PFLINUX: port-specific kif flag: this kif is the emulated "egress"
+ * interface group, which must resolve to the default-route interface
+ * (pfk_egress_if()) instead of "any interface".
+ */
+#define PFI_IFLAG_EGRESS	0x0400
+
 struct pfi_kif		 *pfi_all = NULL;
 struct pool		  pfi_addr_pl;
 struct pfi_ifhead	  pfi_ifs;
@@ -100,6 +107,13 @@ pfi_kif_alloc(const char *kif_name, int mflags)
 	    !strcmp(kif->pfik_name, "egress")) {
 		kif->pfik_flags |= PFI_IFLAG_ANY;
 		kif->pfik_flags_new |= PFI_IFLAG_ANY;
+	}
+	if (!strcmp(kif->pfik_name, "egress")) {
+		/* PFLINUX: "egress" is the default-route interface here, so
+		 * a pool bound to it resolves to that interface's addresses
+		 * (see pfi_table_update()). */
+		kif->pfik_flags |= PFI_IFLAG_EGRESS;
+		kif->pfik_flags_new |= PFI_IFLAG_EGRESS;
 	}
 
 	return (kif);
@@ -557,6 +571,15 @@ pfi_table_update(struct pfr_ktable *kt, struct pfi_kif *kif, u_int8_t net, int f
 	else if (kif->pfik_group != NULL)
 		TAILQ_FOREACH(ifgm, &kif->pfik_group->ifg_members, ifgm_next)
 			pfi_instance_add(ifgm->ifgm_ifp, net, flags);
+	else if (kif->pfik_flags & PFI_IFLAG_EGRESS) {
+		/* PFLINUX: the emulated "egress" group is the default-route
+		 * interface; Linux has no interface groups, so resolve it
+		 * here or the pool would stay empty. */
+		struct pfk_ifnet *eif = pfk_egress_if();
+
+		if (eif != NULL)
+			pfi_instance_add(eif, net, flags);
+	}
 
 	if ((e = pfr_set_addrs(&kt->pfrkt_t, pfi_buffer, pfi_buffer_cnt, &size2,
 	    NULL, NULL, NULL, 0, PFR_TFLAG_ALLMASK)))
@@ -694,6 +717,42 @@ pfi_dynaddr_copyout(struct pf_addr_wrap *aw)
 	    aw->p.dyn->pfid_kif == NULL)
 		return;
 	aw->p.dyncnt = aw->p.dyn->pfid_acnt4 + aw->p.dyn->pfid_acnt6;
+}
+
+/*
+ * PFLINUX: an interface's IP addresses changed - re-publish the dynamic
+ * address pools bound to it.  Without this the pool keeps the address it
+ * had when it was built (stale) or stays empty when the address had not
+ * landed yet (the boot race), until the next ruleset reload.
+ */
+void
+pfi_kif_addr_refresh(struct pfk_ifnet *ifp)
+{
+	struct pfi_kif	*kif;
+
+	PF_LOCK();
+	pfi_update++;
+	kif = pfi_kif_find(ifp->if_xname);
+	if (kif != NULL)
+		pfi_kif_update(kif);
+	PF_UNLOCK();
+}
+
+/*
+ * PFLINUX: the default-route interface (the emulated "egress" group)
+ * changed - re-publish the pools bound to the egress group.
+ */
+void
+pfi_egress_refresh(void)
+{
+	struct pfi_kif	*kif;
+
+	PF_LOCK();
+	pfi_update++;
+	kif = pfi_kif_find("egress");
+	if (kif != NULL)
+		pfi_kif_update(kif);
+	PF_UNLOCK();
 }
 
 void

@@ -155,6 +155,53 @@ pfkifa_new(struct pfk_ifnet *ifp, int family)
 	return ifa;
 }
 
+/*
+ * PFLINUX: a cheap fingerprint of an interface's current IP addresses.
+ *
+ * Linux does not export an IP-address notifier to modules: the IPv4
+ * address chain (inetaddr_chain) and its IPv6 counterpart are private to
+ * the network core, and NETDEV_CHANGEADDR only covers MAC address changes.
+ * The only in-module way to notice that an address landed (or moved) is to
+ * look, so the compat layer polls this fingerprint once a second and
+ * notifies the PF engine when it changes.  The fingerprint is a hash of the
+ * address count and the addresses themselves - no allocation, RCU read only.
+ */
+static u32
+pfk_if_addr_fingerprint(struct net_device *dev)
+{
+	u32 fp = 0x811c9dc5;		/* FNV-1a */
+	u32 n = 0;
+	struct in_device *idev;
+	struct inet6_dev *idev6;
+	struct in_ifaddr *ifa4;
+	struct inet6_ifaddr *ifa6;
+
+	rcu_read_lock();
+	idev = __in_dev_get_rcu(dev);
+	if (idev) {
+		for (ifa4 = rcu_dereference(idev->ifa_list); ifa4;
+		     ifa4 = rcu_dereference(ifa4->ifa_next)) {
+			fp = (fp ^ ifa4->ifa_address) * 16777619u;
+			n++;
+		}
+	}
+#if IS_ENABLED(CONFIG_IPV6)
+	idev6 = __in6_dev_get(dev);
+	if (idev6) {
+		list_for_each_entry(ifa6, &idev6->addr_list, if_list) {
+			int i;
+
+			for (i = 0; i < 16; i++)
+				fp = (fp ^ ifa6->addr.s6_addr[i]) * 16777619u;
+			n++;
+		}
+	}
+#endif
+	rcu_read_unlock();
+
+	return ((fp ^ n) * 16777619u);
+}
+
 int
 pfk_if_addrlist_refresh(struct pfk_ifnet *ifp)
 {
@@ -226,6 +273,9 @@ pfk_if_addrlist_refresh(struct pfk_ifnet *ifp)
 	}
 #endif
 	rcu_read_unlock();
+
+	/* remember what we just published, so the poll can tell a change */
+	ifp->if_addr_fp = pfk_if_addr_fingerprint(dev);
 	return 0;
 }
 
@@ -292,7 +342,7 @@ pfk_netdev_event(struct notifier_block *nb, unsigned long ev, void *ptr)
 			return NOTIFY_DONE;
 		}
 		spin_unlock_irqrestore(&pfk_ifnet_lock, flags);
-		pfk_if_event_call(1, ifp);
+		pfk_if_event_call(PFK_IF_EV_ADD, ifp);
 		break;
 	case NETDEV_UNREGISTER:
 		spin_lock_irqsave(&pfk_ifnet_lock, flags);
@@ -300,7 +350,7 @@ pfk_netdev_event(struct notifier_block *nb, unsigned long ev, void *ptr)
 		if (ifp) {
 			ifp->alive = 0;
 			idr_remove(&pfk_ifnet_idr, dev->ifindex);
-			pfk_if_event_call(0, ifp);
+			pfk_if_event_call(PFK_IF_EV_DEL, ifp);
 			call_rcu(&ifp->rcu, pfk_ifnet_release);
 		}
 		spin_unlock_irqrestore(&pfk_ifnet_lock, flags);
@@ -329,7 +379,9 @@ static struct notifier_block pfk_netdev_nb = {
 	.notifier_call = pfk_netdev_event,
 };
 
-static void (*pfk_if_event_cb)(int added, struct pfk_ifnet *ifp);
+/* PF engine notification: PFK_IF_EV_{ADD,DEL,ADDR,EGRESS} (see pfk_if.h).
+ * Delivered from the pfk_if workqueue, never from atomic context. */
+static void (*pfk_if_event_cb)(int kind, struct pfk_ifnet *ifp);
 
 /*
  * PFLINUX: netdev notifiers run with rtnl held; taking NET_LOCK there
@@ -339,7 +391,7 @@ static void (*pfk_if_event_cb)(int added, struct pfk_ifnet *ifp);
  */
 struct pfk_if_event {
 	struct work_struct	work;
-	int			added;
+	int			kind;
 	struct pfk_ifnet	*ifp;
 };
 
@@ -351,12 +403,12 @@ pfk_if_event_work(struct work_struct *w)
 	struct pfk_if_event *ev = container_of(w, struct pfk_if_event, work);
 
 	if (pfk_if_event_cb)
-		pfk_if_event_cb(ev->added, ev->ifp);
+		pfk_if_event_cb(ev->kind, ev->ifp);
 	kfree(ev);
 }
 
 static void
-pfk_if_event_call(int added, struct pfk_ifnet *ifp)
+pfk_if_event_call(int kind, struct pfk_ifnet *ifp)
 {
 	struct pfk_if_event *ev;
 
@@ -366,15 +418,62 @@ pfk_if_event_call(int added, struct pfk_ifnet *ifp)
 	if (!ev)
 		return;
 	INIT_WORK(&ev->work, pfk_if_event_work);
-	ev->added = added;
+	ev->kind = kind;
 	ev->ifp = ifp;
 	queue_work(pfk_if_wq, &ev->work);
 }
 
 void
-pfk_if_set_event_cb(void (*cb)(int added, struct pfk_ifnet *ifp))
+pfk_if_set_event_cb(void (*cb)(int kind, struct pfk_ifnet *ifp))
 {
 	pfk_if_event_cb = cb;
+}
+
+/*
+ * PFLINUX: address-change detection.
+ *
+ * PF's dynamic-address pools ("nat-to (eth2)", "nat-to (egress)", ...) are
+ * resolved by the kernel from the interface's *current* addresses, but the
+ * table behind them was only rebuilt when an interface was attached or a
+ * group changed - never when an address was added or removed.  A ruleset
+ * applied before the WAN address existed therefore kept an empty pool (no
+ * translation at all) and one applied before a DHCP change kept the old
+ * address, until the next ruleset reload.
+ *
+ * The kernel gives modules no IP-address notification (see
+ * pfk_if_addr_fingerprint()), so the compat layer polls the interfaces
+ * once a second and hands the change to the PF engine, which re-publishes
+ * the affected pools.
+ */
+#define PFK_IF_ADDR_POLL_MS	1000
+
+static void pfk_if_addr_poll_work(struct work_struct *w);
+static DECLARE_DELAYED_WORK(pfk_if_addr_poll_dwork, pfk_if_addr_poll_work);
+static bool pfk_if_addr_polling;
+
+static void
+pfk_if_addr_poll_one(struct pfk_ifnet *ifp)
+{
+	u32 fp = pfk_if_addr_fingerprint(ifp->dev);
+
+	if (fp == ifp->if_addr_fp)
+		return;
+
+	/* the addresses changed: republish the snapshot and tell PF */
+	pfk_if_addrlist_refresh(ifp);
+	pfk_if_event_call(PFK_IF_EV_ADDR, ifp);
+}
+
+static void
+pfk_if_addr_poll_work(struct work_struct *w)
+{
+	if (!pfk_if_addr_polling)
+		return;
+
+	pfk_if_iterate(pfk_if_addr_poll_one);
+	pfk_egress_refresh();
+	queue_delayed_work(pfk_if_wq, &pfk_if_addr_poll_dwork,
+	    msecs_to_jiffies(PFK_IF_ADDR_POLL_MS));
 }
 
 void
@@ -391,7 +490,7 @@ pfk_if_iterate(void (*cb)(struct pfk_ifnet *ifp))
 void
 pfk_egress_refresh(void)
 {
-	struct pfk_ifnet *ifp = NULL;
+	struct pfk_ifnet *ifp = NULL, *old = pfk_egress;
 	struct net_device *dev;
 
 	/* PFLINUX: default route lookup for 0.0.0.0 via FIB */
@@ -399,9 +498,24 @@ pfk_egress_refresh(void)
 	dev = ip_rt_get_default_dev(&init_net);	/* helper, P1 export */
 	rcu_read_unlock();
 	ifp = pfk_ifp_bydev(dev);
+	/* ip_rt_get_default_dev() hands out a reference; the idr holds its own
+	 * lifetime for the pfk_ifnet, so drop it here (this runs once a second
+	 * from the address poll - an unbalanced dev_hold() would keep the
+	 * net_device alive for good). */
+	if (dev != NULL)
+		dev_put(dev);
+	/* the old interface must not keep the BSD IFFX_EGRESS flag when the
+	 * default route moved to another one */
+	if (old != NULL && old != ifp)
+		old->if_xflags &= ~0x00000001;
 	if (ifp)
 		ifp->if_xflags |= 0x00000001;	/* BSD IFFX_EGRESS value */
 	pfk_egress = ifp;
+
+	/* the emulated "egress" group follows the default-route interface:
+	 * tell PF so the pools bound to it are re-published */
+	if (old != ifp)
+		pfk_if_event_call(PFK_IF_EV_EGRESS, ifp);
 }
 
 struct pfk_ifnet *
@@ -478,13 +592,20 @@ pfk_if_init(void)
 	}
 	rtnl_unlock();
 	pfk_egress_refresh();
+
+	/* watch the interfaces' addresses (no in-module notification exists) */
+	pfk_if_addr_polling = true;
+	queue_delayed_work(pfk_if_wq, &pfk_if_addr_poll_dwork,
+	    msecs_to_jiffies(PFK_IF_ADDR_POLL_MS));
 	return 0;
 }
 
 void
 pfk_if_exit(void)
 {
+	pfk_if_addr_polling = false;
 	if (pfk_if_wq) {
+		cancel_delayed_work_sync(&pfk_if_addr_poll_dwork);
 		flush_workqueue(pfk_if_wq);
 		destroy_workqueue(pfk_if_wq);
 		pfk_if_wq = NULL;

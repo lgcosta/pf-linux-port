@@ -98,13 +98,30 @@ extern int pfk_pflog_register(void);
 extern void pfk_pflog_unregister(void);
 extern void pfk_divert_sock_unregister(void);
 
+extern void pfi_kif_addr_refresh(struct pfk_ifnet *);
+extern void pfi_egress_refresh(void);
+
 static void
-pfk_pfi_event(int added, struct pfk_ifnet *ifp)
+pfk_pfi_event(int kind, struct pfk_ifnet *ifp)
 {
-	if (added)
+	switch (kind) {
+	case PFK_IF_EV_ADD:
 		pfi_attach_ifnet(ifp);
-	else
+		break;
+	case PFK_IF_EV_DEL:
 		pfi_detach_ifnet(ifp);
+		break;
+	case PFK_IF_EV_ADDR:
+		/* the interface's addresses changed: re-publish the dynamic
+		 * address pools (nat-to (iface), rdr-to (iface), ...) */
+		if (ifp != NULL)
+			pfi_kif_addr_refresh(ifp);
+		break;
+	case PFK_IF_EV_EGRESS:
+		/* the default-route interface changed */
+		pfi_egress_refresh();
+		break;
+	}
 }
 
 static void

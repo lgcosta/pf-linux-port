@@ -1347,6 +1347,11 @@ deps_pfsrc/pfk_pflog.o := \
     $(wildcard include/config/NF_CONNTRACK_LABELS) \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/linux/netfilter/nf_conntrack_tcp.h \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/uapi/linux/netfilter/nf_conntrack_tcp.h \
+  /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/linux/netfilter/nf_conntrack_sctp.h \
+  /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/uapi/linux/netfilter/nf_conntrack_sctp.h \
+  /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/uapi/linux/netfilter/nf_conntrack_tuple_common.h \
+  /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/linux/netfilter/nf_conntrack_common.h \
+  /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/uapi/linux/netfilter/nf_conntrack_common.h \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/net/netns/nftables.h \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/net/netns/xfrm.h \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/uapi/linux/xfrm.h \
@@ -1470,8 +1475,6 @@ deps_pfsrc/pfk_pflog.o := \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/uapi/linux/pkt_sched.h \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/uapi/linux/if_packet.h \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/linux/page_frag_cache.h \
-  /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/linux/netfilter/nf_conntrack_common.h \
-  /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/uapi/linux/netfilter/nf_conntrack_common.h \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/net/net_debug.h \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/net/netmem.h \
     $(wildcard include/config/NET_DEVMEM) \
@@ -1794,7 +1797,6 @@ deps_pfsrc/pfk_pflog.o := \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/net/netns/generic.h \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/linux/netfilter.h \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/linux/netfilter/nf_conntrack_zones_common.h \
-  /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/uapi/linux/netfilter/nf_conntrack_tuple_common.h \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/linux/netfilter_ipv4.h \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/uapi/linux/netfilter_ipv4.h \
   /home/lgcosta/lab/linux_kernel/linux-7.3.4/include/uapi/linux/typelimits.h \
