@@ -78,6 +78,16 @@ Two port defects surfaced while building it and are fixed here:
 - `ip_rt_get_default_dev()` returned a `net_device *` that outlived its
   `dst_entry`; the helper now returns the interface index and releases the
   route before the caller uses it.
+- **A loaded `pf.ko` silently disabled netfilter.** With PF turned off
+  (`pfctl -d`) the hook still stole every packet onto the workqueue, so it
+  never reached the later hooks: an `iptables`/`nftables` `FORWARD -j DROP`
+  on the same host stopped matching the moment the module was loaded (the
+  traffic flowed, the rule's counters stayed at zero). `pfk_enqueue_verdict()`
+  now returns `NF_ACCEPT` unless `pf_status.running`, i.e. `pfctl -d` really
+  means "hands off" and the native stack keeps working. This is what the
+  functional matrix caught: it now shows `pass` for PF, nftables,
+  iptables-nft and iptables-legacy on IPv4 filtering, stateful filtering and
+  SNAT, with PF and nftables alone on native address sets.
 
 Known measurement limit, documented in the report: PF-on-Linux is not
 measurable under unbounded load — its workqueue backlog exhausts the guest

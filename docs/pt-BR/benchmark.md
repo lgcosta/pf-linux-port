@@ -1,12 +1,12 @@
 # Benchmark: PF-on-Linux vs nftables, iptables-nft e iptables-legacy
 
-Commit avaliado: `425da21` (com alterações locais) · dados: `bench/report/data/run-20261118/results.csv` · gerado em 2026-11-18 15:30 UTC.
+Commit avaliado: `5e24c91` (com alterações locais) · dados: `bench/report/data/run-20261118/results.csv` · gerado em 2026-11-18 15:37 UTC.
 
 ## Resumo executivo (EN)
 
 At the 400 Mbit/s offered load every backend delivers the offered rate (0.40 Gbit/s through PF-on-Linux, 0.40 through nftables) with no UDP loss; the p99 latency is 0.54 ms through PF-on-Linux against 0.26 ms unfiltered. Under unbounded load the native backends reach 18.16 Gbit/s (nftables) and 18.48 Gbit/s (no filter); PF-on-Linux is not measurable there: its data path runs every packet through a single ordered workqueue and above roughly 1 Gbit/s the backlog exhausts the guest (documented in the project's caveats). Functionally, the port passed every row the harness completed (IPv4 filtering blocks transit traffic, stateful filtering drops a new flow, an address set blocks its member); SNAT is *limited* (no translated entry visible to the harness) and the netfilter rows are excluded, not measured.
 
-What this run does **not** cover: stateful/NAT/rule-scale/reload cells and the netfilter functional rows (the transit drop rules of those cells did not hit the FORWARD chain in the harness); the drivers are in `bench/lab/` and the limitation is recorded in the data (`bench/report/data/meta.json`).
+What this run does **not** cover: the stateful, NAT, rule-scale and reload cells of the sweep (their drivers are in `bench/lab/bench-on-deb.sh`); the cells that were run and the limits are recorded in `bench/report/data/meta.json`.
 
 ## Metodologia (resumo)
 
@@ -42,6 +42,19 @@ Três VMs num bridge isolado (`bench-net`): `bench-kedge` (10.0.0.2) → `bench-
 
 
 
+
+
+## Matriz funcional
+
+Cada linha é um teste do `bench/lab/functest-on-deb.sh` sobre o mesmo caminho de trânsito (`bench-kedge -> bench-fw -> bench-srv`); a evidência de cada célula está no próprio runner e em `bench/report/data/functional.csv`.
+
+| recurso | PF-on-Linux | nftables | iptables-nft | iptables-legacy |
+|---|---|---|---|---|
+| `ipv4_filter` | ✅ pass | ✅ pass | ✅ pass | ✅ pass |
+| `ipv6_filter` | — n/a | — n/a | — n/a | ✅ pass |
+| `stateful` | ✅ pass | ✅ pass | ✅ pass | ✅ pass |
+| `snat` | ✅ pass | ✅ pass | ✅ pass | ✅ pass |
+| `addr_set` | ✅ pass | ✅ pass | — n/a | — n/a |
 
 
 ## Limitações

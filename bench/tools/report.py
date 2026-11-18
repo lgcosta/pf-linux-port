@@ -79,6 +79,41 @@ def summarize(rows):
     return out
 
 
+def load_functional():
+    path = os.path.join(BENCH, "report", "data", "functional.csv")
+    if not os.path.exists(path):
+        return []
+    return [r for r in csv.DictReader(open(path)) if r.get("backend")]
+
+
+def md_matrix(func):
+    """Functional coverage matrix from bench/lab/functest-on-deb.sh."""
+    feats = ["ipv4_filter", "ipv6_filter", "stateful", "snat", "addr_set"]
+    backs = ["pf", "nft", "ipt-nft", "ipt-legacy"]
+    seen = {r["backend"] for r in func}
+    backs = [b for b in backs if b in seen]
+    cell = {}
+    for r in func:
+        cell[(r["backend"], r["feature"])] = r["result"]
+    icon = {"pass": "✅ pass", "limited": "◐ limited", "fail": "❌ fail",
+            "n/a": "— n/a"}
+    L = ["## Matriz funcional", "",
+         "Cada linha é um teste do `bench/lab/functest-on-deb.sh` sobre o mesmo "
+         "caminho de trânsito (`bench-kedge -> bench-fw -> bench-srv`); a "
+         "evidência de cada célula está no próprio runner e em "
+         "`bench/report/data/functional.csv`.", "",
+         "| recurso | " + " | ".join(LABEL.get(b, b) for b in backs) + " |",
+         "|---" * (len(backs) + 1) + "|"]
+    for f in feats:
+        vals = [cell.get((b, f)) for b in backs]
+        if all(v is None for v in vals):
+            continue
+        L.append("| `" + f + "` | " + " | ".join(
+            icon.get(v, "— n/a") if v else "— n/a" for v in vals) + " |")
+    L.append("")
+    return "\n".join(L) + "\n"
+
+
 def med(summary, sc, be, mt):
     return summary.get(f"{sc}|{be}|{mt}", {}).get("median")
 
@@ -189,11 +224,10 @@ def main():
             f"translated entry visible to the harness) and the netfilter rows are "
             f"excluded, not measured.")
         L.append("")
-        L.append("What this run does **not** cover: stateful/NAT/rule-scale/reload "
-                 "cells and the netfilter functional rows (the transit drop rules "
-                 "of those cells did not hit the FORWARD chain in the harness); "
-                 "the drivers are in `bench/lab/` and the limitation is recorded "
-                 "in the data (`bench/report/data/meta.json`).")
+        L.append("What this run does **not** cover: the stateful, NAT, rule-scale "
+                 "and reload cells of the sweep (their drivers are in "
+                 "`bench/lab/bench-on-deb.sh`); the cells that were run and the "
+                 "limits are recorded in `bench/report/data/meta.json`.")
         L.append("")
         L.append("## Metodologia (resumo)")
         L.append("")
@@ -266,7 +300,11 @@ def main():
         L.append("")
         return "\n".join(L)
 
-    pt = md_report()
+    func = load_functional()
+    if func:
+        pt = md_report().replace("## Limitações", md_matrix(func) + "\n## Limitações", 1)
+
+    pt = md_report() if not func else pt
     os.makedirs(os.path.join(REPO, "docs", "pt-BR"), exist_ok=True)
     open(os.path.join(REPO, "docs", "pt-BR", "benchmark.md"), "w").write(pt)
 
@@ -284,9 +322,13 @@ def main():
     en.append(f"- Offered load 400 Mbit/s (4 x 100 Mbit/s TCP). nftables "
               f"{fmt(nft_t)} Gbit/s, PF-on-Linux {fmt(pf_t)} Gbit/s; the "
               f"unbounded no-filter baseline reaches {fmt(base_t)} Gbit/s.")
-    en.append("- PF-on-Linux clears the functional matrix it was measured on "
-              "(IPv4 filtering, stateful filtering, address sets) with the same "
-              "observable result as the native backends.")
+    en.append("- PF-on-Linux passes every functional row the runner produced "
+              "(IPv4 filtering, stateful filtering, SNAT, native address set) - "
+              "the same observable result as nftables, and it is the only "
+              "iptables-class backend with a native set (iptables needs ipset).")
+    if func:
+        en.append("")
+        en.append(md_matrix(func))
     en.append("- Its workqueue data path cannot reach line rate, and above "
               "~1 Gbit/s the backlog exhausts the guest (kernel panic).")
     en.append("")

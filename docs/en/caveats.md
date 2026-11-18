@@ -287,6 +287,23 @@ has no address, translation **without a ruleset reload** within a second of
 the address landing, and `nat-to (egress)` resolving to the default-route
 address.
 
+### 15. Coexistence with netfilter (iptables / nftables / firewalld / Docker)
+
+The port takes packets at the netfilter hooks (`NF_INET_PRE_ROUTING`,
+`LOCAL_OUT`, `POST_ROUTING`) and runs the engine on its own ordered
+workqueue. While PF is **enabled**, the packet is claimed there and the later
+hooks of the same host (the `FORWARD` chain where `iptables`/`nftables` rules
+live) do not see it — that is the price of the design, and it means a host
+that runs both must choose one as the transit filter.
+
+While PF is **disabled** (`pfctl -d`) the hook returns `NF_ACCEPT`, so the
+native stack is untouched and `iptables`/`nftables` rules work exactly as
+without the module. This was not always true: earlier builds kept stealing
+the packet, which made a `FORWARD -j DROP` installed on the same host stop
+matching the moment `pf.ko` was loaded (traffic flowed, the rule's counters
+stayed at zero). The functional matrix in `bench/` is what caught it; gate
+`bench/lab/functest-on-deb.sh` keeps both directions covered.
+
 ## What is *not* a caveat
 
 ARP and other non-IPv4/IPv6 EtherTypes never enter the netfilter IPv4/IPv6

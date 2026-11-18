@@ -152,7 +152,7 @@ C
 cat > "$t/set-nft" <<'C'
 flush ruleset
 table inet b {
-  set blk { type ipv4_addr }
+  set blk { type ipv4_addr; elements = { 10.0.0.2 } }
   chain f {
     type filter hook forward priority 0; policy accept;
     ip saddr @blk ip daddr 10.0.1.0/24 drop
@@ -183,10 +183,19 @@ for be in pf nft ipt-nft ipt-legacy; do
 	# --- SNAT
 	r=$(load "$be" "$t/nat-$suffix")
 	if [ "$r" = ok ]; then
-		g "$KEDGE" "ping -c2 -W2 $DSRV >/dev/null 2>&1" >/dev/null
-		tr=$(g "$FW" 'conntrack -L 2>/dev/null | grep -c "10.0.1.1"')
-		if [ "${tr:-0}" -ge 1 ]; then row "$be" snat pass "conntrack shows the egress translation ($tr entries)"
-		else row "$be" snat limited "no translated entry seen (conntrack=$tr)"; fi
+		# evidence = the source address the server actually sees: iperf3's
+		# server JSON reports the peer, and iperf3 is present in the guest
+		g "$SRV" 'pkill -x iperf3 2>/dev/null; (iperf3 -s -1 -J --logfile /tmp/snat.json >/dev/null 2>&1 &); sleep 0.8; true' >/dev/null
+		g "$KEDGE" "timeout 6 iperf3 -c $DSRV -t 1 -b 5M >/dev/null 2>&1; true" >/dev/null
+		g "$SRV" 'sleep 0.8; pkill -x iperf3 2>/dev/null; true' >/dev/null
+		tr=$(g "$SRV" 'grep -c "10.0.1.1" /tmp/snat.json 2>/dev/null')
+		if [ "${tr:-0}" -ge 1 ]; then
+			row "$be" snat pass "server sees the egress address 10.0.1.1"
+		elif [ -z "$tr" ]; then
+			row "$be" snat limited "server JSON unreadable (iperf3 server?)"
+		else
+			row "$be" snat fail "no translation: the server saw the original source"
+		fi
 	else row "$be" snat n/a "ruleset did not load ($r)"; fi
 
 	# --- address set

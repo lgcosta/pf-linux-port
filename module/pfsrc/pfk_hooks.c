@@ -292,6 +292,13 @@ pfk_enqueue_verdict(int af, struct sk_buff *skb,
 	default:
 		return NF_ACCEPT;	/* LOCAL_IN */
 	}
+	/* pfctl -d: the engine is off, so the packet must stay in the normal
+	 * stack — stealing it here would hide it from every later netfilter
+	 * hook, i.e. iptables/nftables rules on this host would stop working
+	 * the moment pf.ko is loaded. */
+	if (!pf_status.running)
+		return NF_ACCEPT;
+
 	if (skb->mark & PFK_SKIP_PF)
 		return NF_ACCEPT;	/* reinjected by divert: don't re-filter */
 	if (skb->mark & (dir == PF_IN ? PFK_DONE_IN : PFK_DONE_OUT))

@@ -291,6 +291,23 @@ não tem endereço, tradução **sem recarregar o ruleset** dentro de um segundo
 de o endereço aparecer, e `nat-to (egress)` resolvendo para o endereço da
 rota padrão.
 
+### 15. Coexistência com netfilter (iptables / nftables / firewalld / Docker)
+
+O port pega os pacotes nos hooks do netfilter (`NF_INET_PRE_ROUTING`,
+`LOCAL_OUT`, `POST_ROUTING`) e roda o motor na própria workqueue ordenada.
+Com o PF **ligado**, o pacote é reivindicado ali e os hooks seguintes do
+mesmo host (a chain `FORWARD`, onde moram as regras de `iptables`/`nftables`)
+não o veem — é o preço do desenho, e significa que um host com os dois
+precisa escolher um como filtro de trânsito.
+
+Com o PF **desligado** (`pfctl -d`) o hook devolve `NF_ACCEPT`, então a pilha
+nativa fica intacta e as regras de `iptables`/`nftables` funcionam como sem
+o módulo. Nem sempre foi assim: builds anteriores continuavam roubando o
+pacote, o que fazia um `FORWARD -j DROP` instalado no mesmo host parar de
+casar no momento em que `pf.ko` era carregado (o tráfego passava, os
+contadores da regra ficavam em zero). Foi a matriz funcional em `bench/` que
+pegou isso; `bench/lab/functest-on-deb.sh` cobre as duas direções.
+
 ## O que *não* é ressalva
 
 ARP e outros EtherTypes não-IPv4/IPv6 nunca entram nos hooks netfilter de

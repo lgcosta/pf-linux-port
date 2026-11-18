@@ -1,18 +1,18 @@
 backend,feature,result,note
 pf,ipv4_filter,pass,ping blocked through FORWARD
 pf,stateful,pass,new flow dropped, conntrack entries=0
-pf,snat,limited,no translated entry seen (conntrack=0)
+pf,snat,pass,server sees the egress address 10.0.1.1
 pf,addr_set,pass,member address blocked from a set/table
-nft,ipv4_filter,fail,ping still passed with a drop rule
-nft,stateful,fail,new flow passed with policy drop
-nft,snat,limited,no translated entry seen (conntrack=0)
-nft,addr_set,n/a,ruleset did not load ()
-ipt-nft,ipv4_filter,fail,ping still passed with a drop rule
-ipt-nft,stateful,fail,new flow passed with policy drop
-ipt-nft,snat,limited,no translated entry seen (conntrack=0)
+nft,ipv4_filter,pass,ping blocked through FORWARD
+nft,stateful,pass,new flow dropped, conntrack entries=0
+nft,snat,pass,server sees the egress address 10.0.1.1
+nft,addr_set,pass,member address blocked from a set/table
+ipt-nft,ipv4_filter,pass,ping blocked through FORWARD
+ipt-nft,stateful,pass,new flow dropped, conntrack entries=0
+ipt-nft,snat,pass,server sees the egress address 10.0.1.1
 ipt-nft,addr_set,n/a,no native set for this backend (iptables needs ipset, not built)
-ipt-legacy,ipv4_filter,fail,ping still passed with a drop rule
-ipt-legacy,stateful,fail,new flow passed with policy drop
-ipt-legacy,snat,limited,no translated entry seen (conntrack=0)
+ipt-legacy,ipv4_filter,pass,ping blocked through FORWARD
+ipt-legacy,stateful,pass,new flow dropped, conntrack entries=0
+ipt-legacy,snat,pass,server sees the egress address 10.0.1.1
 ipt-legacy,addr_set,n/a,no native set for this backend (iptables needs ipset, not built)
 ipt-legacy,ipv6_filter,pass,rule installed: -P FORWARD ACCEPT
